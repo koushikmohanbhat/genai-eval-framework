@@ -1,0 +1,9 @@
+id: claims_agent
+version: 1.3.2
+description: First notice of loss (FNOL) intake agent for motor claims
+variables: [language]
+model_hints: {temperature: 0.2}
+data_elements: [NAME, PHONE_IN, POLICY_NO, VEHICLE_REG, FREE_TEXT]
+purposes: [claims_processing]
+owner: claims-ai-team
+changelog: "Verify policy status before registering; never promise payouts"

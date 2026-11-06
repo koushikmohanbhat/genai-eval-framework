@@ -1,0 +1,62 @@
+[
+ {
+  "id": "pw-01",
+  "title": "Own damage cover",
+  "text": "Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless."
+ },
+ {
+  "id": "pw-02",
+  "title": "Third-party liability",
+  "text": "Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act."
+ },
+ {
+  "id": "pw-03",
+  "title": "Claim intimation",
+  "text": "You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected."
+ },
+ {
+  "id": "pw-04",
+  "title": "Documents required",
+  "text": "To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage."
+ },
+ {
+  "id": "pw-05",
+  "title": "Theft claims",
+  "text": "For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days."
+ },
+ {
+  "id": "pw-06",
+  "title": "Flood and engine damage",
+  "text": "Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on."
+ },
+ {
+  "id": "pw-07",
+  "title": "Exclusions",
+  "text": "We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing."
+ },
+ {
+  "id": "pw-08",
+  "title": "Zero depreciation add-on",
+  "text": "With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year."
+ },
+ {
+  "id": "pw-09",
+  "title": "No claim bonus",
+  "text": "The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years."
+ },
+ {
+  "id": "pw-10",
+  "title": "Personal accident cover",
+  "text": "Compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident."
+ },
+ {
+  "id": "pw-11",
+  "title": "Grievances",
+  "text": "If you are unhappy with a claim decision, write to the grievance cell. If it is not resolved within 30 days you can approach the Insurance Ombudsman."
+ },
+ {
+  "id": "pw-12",
+  "title": "Cashless garages",
+  "text": "Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs."
+ }
+]

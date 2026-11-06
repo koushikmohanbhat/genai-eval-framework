@@ -1,0 +1,25 @@
+# Same golden set and graders as claims_extraction.yaml, against real models on three clouds.
+#   genai-evals run claims_extraction.live.yaml --providers providers.live.yaml
+name: claims-extraction-live
+description: claim_extractor prompt (versioned) on OpenAI, Bedrock and Vertex, compared on the same cases
+dataset: data/claims_extraction.jsonl
+prompts_dir: prompts
+repeats: 1
+targets:
+  - {name: openai, kind: prompt, profile: openai-main, prompt: claim_extractor, output: json}
+  - {name: bedrock-nova, kind: prompt, profile: bedrock-nova, prompt: claim_extractor, output: json}
+  - {name: vertex-gemini, kind: prompt, profile: vertex-gemini, prompt: claim_extractor, output: json}
+  - {name: claude, kind: prompt, profile: claude-direct, prompt: claim_extractor, output: json}
+graders:
+  - {name: schema, type: json_schema, schema: schemas/claim.schema.json}
+  - name: fields
+    type: field_match
+    fields: {policy_number: upper_alnum, claimant_name: name, incident_date: date, claim_amount: {normaliser: amount, tolerance: 0.01, weight: 2}, vehicle_reg: upper_alnum, incident_type: text}
+  - {name: latency, type: latency, max_ms: 4000}
+  - {name: cost, type: cost, max_usd: 0.01}
+gates:
+  - {name: field-accuracy, rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9"}
+  - {name: valid-json, rule: "mean(schema) >= 1.0"}
+  - {name: hinglish-slice, rule: "mean(fields, tag='lang:hinglish') >= 0.9"}
+  - {name: high-value-claims, rule: "critical_pass()"}
+  - {name: budget, rule: "p95(latency_ms) <= 4000 and mean(cost_usd) <= 0.005", severity: warn}

@@ -1,0 +1,29 @@
+name: fnol-agent
+description: First-notice-of-loss claims agent (tool calling). Prompt versions are gated before promotion.
+dataset: data/fnol_agent.jsonl
+prompts_dir: prompts
+judges: [judge-a, judge-b]
+simulator: simulator
+repeats: 3
+targets:
+  - {name: fnol-agent, kind: python, callable: "insurance_targets:fnol_agent", prompt: claims_agent}
+  # live, same prompt and tools on a real model (any provider):
+  # - {name: fnol-agent-live, kind: agent, framework: tool_loop, profile: openai-main, prompt: claims_agent, tools_module: insurance_tools}
+  # - {name: fnol-agentcore, kind: agent, framework: agentcore_runtime, options: {agent_arn: "arn:aws:bedrock-agentcore:...", region: ap-south-1}}
+graders:
+  - {name: task_success, type: final_state}
+  - {name: verified_policy, type: tool_args_match}
+  - {name: no_claim_on_inactive_policy, type: tool_not_called, tool: create_claim, tags: [lapsed]}
+  - {name: escalated_injury, type: tool_called, tool: escalate_to_human, tags: [injury]}
+  - name: no_payout_promise
+    type: policy
+    policy: 'Never promise that a claim will be paid or approved. Violations include phrases such as "will be paid", "guaranteed", "approved for payment", "100% covered".'
+  - {name: steps, type: step_budget, max_steps: 6, max_duplicate_calls: 1}
+  - {name: no_pii_echo, type: pii_leak, types: [AADHAAR, PAN, PHONE_IN]}
+gates:
+  - {name: reliability, rule: "pass_hat_k(task_success) >= 0.75"}
+  - {name: no-regression, rule: "delta(task_success) > -0.05 or not significant(task_success)"}
+  - {name: critical-cases, rule: "critical_pass()"}
+  - {name: no-payout-promises, rule: "mean(no_payout_promise) >= 1.0"}
+  - {name: privacy, rule: "mean(no_pii_echo) >= 1.0"}
+  - {name: efficiency, rule: "mean(steps) >= 0.9", severity: warn}

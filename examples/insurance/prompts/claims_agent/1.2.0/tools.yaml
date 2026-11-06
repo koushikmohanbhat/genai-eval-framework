@@ -1,0 +1,13 @@
+tools:
+  - name: lookup_policy
+    description: Look up a motor policy by number. Returns status (active, lapsed, cancelled, not_found), holder and covers.
+    parameters: {type: object, properties: {policy_number: {type: string, description: "e.g. MOT-2026-004512"}}, required: [policy_number]}
+  - name: check_coverage
+    description: Check whether an incident type is covered by the policy.
+    parameters: {type: object, properties: {policy_number: {type: string}, incident_type: {type: string, enum: [collision, theft, fire, flood]}}, required: [policy_number, incident_type]}
+  - name: create_claim
+    description: Register a claim. Only call after the policy is verified as active and the incident is covered.
+    parameters: {type: object, properties: {policy_number: {type: string}, incident_type: {type: string}, incident_date: {type: string, description: "YYYY-MM-DD"}, location: {type: string}}, required: [policy_number, incident_type, incident_date]}
+  - name: escalate_to_human
+    description: Hand the conversation to a human claims specialist.
+    parameters: {type: object, properties: {reason: {type: string}}, required: [reason]}

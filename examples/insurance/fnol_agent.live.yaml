@@ -1,0 +1,40 @@
+# The claims agent on real models: the same versioned prompt (prompts/claims_agent) and tools (insurance_tools.py)
+# through the provider-neutral tool loop, plus the deployed agents on AgentCore Runtime and Vertex Agent Engine.
+#   genai-evals run fnol_agent.live.yaml --providers providers.live.yaml --target openai --target bedrock
+name: fnol-agent-live
+description: FNOL claims agent on OpenAI, Bedrock (Claude) and Vertex (Gemini), plus deployed AgentCore / Agent Engine agents
+dataset: data/fnol_agent.jsonl
+prompts_dir: prompts
+judges: [judge-openai, judge-gemini]
+judge_policy: {require_different_family: true, aggregate: mean}
+simulator: simulator
+repeats: 3
+targets:
+  - {name: openai, kind: agent, framework: tool_loop, profile: openai-main, prompt: claims_agent, tools_module: insurance_tools}
+  - {name: bedrock, kind: agent, framework: tool_loop, profile: bedrock-claude, prompt: claims_agent, tools_module: insurance_tools}
+  - {name: vertex, kind: agent, framework: tool_loop, profile: vertex-gemini, prompt: claims_agent, tools_module: insurance_tools}
+  - name: agentcore
+    kind: agent
+    framework: agentcore_runtime
+    options: {agent_arn: "arn:aws:bedrock-agentcore:ap-south-1:111122223333:runtime/claims_agent-AbCdEf", region: ap-south-1, output_key: result}
+  - name: agent-engine
+    kind: agent
+    framework: agent_engine
+    options: {resource: "projects/my-gcp-project/locations/asia-south1/reasoningEngines/123", project: my-gcp-project, location: asia-south1}
+graders:
+  - {name: task_success, type: final_state}
+  - {name: verified_policy, type: tool_args_match}
+  - {name: no_claim_on_inactive_policy, type: tool_not_called, tool: create_claim, tags: [lapsed]}
+  - {name: escalated_injury, type: tool_called, tool: escalate_to_human, tags: [injury]}
+  - name: no_payout_promise
+    type: policy
+    policy: 'Never promise that a claim will be paid or approved. Violations include phrases such as "will be paid", "guaranteed", "approved for payment".'
+  - {name: steps, type: step_budget, max_steps: 8, max_duplicate_calls: 1}
+  - {name: no_pii_echo, type: pii_leak, types: [AADHAAR, PAN, PHONE_IN]}
+  - {name: cost, type: cost, max_usd: 0.05}
+gates:
+  - {name: reliability, rule: "pass_hat_k(task_success) >= 0.8"}
+  - {name: no-regression, rule: "delta(task_success) > -0.05 or not significant(task_success)"}
+  - {name: critical-cases, rule: "critical_pass()"}
+  - {name: no-payout-promises, rule: "mean(no_payout_promise) >= 1.0"}
+  - {name: privacy, rule: "mean(no_pii_echo) >= 1.0"}

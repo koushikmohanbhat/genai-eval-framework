@@ -1,0 +1,25 @@
+# AWS Distro for OpenTelemetry collector: receive OTLP from agents and from `genai-evals --otel`, redact Indian
+# identifiers in GenAI attributes, export traces to X-Ray / CloudWatch (Transaction Search) and metrics as EMF.
+receivers:
+  otlp:
+    protocols: {grpc: {endpoint: 0.0.0.0:4317}, http: {endpoint: 0.0.0.0:4318}}
+processors:
+  batch: {}
+  transform/redact_pii:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # Aadhaar (12 digits, optional separators), PAN, +91 mobile numbers, emails, UPI ids in prompt/response attributes
+          - replace_all_patterns(attributes, "value", "\\b[2-9]\\d{3}[ -]?\\d{4}[ -]?\\d{4}\\b", "<AADHAAR>")
+          - replace_all_patterns(attributes, "value", "\\b[A-Z]{3}[ABCFGHLJPT][A-Z]\\d{4}[A-Z]\\b", "<PAN>")
+          - replace_all_patterns(attributes, "value", "(\\+91[ -]?)?\\b[6-9]\\d{4}[ -]?\\d{5}\\b", "<PHONE_IN>")
+          - replace_all_patterns(attributes, "value", "[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+", "<EMAIL>")
+          - replace_all_patterns(attributes, "value", "[A-Za-z0-9._-]{2,256}@[a-zA-Z]{2,64}\\b", "<UPI_ID>")
+exporters:
+  awsxray: {region: "${env:AWS_REGION}", indexed_attributes: [session.id, prompt.version, genai_eval.suite]}
+  awsemf: {region: "${env:AWS_REGION}", namespace: GenAIEvals, dimension_rollup_option: NoDimensionRollup}
+service:
+  pipelines:
+    traces: {receivers: [otlp], processors: [transform/redact_pii, batch], exporters: [awsxray]}
+    metrics: {receivers: [otlp], processors: [batch], exporters: [awsemf]}

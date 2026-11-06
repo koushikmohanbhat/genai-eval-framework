@@ -1,0 +1,9 @@
+id: policy_qa
+version: 1.0.0
+description: Answer policyholder questions from the policy wording only, with citations
+template: user.md.j2
+model_hints: {temperature: 0}
+data_elements: [FREE_TEXT]
+purposes: [customer_service]
+owner: service-ai-team
+changelog: "Initial version"

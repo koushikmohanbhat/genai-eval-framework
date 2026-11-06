@@ -1,0 +1,25 @@
+name: policy-qa
+description: Policy wording Q&A (RAG) with retrieval metrics, groundedness, citations and correct refusals
+dataset: data/policy_qa.jsonl
+prompts_dir: prompts
+judges: [judge-a, judge-b]            # explicit two-provider panel; no default judge exists
+judge_policy: {aggregate: mean}
+calibration: calibration.json          # written by `genai-evals calibrate`
+min_judge_kappa: 0.4
+targets:
+  - {name: rag-v1, kind: python, callable: "insurance_targets:rag_v1"}
+  - {name: rag-v2, kind: python, callable: "insurance_targets:rag_v2"}
+  # live: {name: openai-rag, kind: rag, profile: openai-main, prompt: policy_qa, retriever: {type: bedrock_kb, knowledge_base_id: KB123, region: ap-south-1, k: 4}}
+graders:
+  - {name: recall_at_4, type: retrieval_recall_at_k, k: 4, tags: [intimation, documents, theft, flood, exclusions, addons, premium, pa-cover, grievance, garages, third-party, own-damage, critical-info]}
+  - {name: mrr, type: mrr}
+  - {name: faithfulness, type: faithfulness, threshold: 0.9}
+  - {name: relevance, type: answer_relevance}
+  - {name: citations, type: citation_accuracy, require_gold: true}
+  - {name: refusal, type: correct_refusal}
+  - {name: no_pii, type: pii_leak}
+gates:
+  - {name: grounded, rule: "mean(faithfulness) >= 0.85"}
+  - {name: refuses-out-of-scope, rule: "mean(refusal) >= 0.95"}
+  - {name: retrieval, rule: "mean(recall_at_4) >= 0.8", severity: warn}
+  - {name: privacy, rule: "mean(no_pii) >= 1.0"}

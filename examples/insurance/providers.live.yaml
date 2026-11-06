@@ -1,0 +1,57 @@
+# Real providers. Secrets come from env vars or a secret manager, never from this file.
+# Pin exact model snapshots; prices are per million tokens (fill in your contracted rates).
+profiles:
+  openai-main:
+    provider: openai
+    model: <pinned OpenAI model snapshot>
+    auth: {api_key_env: OPENAI_API_KEY}
+    options: {store: false}
+    pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0, cached_input_per_mtok: 0.0}
+  claude-direct:
+    provider: anthropic
+    model: <pinned Claude model>
+    auth: {api_key_env: ANTHROPIC_API_KEY}
+    pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
+  bedrock-claude:
+    provider: bedrock
+    model: <Bedrock model id or inference profile ARN>
+    region: ap-south-1
+    auth: {aws_profile: partner-eval}
+    pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
+  bedrock-nova:
+    provider: bedrock
+    model: <Amazon Nova model id>
+    region: ap-south-1
+    pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
+  vertex-gemini:
+    provider: vertex
+    model: <pinned Gemini version>
+    project: my-gcp-project
+    location: asia-south1
+    auth: {adc: true}
+    pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
+  vertex-claude:
+    provider: vertex_anthropic
+    model: <pinned Claude model on Vertex>
+    project: my-gcp-project
+    location: <supported region>
+  # Two-provider judge panel used by the live suites (judges must always be named explicitly).
+  judge-openai:
+    provider: openai
+    model: <pinned OpenAI model snapshot>
+    auth: {api_key_env: OPENAI_API_KEY}
+    options: {store: false}
+  judge-gemini:
+    provider: vertex
+    model: <pinned Gemini version>
+    project: my-gcp-project
+    location: asia-south1
+  simulator:
+    provider: anthropic
+    model: <pinned Claude model>
+    auth: {api_key_env: ANTHROPIC_API_KEY}
+  embeddings:
+    provider: openai
+    model: <embedding model>
+    auth: {api_key_env: OPENAI_API_KEY}
+    options: {embedding_model: <embedding model>}

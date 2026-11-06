@@ -1,0 +1,26 @@
+# Production telemetry for online evals. `fixture:` reads recorded records (offline demo / CI);
+# remove it to call the live APIs (read-only IAM, runs in the customer's own account / project).
+sources:
+  - name: claims-agent-aws
+    type: aws_agentcore_observability
+    fixture: fixtures/aws/aws_spans.jsonl
+    region: ap-south-1
+    log_group: aws/spans
+    filter: {service_name: claims-agent}
+    window: {last: 24h}
+    sampling: 1.0
+    join:
+      - {type: aws_bedrock_invocation_logs, fixture: fixtures/aws/bedrock_invocation_logs.jsonl, log_group: /aws/bedrock/modelinvocations, region: ap-south-1}
+      - {type: aws_agentcore_memory, fixture: fixtures/aws/agentcore_memory_events.jsonl, memory_id: claims_agent_mem-AbC123, region: ap-south-1}
+      - {type: aws_agentcore_evaluations, fixture: fixtures/aws/agentcore_evaluations_results.jsonl, log_group: /aws/bedrock-agentcore/evaluations/results}
+      - {type: aws_cloudwatch_metrics, fixture: fixtures/aws/cloudwatch_metrics.json, region: ap-south-1}
+  - name: claims-agent-gcp
+    type: gcp_cloud_trace
+    fixture: fixtures/gcp/cloud_trace_spans.jsonl
+    project: my-gcp-project
+    filter: {service_name: claims-agent-gcp}
+    window: {last: 24h}
+    join:
+      - {type: gcp_vertex_request_response, fixture: fixtures/gcp/vertex_request_response.jsonl, table: "bq://my-gcp-project.logging.request_response_logging"}
+      - {type: gcp_agent_engine_sessions, fixture: fixtures/gcp/agent_engine_session_events.jsonl, resource: "projects/my-gcp-project/locations/asia-south1/reasoningEngines/123"}
+      - {type: gcp_cloud_monitoring, fixture: fixtures/gcp/cloud_monitoring.json, project: my-gcp-project}
