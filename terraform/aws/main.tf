@@ -8,8 +8,8 @@ terraform {
 }
 
 variable "region" {
-  type = string
-  default = "ap-south-1"
+  type        = string
+  description = "AWS region of the agent telemetry and the eval job (no default: set it in terraform.tfvars)"
 }
 variable "name" {
   type = string
@@ -43,6 +43,11 @@ variable "judge_model_arns" {
   type = list(string)
   default = []
 }      # Bedrock models / inference profiles used as judges
+variable "environment" {
+  type        = map(string)
+  default     = {}
+  description = "Extra environment variables for the eval container (the ${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, BEDROCK_INVOCATION_LOG_GROUP. No secrets: use secret refs in providers.yaml."
+}
 variable "subnet_ids" {
   type = list(string)
 }
@@ -94,7 +99,7 @@ data "aws_iam_policy_document" "read" {
     for_each = length(var.judge_model_arns) > 0 ? [1] : []
     content {
       sid       = "InvokeJudgeModels"
-      actions   = ["bedrock:InvokeModel", "bedrock:Converse"]
+      actions   = ["bedrock:InvokeModel"]   # Converse and ConverseStream are authorised by bedrock:InvokeModel
       resources = var.judge_model_arns
     }
   }
@@ -147,7 +152,7 @@ resource "aws_ecs_task_definition" "online" {
     image            = var.image_uri
     command          = var.command
     essential        = true
-    environment      = [{ name = "AWS_REGION", value = var.region }]
+    environment      = [for k, v in merge(var.environment, { AWS_REGION = var.region }) : { name = k, value = v }]
     logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.job.name, awslogs-region = var.region, awslogs-stream-prefix = "online" } }
   }])
 }

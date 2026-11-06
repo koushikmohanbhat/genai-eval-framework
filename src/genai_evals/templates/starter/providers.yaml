@@ -1,0 +1,26 @@
+# Offline profiles: deterministic mocks, no network, no keys. `genai-evals run suite.yaml` works out of the box.
+# Responses are matched on the customer's question (keys are lower-case substrings).
+# For real models use providers.live.yaml (set GENAI_EVALS_PROVIDERS=providers.live.yaml in your .env).
+profiles:
+  offline-model:
+    provider: mock
+    model: scripted-assistant
+    options:
+      mode: scripted
+      default: "I'm sorry, I can't help with that. Please contact our support team."
+      responses:
+        "what are your support hours": "Our support team is available from 9am to 6pm IST, Monday to Saturday."
+        "how do i reset my password": "Use the Forgot password link on the sign-in page and follow the email instructions."
+        "refund after 30 days": "Refunds are available within 30 days of purchase. After 30 days we can offer store credit."
+        "ceo's home address": "I can't share personal information about anyone. Is there something else I can help with?"
+        "can you update my account": "I can help with that. For your security, please update account details from the Profile page after signing in."
+  offline-judge-a:
+    provider: mock
+    model: heuristic-judge-a
+    family: openai
+    options: {mode: judge, strictness: 1.0}
+  offline-judge-b:
+    provider: mock
+    model: heuristic-judge-b
+    family: google
+    options: {mode: judge, strictness: 1.2}

@@ -9,9 +9,16 @@ Built as a reusable partner accelerator: GSIs and ISVs can brand it, run a two-w
 leave the customer with gates in their pipeline and quality alarms next to their existing ones.
 
 ```bash
-pip install -e ".[dev]"
-python examples/insurance/demo.py          # fully offline, no keys, ~2 seconds
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@main"
+genai-evals init evals && cd evals && genai-evals run suite.yaml     # starter project, runs offline with no keys
 ```
+
+**Partners: start with [Getting started](docs/getting-started.md).** It covers installing, scaffolding your own evals
+project, connecting real models on AWS, Google Cloud, OpenAI or Anthropic, CI gates and online evals.
+
+This repo ships **no settings**: no accounts, regions, projects, model ids or keys. Your suites, datasets and prompts
+live in your own (or your customer's) repo, and every environment-specific value comes from an environment variable
+(`${AWS_REGION}`, `${GCP_PROJECT}`, ...) or a secret manager. See [configuration](docs/configuration.md).
 
 ---
 
@@ -76,12 +83,12 @@ blocks it, because claims are now being created on lapsed policies.
 ## Configuration in one page
 
 ```yaml
-# providers.yaml: secrets come from env vars or a secret manager, never this file
+# providers.live.yaml: values come from environment variables; secrets from env vars or a secret manager
 profiles:
-  openai-main:   {provider: openai, model: <snapshot>, auth: {api_key_env: OPENAI_API_KEY}, options: {store: false}}
-  bedrock-claude: {provider: bedrock, model: <model id / inference profile ARN>, region: ap-south-1}
-  vertex-gemini: {provider: vertex, model: <version>, project: my-proj, location: asia-south1}
-  claude-direct: {provider: anthropic, model: <model>, auth: {api_key_secret: "aws-sm://prod/anthropic"}}
+  openai-main:    {provider: openai, model: "${OPENAI_MODEL}", auth: {api_key_env: OPENAI_API_KEY}, options: {store: false}}
+  bedrock-claude: {provider: bedrock, model: "${BEDROCK_MODEL_ID}", region: "${AWS_REGION}"}
+  vertex-gemini:  {provider: vertex, model: "${VERTEX_MODEL}", project: "${GCP_PROJECT}", location: "${GCP_LOCATION}"}
+  claude-direct:  {provider: anthropic, model: "${ANTHROPIC_MODEL}", auth: {api_key_secret: "${ANTHROPIC_KEY_SECRET}"}}
 ```
 
 ```yaml
@@ -110,22 +117,23 @@ gates:
 sources:
   - name: claims-agent-aws
     type: aws_agentcore_observability            # CloudWatch aws/spans
-    region: ap-south-1
-    filter: {service_name: claims-agent}
+    region: "${AWS_REGION}"
+    filter: {service_name: "${AGENT_SERVICE_NAME}"}
     sampling: 0.05
     join:
-      - {type: aws_bedrock_invocation_logs, log_group: /aws/bedrock/modelinvocations}   # prompts when span content is off
-      - {type: aws_agentcore_memory, memory_id: mem-abc}
+      - {type: aws_bedrock_invocation_logs, log_group: "${BEDROCK_INVOCATION_LOG_GROUP}"}   # prompts when span content is off
+      - {type: aws_agentcore_memory, memory_id: "${AGENTCORE_MEMORY_ID}"}
   - name: claims-agent-gcp
     type: gcp_cloud_trace                        # spans received via the Telemetry API (OTLP)
-    project: my-proj
+    project: "${GCP_PROJECT}"
     join:
-      - {type: gcp_vertex_request_response, table: "bq://my-proj.logging.request_response_logging"}
+      - {type: gcp_vertex_request_response, table: "${VERTEX_REQUEST_RESPONSE_TABLE}"}
 ```
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
+- **Set up:** [Getting started](docs/getting-started.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Troubleshooting](docs/troubleshooting.md)
+- **Concepts:** [Architecture](docs/architecture.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
 - [Graders and judges](docs/graders.md) · [Statistics and gates](docs/gates.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
 - [DPDP-safe eval data](docs/dpdp.md) · [Partner packaging](docs/partner-playbook.md) · [Limitations](docs/limitations.md) · [Roadmap](docs/roadmap.md)
 

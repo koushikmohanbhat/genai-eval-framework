@@ -16,11 +16,11 @@ targets:
   - name: agentcore
     kind: agent
     framework: agentcore_runtime
-    options: {agent_arn: "arn:aws:bedrock-agentcore:ap-south-1:111122223333:runtime/claims_agent-AbCdEf", region: ap-south-1, output_key: result}
+    options: {agent_arn: "${AGENTCORE_AGENT_ARN:-<agentcore-runtime-arn>}", region: "${AWS_REGION:-<aws-region>}", output_key: result}
   - name: agent-engine
     kind: agent
     framework: agent_engine
-    options: {resource: "projects/my-gcp-project/locations/asia-south1/reasoningEngines/123", project: my-gcp-project, location: asia-south1}
+    options: {resource: "${AGENT_ENGINE_RESOURCE:-<projects/p/locations/l/reasoningEngines/id>}", project: "${GCP_PROJECT:-<gcp-project>}", location: "${GCP_LOCATION:-<gcp-location>}"}
 graders:
   - {name: task_success, type: final_state}
   - {name: verified_policy, type: tool_args_match}

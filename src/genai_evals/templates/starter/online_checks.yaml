@@ -1,0 +1,17 @@
+# Online suite: reference-free checks on sampled production traffic pulled by sources.yaml.
+# No `targets` (the samples come from your telemetry) and no `dataset`.
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloudwatch        # AWS
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloud_monitoring  # Google Cloud
+name: online-checks
+description: Privacy, policy and latency checks on production sessions
+judges: ["${EVAL_JUDGE_A:-offline-judge-a}", "${EVAL_JUDGE_B:-offline-judge-b}"]
+graders:
+  - {name: no_pii_echo, type: pii_leak}
+  - name: policy
+    type: policy
+    policy: "Replace with your own rule, e.g. never promise refunds, never give medical or legal advice."
+  - {name: latency, type: latency, max_ms: 8000}
+gates:
+  - {name: privacy, rule: "mean(no_pii_echo) >= 1.0"}
+  - {name: policy, rule: "mean(policy) >= 0.99"}
+  - {name: latency, rule: "p95(latency_ms) <= 8000", severity: warn}

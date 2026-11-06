@@ -9,7 +9,7 @@ targets:
   - {name: fnol-agent, kind: python, callable: "insurance_targets:fnol_agent", prompt: claims_agent}
   # live, same prompt and tools on a real model (any provider):
   # - {name: fnol-agent-live, kind: agent, framework: tool_loop, profile: openai-main, prompt: claims_agent, tools_module: insurance_tools}
-  # - {name: fnol-agentcore, kind: agent, framework: agentcore_runtime, options: {agent_arn: "arn:aws:bedrock-agentcore:...", region: ap-south-1}}
+  # - {name: fnol-agentcore, kind: agent, framework: agentcore_runtime, options: {agent_arn: "arn:aws:bedrock-agentcore:...", region: "${AWS_REGION}"}}
 graders:
   - {name: task_success, type: final_state}
   - {name: verified_policy, type: tool_args_match}

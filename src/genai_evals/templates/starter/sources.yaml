@@ -1,0 +1,34 @@
+# Online evals: grade sampled production traffic straight from native telemetry. Read-only; runs in your own
+# account / project. Keep the source for your cloud and delete the other. All environment-specific values come
+# from environment variables (see .env.example).
+#
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloudwatch      # AWS
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloud_monitoring  # Google Cloud
+#
+# online_checks.yaml is a normal suite without `targets` (samples come from these sources) and usually without
+# reference-based graders: use policy, pii_leak, latency, faithfulness (when context is captured), rubric.
+sources:
+  # ------------------------------------------------------------ AWS: AgentCore Observability spans in CloudWatch
+  - name: agent-aws
+    type: aws_agentcore_observability
+    region: "${AWS_REGION}"
+    log_group: "${AGENTCORE_SPANS_LOG_GROUP:-aws/spans}"
+    filter: {service_name: "${AGENT_SERVICE_NAME}"}
+    window: {last: 24h}
+    sampling: "${ONLINE_SAMPLING:-0.05}"
+    join:
+      # prompts and completions when span content capture is off (needs Bedrock model invocation logging)
+      - {type: aws_bedrock_invocation_logs, log_group: "${BEDROCK_INVOCATION_LOG_GROUP}", region: "${AWS_REGION}"}
+      # - {type: aws_agentcore_memory, memory_id: "${AGENTCORE_MEMORY_ID}", region: "${AWS_REGION}"}
+      # - {type: aws_agentcore_evaluations, log_group: "${AGENTCORE_EVAL_RESULTS_LOG_GROUP}", region: "${AWS_REGION}"}
+
+  # ------------------------------------------------------------ Google Cloud: Cloud Trace (spans via the Telemetry API)
+  - name: agent-gcp
+    type: gcp_cloud_trace
+    project: "${GCP_PROJECT}"
+    filter: {service_name: "${AGENT_SERVICE_NAME}"}
+    window: {last: 24h}
+    join:
+      # prompts and completions when span content capture is off (needs Vertex request-response logging)
+      - {type: gcp_vertex_request_response, table: "${VERTEX_REQUEST_RESPONSE_TABLE}"}   # bq://project.dataset.table
+      # - {type: gcp_agent_engine_sessions, resource: "${AGENT_ENGINE_RESOURCE}"}

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+- No environment-specific settings in the repo: every YAML value can come from `${VAR}`, `${VAR:-default}` or
+  `${VAR-default}`; missing variables are reported by name. `.env` is loaded automatically (`--env-file` to choose);
+  existing environment variables win.
+- `genai-evals init <dir>`: scaffolds a starter evals project for a partner's or customer's own repo (offline and
+  live providers, suite, sources, online checks, dataset, versioned prompt, `.env.example`, GitHub Actions workflow).
+- Example live configs, Terraform (no region defaults, `environment` map, `terraform.tfvars.example`) and the
+  Dockerfile (no suites baked in) no longer carry environment-specific values.
+- New docs: getting started, configuration reference, AWS / Google Cloud / OpenAI and Anthropic setup,
+  troubleshooting; expanded Terraform guide. Install instructions point at GitHub until a PyPI release.
+
 ## 0.1.0 (2026-11-06)
 - Evals as code: suites, datasets (JSONL / JSON / CSV / Parquet), targets, graders, gates.
 - Providers: OpenAI Responses, OpenAI-compatible, Anthropic (direct / Vertex), Bedrock Converse, Vertex Gemini, mock.

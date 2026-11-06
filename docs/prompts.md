@@ -52,10 +52,10 @@ tag `prompt:<id>@<version>`).
 ## Registry mirror (optional)
 
 ```bash
-genai-evals prompts push claims_agent --to bedrock --region ap-south-1            # dry run prints the payload
-genai-evals prompts push claims_agent --to bedrock --region ap-south-1 --apply    # CreatePrompt / CreatePromptVersion
+genai-evals prompts push claims_agent --to bedrock --region "$AWS_REGION"            # dry run prints the payload
+genai-evals prompts push claims_agent --to bedrock --region "$AWS_REGION" --apply    # CreatePrompt / CreatePromptVersion
 genai-evals prompts push claims_agent --to langfuse --apply
-genai-evals prompts push claims_agent --to vertex --project p --location l --apply   # experimental (preview SDK)
+genai-evals prompts push claims_agent --to vertex --project "$GCP_PROJECT" --location "$GCP_LOCATION" --apply   # experimental (preview SDK)
 ```
 
 The repo stays the source of truth, and the registry is a mirror.

@@ -1,0 +1,8 @@
+id: assistant
+version: 1.0.0                 # bump for every change: copy this folder to 1.0.1 / 1.1.0 and edit the copy
+description: Support assistant that answers only from the knowledge snippet
+model_hints: {temperature: 0}
+data_elements: [FREE_TEXT]     # personal data this prompt asks for or handles (DPDP)
+purposes: [customer_service]
+owner: your-team
+changelog: "Initial version"

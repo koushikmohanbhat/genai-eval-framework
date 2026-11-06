@@ -1,0 +1,4 @@
+.env
+.genai-evals/
+genai-evals-out/
+calibration.json

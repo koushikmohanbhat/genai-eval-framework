@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars (do not commit it) and fill in the customer's values.
+region             = "<aws-region>"
+image_uri          = "<account>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>"   # your derived image with /evals
+subnet_ids         = ["<subnet-id>"]
+security_group_ids = ["<security-group-id>"]
+
+# where the telemetry lives
+spans_log_group      = "aws/spans"                        # or /aws/bedrock-agentcore/runtimes/<agent-id>-<endpoint>
+invocation_log_group = "<bedrock invocation log group>"
+# extra_log_group_arns  = ["<AgentCore Evaluations results log group ARN>"]
+# agentcore_memory_arns = ["<AgentCore Memory ARN>"]
+# judge_model_arns      = ["<Bedrock model or inference profile ARN used as a judge>"]
+
+# schedule = "cron(15 2 * * ? *)"
+
+# values for the ${VAR} references in your sources.yaml / providers.live.yaml (no secrets here)
+environment = {
+  AGENT_SERVICE_NAME           = "<agent OTel service.name>"
+  BEDROCK_INVOCATION_LOG_GROUP = "<bedrock invocation log group>"
+  # EVAL_JUDGE_A = "<judge profile>"
+  # EVAL_JUDGE_B = "<judge profile>"
+}

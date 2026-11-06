@@ -52,36 +52,41 @@ Joins match on trace id, then session id, then time window plus model.
 
 ## Example
 
+Every account-specific value is an environment variable (see [configuration](configuration.md#environment-variables)).
+
 ```yaml
 sources:
   - name: claims-agent-aws
     type: aws_agentcore_observability
-    region: ap-south-1
-    log_group: aws/spans
-    filter: {service_name: claims-agent, agent_arn: "arn:aws:bedrock-agentcore:..."}
+    region: "${AWS_REGION}"
+    log_group: "${AGENTCORE_SPANS_LOG_GROUP:-aws/spans}"
+    filter: {service_name: "${AGENT_SERVICE_NAME}", agent_arn: "${AGENTCORE_AGENT_ARN}"}
     window: {last: 24h}
     sampling: 0.05
     group_by: session
     join:
-      - {type: aws_bedrock_invocation_logs, log_group: /aws/bedrock/modelinvocations}
-      - {type: aws_agentcore_memory, memory_id: mem-abc, actor_id: default}
-      - {type: aws_agentcore_evaluations, log_group: <evaluation results log group>}
-      - {type: aws_cloudwatch_metrics, dimensions: {ModelId: "<model id>"}}
+      - {type: aws_bedrock_invocation_logs, log_group: "${BEDROCK_INVOCATION_LOG_GROUP}"}
+      - {type: aws_agentcore_memory, memory_id: "${AGENTCORE_MEMORY_ID}", actor_id: default}
+      - {type: aws_agentcore_evaluations, log_group: "${AGENTCORE_EVAL_RESULTS_LOG_GROUP}"}
+      - {type: aws_cloudwatch_metrics, dimensions: {ModelId: "${BEDROCK_MODEL_ID}"}}
   - name: claims-agent-gcp
     type: gcp_cloud_trace
-    project: my-proj
-    filter: {service_name: claims-agent-gcp}
+    project: "${GCP_PROJECT}"
+    filter: {service_name: "${AGENT_SERVICE_NAME}"}
     join:
-      - {type: gcp_vertex_request_response, table: "bq://my-proj.logging.request_response_logging",
+      - {type: gcp_vertex_request_response, table: "${VERTEX_REQUEST_RESPONSE_TABLE}",
          columns: {request: full_request, response: full_response, time: logging_time, model: model}}
-      - {type: gcp_agent_engine_sessions, resource: "projects/my-proj/locations/asia-south1/reasoningEngines/123", location: asia-south1}
-      - {type: gcp_cloud_monitoring, project: my-proj}
+      - {type: gcp_agent_engine_sessions, resource: "${AGENT_ENGINE_RESOURCE}", location: "${GCP_LOCATION}"}
+      - {type: gcp_cloud_monitoring, project: "${GCP_PROJECT}"}
 ```
 
 ```bash
-genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloudwatch --region ap-south-1
-genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloud_monitoring --project my-proj
+genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloudwatch --region "$AWS_REGION"
+genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloud_monitoring --project "$GCP_PROJECT"
 ```
+
+What has to be switched on in each cloud before these sources return data is in [AWS setup](setup-aws.md) and
+[Google Cloud setup](setup-gcp.md).
 
 ## OpenAI Agents SDK
 

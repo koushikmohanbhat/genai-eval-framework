@@ -4,8 +4,9 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN pip install --no-cache-dir ".[aws,gcp,openai,anthropic,otel]"
-# Put your suites, prompts, datasets and sources.yaml in /evals (COPY in a derived image or mount at runtime).
-COPY examples/insurance /evals
+# No suites or settings are baked in. Build a derived image that copies your own evals project into /evals
+# (FROM <this image> / COPY evals/ /evals/), or mount it at runtime. Settings come from environment variables.
+RUN mkdir -p /evals && chown evals /evals
 USER evals
 WORKDIR /evals
 ENTRYPOINT ["genai-evals"]

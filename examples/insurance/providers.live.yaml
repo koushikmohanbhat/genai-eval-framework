@@ -15,25 +15,25 @@ profiles:
   bedrock-claude:
     provider: bedrock
     model: <Bedrock model id or inference profile ARN>
-    region: ap-south-1
+    region: "${AWS_REGION:-<aws-region>}"
     auth: {aws_profile: partner-eval}
     pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
   bedrock-nova:
     provider: bedrock
     model: <Amazon Nova model id>
-    region: ap-south-1
+    region: "${AWS_REGION:-<aws-region>}"
     pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
   vertex-gemini:
     provider: vertex
     model: <pinned Gemini version>
-    project: my-gcp-project
-    location: asia-south1
+    project: "${GCP_PROJECT:-<gcp-project>}"
+    location: "${GCP_LOCATION:-<gcp-location>}"
     auth: {adc: true}
     pricing: {input_per_mtok: 0.0, output_per_mtok: 0.0}
   vertex-claude:
     provider: vertex_anthropic
     model: <pinned Claude model on Vertex>
-    project: my-gcp-project
+    project: "${GCP_PROJECT:-<gcp-project>}"
     location: <supported region>
   # Two-provider judge panel used by the live suites (judges must always be named explicitly).
   judge-openai:
@@ -44,8 +44,8 @@ profiles:
   judge-gemini:
     provider: vertex
     model: <pinned Gemini version>
-    project: my-gcp-project
-    location: asia-south1
+    project: "${GCP_PROJECT:-<gcp-project>}"
+    location: "${GCP_LOCATION:-<gcp-location>}"
   simulator:
     provider: anthropic
     model: <pinned Claude model>

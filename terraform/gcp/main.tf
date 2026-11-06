@@ -10,8 +10,8 @@ variable "project" {
   type = string
 }
 variable "region" {
-  type = string
-  default = "asia-south1"
+  type        = string
+  description = "Cloud Run / Cloud Scheduler region (no default: set it in terraform.tfvars)"
 }
 variable "name" {
   type = string
@@ -28,6 +28,11 @@ variable "schedule" {
 variable "request_response_dataset" {
   type = string
   description = "BigQuery dataset holding Vertex request-response logs"
+}
+variable "environment" {
+  type        = map(string)
+  default     = {}
+  description = "Extra environment variables for the eval container (the ${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, VERTEX_REQUEST_RESPONSE_TABLE. No secrets: use secret refs in providers.yaml."
 }
 variable "use_vertex_judges" {
   type = bool
@@ -78,6 +83,13 @@ resource "google_cloud_run_v2_job" "online" {
         image   = var.image
         command = ["genai-evals"]
         args    = ["online", "--sources", "/evals/sources.yaml", "--suite", "/evals/online_checks.yaml", "--publish", "cloud_monitoring", "--project", var.project, "--no-html"]
+        dynamic "env" {
+          for_each = merge(var.environment, { GCP_PROJECT = var.project })
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
       }
     }
   }

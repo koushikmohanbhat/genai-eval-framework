@@ -290,7 +290,14 @@ def cmd_check_config(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="genai-evals", description="Evals as code for GenAI apps and agents")
     ap.add_argument("--version", action="version", version=f"genai-evals {__version__}")
+    ap.add_argument("--env-file", help="load KEY=VALUE settings from this file (default: ./.env if it exists); "
+                    "existing environment variables win")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("init", help="scaffold a starter evals project (providers, suite, sources, dataset, prompt, CI)")
+    p.add_argument("directory", nargs="?", default="evals")
+    p.add_argument("--force", action="store_true", help="overwrite files that already exist")
+    p.set_defaults(fn=cmd_init)
 
     def outputs(p):
         p.add_argument("--out", help="output folder (default .genai-evals/runs/<run_id>)")
@@ -420,15 +427,45 @@ def _promptfoo_dispatch(args) -> int:
     return cmd_promptfoo(args)
 
 
+def cmd_init(args) -> int:
+    from .scaffold import scaffold
+
+    written, skipped = scaffold(Path(args.directory), force=args.force)
+    for f in written:
+        print(f"  created {f}")
+    for f in skipped:
+        print(f"  kept    {f} (exists; use --force to overwrite)")
+    print(f"""
+Next steps:
+  cd {args.directory}
+  genai-evals run suite.yaml            # runs offline with mock profiles, no keys needed
+  cp .env.example .env                  # then fill in your own regions, projects, model ids, ARNs
+  # edit suite.yaml: point targets and judges at your live profiles (see README.md in {args.directory})
+""")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    from .config import MissingEnvError, load_env_file
+
+    env_file = args.env_file or (".env" if Path(".env").exists() else None)
+    if env_file:
+        if not Path(env_file).exists():
+            print(f"error: env file {env_file} not found", file=sys.stderr)
+            return 2
+        load_env_file(env_file)
     try:
         return args.fn(args)
     except Exception as e:  # noqa: BLE001
         from pydantic import ValidationError
+        from yaml import YAMLError
 
         from .runner import SuiteError
-        if isinstance(e, (SuiteError, KeyError, FileNotFoundError, ValidationError)):
+        if isinstance(e, YAMLError):
+            print(f"error: invalid YAML: {e}\nhint: quote values that contain ${{VAR}} inside {{...}} or [...]", file=sys.stderr)
+            return 2
+        if isinstance(e, (SuiteError, KeyError, FileNotFoundError, ValidationError, MissingEnvError)):
             print(f"error: {e}", file=sys.stderr)
             return 2
         raise

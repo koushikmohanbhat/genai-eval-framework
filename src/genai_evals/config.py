@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -159,9 +161,72 @@ class SuiteSpec(BaseModel):
         return pp if pp.is_absolute() else Path(self.base_dir) / pp
 
 
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?-)([^}]*))?\}")
+
+
+class MissingEnvError(ValueError):
+    pass
+
+
+def interpolate_env(obj: Any, env: dict[str, str] | None = None, missing: set[str] | None = None) -> Any:
+    """Replace ``${VAR}``, ``${VAR:-default}`` and ``${VAR-default}`` in string values.
+
+    Settings that differ per partner or customer (regions, projects, ARNs, model ids, log groups) are
+    read from the environment, so the YAML in a repo never holds them. ``$${VAR}`` escapes a literal.
+    """
+    env = os.environ if env is None else env
+    if isinstance(obj, str):
+        def sub(m: re.Match) -> str:
+            name, op, default = m.group(1), m.group(2), m.group(3)
+            val = env.get(name)
+            if val is None or (op == ":-" and val == ""):
+                if op is not None:
+                    return default
+                if missing is not None:
+                    missing.add(name)
+                return m.group(0)
+            return val
+        out = _ENV_REF.sub(sub, obj.replace("$${", "\x00"))
+        return out.replace("\x00", "${")
+    if isinstance(obj, list):
+        return [interpolate_env(x, env, missing) for x in obj]
+    if isinstance(obj, dict):
+        return {k: interpolate_env(v, env, missing) for k, v in obj.items()}
+    return obj
+
+
 def _load_yaml(path: str | Path) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        data = yaml.safe_load(f) or {}
+    missing: set[str] = set()
+    data = interpolate_env(data, missing=missing)
+    if missing:
+        raise MissingEnvError(
+            f"{path}: environment variable(s) not set: {', '.join(sorted(missing))}. "
+            "Set them in your shell or a .env file (see .env.example), or give a default with ${VAR:-value}."
+        )
+    return data
+
+
+def load_env_file(path: str | Path, override: bool = False) -> list[str]:
+    """Minimal ``.env`` loader (KEY=VALUE, ``#`` comments, optional quotes). Returns the keys it set."""
+    set_keys = []
+    for raw in Path(path).read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        elif " #" in val:
+            val = val.split(" #", 1)[0].rstrip()
+        if override or key not in os.environ:
+            os.environ[key] = val
+            set_keys.append(key)
+    return set_keys
 
 
 def load_providers(path: str | Path | None) -> ProvidersConfig:
