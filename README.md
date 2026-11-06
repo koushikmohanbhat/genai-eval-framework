@@ -9,7 +9,7 @@ Built as a reusable partner accelerator: GSIs and ISVs can brand it, run a two-w
 leave the customer with gates in their pipeline and quality alarms next to their existing ones.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@main"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.1.0"
 genai-evals init evals && cd evals && genai-evals run suite.yaml     # starter project, runs offline with no keys
 ```
 

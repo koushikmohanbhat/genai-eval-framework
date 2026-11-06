@@ -33,8 +33,8 @@ jobs:
       - uses: google-github-actions/auth@v2
         if: vars.GCP_WIF_PROVIDER != ''
         with: {workload_identity_provider: "${{ vars.GCP_WIF_PROVIDER }}", service_account: "${{ vars.GCP_EVAL_SERVICE_ACCOUNT }}"}
-      # Pin to a release tag or commit SHA in production
-      - uses: koushikmohanbhat/genai-eval-framework@main
+      # Pinned to a release; see https://github.com/koushikmohanbhat/genai-eval-framework/releases
+      - uses: koushikmohanbhat/genai-eval-framework@v0.1.0
         with:
           suite: evals/suite.yaml
           # baseline: evals/baselines/main.json   # after `genai-evals baseline promote` (see docs/ci.md)

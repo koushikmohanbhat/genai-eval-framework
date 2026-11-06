@@ -4,7 +4,7 @@ What a partner needs in the customer's AWS account to (1) evaluate Bedrock model
 and (2) grade production traffic from CloudWatch, X-Ray and AgentCore. Nothing here is stored in the framework:
 regions, ARNs and log groups go in your `.env` or your CI / container environment.
 
-Install the extra: `pip install "genai-eval-framework[aws] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@main"`.
+Install the extra: `pip install "genai-eval-framework[aws] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.1.0"`.
 
 ## 1. Credentials
 

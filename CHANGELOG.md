@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-11-06)
+
+### Partner setup
 - No environment-specific settings in the repo: every YAML value can come from `${VAR}`, `${VAR:-default}` or
   `${VAR-default}`; missing variables are reported by name. `.env` is loaded automatically (`--env-file` to choose);
   existing environment variables win.
@@ -11,7 +13,7 @@
 - New docs: getting started, configuration reference, AWS / Google Cloud / OpenAI and Anthropic setup,
   troubleshooting; expanded Terraform guide. Install instructions point at GitHub until a PyPI release.
 
-## 0.1.0 (2026-11-06)
+### Core
 - Evals as code: suites, datasets (JSONL / JSON / CSV / Parquet), targets, graders, gates.
 - Providers: OpenAI Responses, OpenAI-compatible, Anthropic (direct / Vertex), Bedrock Converse, Vertex Gemini, mock.
 - Targets: prompt / model, RAG (Bedrock KB, Vertex RAG, Python), tool-loop agent, OpenAI Agents SDK, AgentCore Runtime, Bedrock Agents, Agent Engine, HTTP, Python.

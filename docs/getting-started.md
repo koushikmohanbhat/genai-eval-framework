@@ -17,11 +17,11 @@ through environment variables.
 
 ## 1. Install
 
-The package is not on PyPI yet, so install it from GitHub. Pin a commit or release tag for anything beyond a trial.
+The package is not on PyPI yet, so install it from a GitHub release tag ([releases](https://github.com/koushikmohanbhat/genai-eval-framework/releases)). Pin the tag so a change on `main` never reaches your customers unannounced.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@main"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.1.0"
 genai-evals --version
 ```
 

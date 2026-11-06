@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4          # only if targets / judges use Bedrock
         with: {role-to-assume: "${{ vars.EVAL_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}"}
-      - uses: koushikmohanbhat/genai-eval-framework@main     # pin a release tag or commit SHA in production
+      - uses: koushikmohanbhat/genai-eval-framework@v0.1.0   # pin a release tag (or commit SHA)
         with:
           suite: evals/fnol_agent.yaml
           providers: evals/providers.yaml

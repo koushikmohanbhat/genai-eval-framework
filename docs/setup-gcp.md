@@ -4,7 +4,7 @@ What a partner needs in the customer's Google Cloud project to (1) evaluate Gemi
 Vertex AI Agent Engine agents, and (2) grade production traffic from Cloud Trace, Cloud Logging, BigQuery and Cloud
 Monitoring. Projects, locations and table names go in your `.env` or your CI / container environment, not the YAML.
 
-Install the extra: `pip install "genai-eval-framework[gcp] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@main"`
+Install the extra: `pip install "genai-eval-framework[gcp] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.1.0"`
 (add `anthropic` for Claude on Vertex).
 
 ## 1. Credentials

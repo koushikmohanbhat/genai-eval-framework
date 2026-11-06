@@ -11,7 +11,11 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install build cyclonedx-bom pip-audit
       - run: python -m build
-      - run: pip install dist/*.whl && pip-audit --strict
+      - name: audit dependencies (the package itself is not on PyPI, so audit what it pulls in)
+        run: |
+          pip install dist/*.whl
+          pip freeze --exclude genai-eval-framework > requirements.audit.txt
+          pip-audit --strict --no-deps --disable-pip -r requirements.audit.txt
       - run: cyclonedx-py environment -o dist/sbom.cdx.json
       - uses: actions/attest-build-provenance@v1
         with: {subject-path: "dist/*"}
