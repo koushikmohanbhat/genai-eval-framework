@@ -1,0 +1,9 @@
+id: assistant
+version: 1.0.0
+description: Answer employee questions from the knowledge base only, with citations; refuse secrets and personal data
+template: user.md.j2
+model_hints: {temperature: 0}
+data_elements: [FREE_TEXT]
+purposes: [employee_support]
+owner: "<team that owns the assistant>"
+changelog: "Pack starter prompt"

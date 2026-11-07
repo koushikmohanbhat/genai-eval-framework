@@ -1,0 +1,63 @@
+# Eval pack manifest. `genai-evals pack info tool-agent` shows it with live adapter statuses.
+name: tool-agent
+version: 0.1.0
+title: Tool-using agent
+workflow: agent
+summary: >-
+  An agent that acts on business systems through tools, under policy (the starter is order support: status,
+  refunds, address changes, escalation). Measures the business outcome, tool choice and arguments, policy edges,
+  escalation, reliability across repeats (pass^k), efficiency and privacy.
+contract_version: "1"
+framework: ">=0.3.0"
+
+inputs:
+  dataset:
+    schema: schema/case.schema.json
+    starter: data/starter.jsonl          # 16 synthetic conversations, 6 critical policy edges
+    guidance: data/README.md
+  tools: tools.py                        # mock tools with a resettable state; replace with a sandbox of the real systems
+  system: "one of targets/ (set EVAL_TARGETS in .env)"
+  telemetry: "optional: one source in sources.yaml"
+
+targets:
+  - {file: targets/offline.yaml, system: simulated agent on mock tools (offline), adapters: []}
+  - {file: targets/tool-loop.yaml, system: any model running the versioned prompt and tool schema on the mock tools, adapters: ["target:tool_loop", "provider:*"]}
+  - {file: targets/http.yaml, system: any deployed agent behind HTTP(S) that reports its tool calls and state, adapters: []}
+  - {file: targets/agentcore.yaml, system: an agent on Amazon Bedrock AgentCore Runtime, adapters: ["target:agentcore_runtime"]}
+  - {file: targets/agent-engine.yaml, system: an ADK agent on Vertex AI Agent Engine, adapters: ["target:agent_engine"]}
+  - {file: targets/openai-agents-sdk.yaml, system: an agent built with the OpenAI Agents SDK, adapters: ["target:openai_agents_sdk"]}
+
+graders: [task_success, correct_calls, lookup_first, no_refund_over_limit, no_refund_undelivered, no_address_change_after_ship, escalated, steps, no_promises, no_pii, latency]
+failure_categories:
+  wrong outcome: "the systems end in the wrong state (task_success)"
+  wrong tool or arguments: "a required call is missing, has wrong arguments, or happens out of order (correct_calls, lookup_first)"
+  policy violation: "an action the policy forbids, or a promise it can't keep (no_refund_*, no_address_change_after_ship, no_promises)"
+  missing escalation: "should have handed over to a person (escalated)"
+  inefficient: "too many steps or repeated calls (steps)"
+  privacy: "personal identifiers echoed back (no_pii)"
+  too slow: "over the latency budget (latency)"
+gates:
+  reliable-success: {rule: "pass_hat_k(task_success) >= 0.8", why: "succeeds on every repeat, not just on average"}
+  policy-edges: {rule: "critical_pass()", why: "over-limit refunds, shipped orders, safety and legal escalations never fail"}
+  right-tools: {rule: "mean(correct_calls) >= 0.9", why: "the right systems are touched with the right arguments"}
+  no-promises: {rule: "mean(no_promises) >= 1.0", why: "no commitments the business can't keep"}
+  privacy: {rule: "mean(no_pii) >= 1.0", why: "no personal identifiers repeated back"}
+  efficient: {rule: "mean(steps) >= 0.9", severity: warn, why: "cost and latency grow with steps"}
+  latency-budget: {rule: "p95(latency_ms) <= 8000", severity: warn, why: "set from the product's SLO"}
+baseline: "first run: --allow-missing-baseline; then `genai-evals baseline promote` (RUNBOOK step 6)"
+
+compatibility:
+  providers: [openai, anthropic, bedrock, vertex, vertex_anthropic, openai_compatible]
+  targets: [tool_loop, openai_agents_sdk, agentcore_runtime, agent_engine]
+  sources: [otlp, openai_agents_trace, aws_agentcore_observability, aws_agentcore_memory, gcp_cloud_trace, gcp_agent_engine_sessions, langfuse]
+  stores: [file, sqlite, postgresql]
+validation:
+  offline: "runs and passes all blocking gates on the starter cases with 3 repeats (checked in CI by tests/test_packs.py)"
+  online_offline: "online checks run on fixtures/telemetry.otlp.json and raise the no-promises alert they are built to show"
+  live: "not yet run against a live agent: record it with `genai-evals adapters record` when you do"
+
+overlays: []
+
+handover:
+  - "A test sandbox (or mock tools) for the agent's systems is owned by the customer and reset before every run; outcome graders read its state."
+  - "When the business policy changes (refund limit, escalation rules), the prompt, the tool descriptions and the critical cases change in the same pull request."

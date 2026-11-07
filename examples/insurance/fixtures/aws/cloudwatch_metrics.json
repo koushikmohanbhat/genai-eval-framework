@@ -1,0 +1,10 @@
+[
+ {
+  "Invocations": 1874,
+  "InvocationLatency": 1730.5,
+  "InputTokenCount": 2911034,
+  "OutputTokenCount": 214406,
+  "InvocationThrottles": 3,
+  "InvocationClientErrors": 1
+ }
+]

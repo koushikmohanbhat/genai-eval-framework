@@ -1,0 +1,15 @@
+# Industry overlay: Indian GST tax invoices. Adds cases with GSTINs, lakh / crore amounts and Indian date formats,
+# a GSTIN format check, and a gate on the GST slice.  Enable in suite.yaml:  overlays: [overlays/india-gst]
+name: india-gst
+description: GST tax invoices with GSTINs, lakh and crore amounts
+cases: [cases.jsonl]
+graders:
+  - name: gstin_format
+    type: regex
+    pattern: '"tax_id":\s*"\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]"'
+    tags: [gst]
+gates:
+  - {name: gst-fields, rule: "mean(fields, tag='gst') >= 0.95"}
+  - {name: gstin-format, rule: "mean(gstin_format) >= 1.0"}
+failure_categories:
+  wrong or missing field: [gstin_format]

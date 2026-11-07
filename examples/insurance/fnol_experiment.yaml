@@ -1,0 +1,21 @@
+# Experiment: is prompt 1.4.0 ready, and can a cheaper model hold quality on the current prompt?
+# Run:     genai-evals experiment run fnol_experiment.yaml --out out/experiment
+# Re-run:  genai-evals experiment rerun out/experiment
+name: fnol-injury-escalation
+description: Claims agent (FNOL). Prompt 1.4.0 adds injury escalation; a faster model is also tried on the prod prompt.
+hypothesis: >-
+  Prompt 1.4.0 escalates injury cases without hurting other behaviour, and the fast model cuts cost by more than
+  half with no loss in task success.
+suite: fnol_agent.yaml
+target: fnol-agent                    # the suite target to vary
+baseline: {name: prod-1.3.2, prompt: claims_agent@1.3.2, description: what is in prod today}
+variants:
+  - {name: prompt-1.4.0, prompt: claims_agent@1.4.0, description: adds injury escalation}
+  - name: fast-model
+    prompt: claims_agent@1.3.2
+    options: {model: fast}            # simulated here; with a live target use  profile: <another provider profile>
+    description: same prompt on a cheaper, faster model
+repeats: 3
+seed: 7
+alpha: 0.05
+correction: bonferroni

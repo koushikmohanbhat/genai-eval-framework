@@ -1,0 +1,69 @@
+# Live provider profiles. Every environment-specific value comes from an environment variable (see .env.example),
+# so this file can be committed and shared without exposing your accounts, projects or keys.
+#
+# Keep only the profiles you use and delete the rest: a "${VAR}" without a default must be set, or loading fails
+# with a message naming the missing variable.
+#
+# Secrets are never written here: use auth.api_key_env (env var name) or auth.api_key_secret
+# (aws-sm://<secret-id>[#field] or gcp-sm://projects/<p>/secrets/<s>).
+# Pricing is USD per million tokens. Fill in your contracted rates to get cost gates and the quality-cost chart.
+
+profiles:
+  # ---------------------------------------------------------------- OpenAI (direct)
+  openai:
+    provider: openai
+    model: "${OPENAI_MODEL}"
+    auth: {api_key_env: OPENAI_API_KEY}
+    options: {store: false}                     # check-config fails if this is true
+    pricing: {input_per_mtok: "${OPENAI_PRICE_IN:-0}", output_per_mtok: "${OPENAI_PRICE_OUT:-0}"}
+
+  # ---------------------------------------------------------------- Anthropic (direct)
+  anthropic:
+    provider: anthropic
+    model: "${ANTHROPIC_MODEL}"
+    auth: {api_key_env: ANTHROPIC_API_KEY}
+    pricing: {input_per_mtok: "${ANTHROPIC_PRICE_IN:-0}", output_per_mtok: "${ANTHROPIC_PRICE_OUT:-0}"}
+
+  # ---------------------------------------------------------------- Amazon Bedrock (Converse API: Claude, Nova, Llama, ...)
+  bedrock:
+    provider: bedrock
+    model: "${BEDROCK_MODEL_ID}"                  # model id or inference profile ARN
+    region: "${AWS_REGION}"
+    # auth: {aws_profile: "${AWS_PROFILE}"}       # or role_arn; default is the standard AWS credential chain
+    # options: {guardrail_id: "${BEDROCK_GUARDRAIL_ID}", guardrail_version: "${BEDROCK_GUARDRAIL_VERSION:-DRAFT}"}
+    pricing: {input_per_mtok: "${BEDROCK_PRICE_IN:-0}", output_per_mtok: "${BEDROCK_PRICE_OUT:-0}"}
+
+  # ---------------------------------------------------------------- Google Vertex AI (Gemini)
+  vertex:
+    provider: vertex
+    model: "${VERTEX_MODEL}"
+    project: "${GCP_PROJECT}"
+    location: "${GCP_LOCATION}"
+    pricing: {input_per_mtok: "${VERTEX_PRICE_IN:-0}", output_per_mtok: "${VERTEX_PRICE_OUT:-0}"}
+
+  # ---------------------------------------------------------------- Claude on Vertex AI (optional)
+  # vertex-claude:
+  #   provider: vertex_anthropic
+  #   model: "${VERTEX_CLAUDE_MODEL}"
+  #   project: "${GCP_PROJECT}"
+  #   location: "${VERTEX_CLAUDE_LOCATION}"
+
+  # ---------------------------------------------------------------- Any OpenAI-compatible gateway (optional)
+  # gateway:
+  #   provider: openai_compatible
+  #   model: "${GATEWAY_MODEL}"
+  #   base_url: "${GATEWAY_BASE_URL}"
+  #   auth: {api_key_env: GATEWAY_API_KEY}
+
+  # ---------------------------------------------------------------- Judges: always named explicitly, ideally two
+  # providers from different model families than the target (the suite enforces this with judge_policy).
+  judge-openai:
+    provider: openai
+    model: "${JUDGE_OPENAI_MODEL}"
+    auth: {api_key_env: OPENAI_API_KEY}
+    options: {store: false}
+  judge-gemini:
+    provider: vertex
+    model: "${JUDGE_VERTEX_MODEL}"
+    project: "${GCP_PROJECT}"
+    location: "${GCP_LOCATION}"

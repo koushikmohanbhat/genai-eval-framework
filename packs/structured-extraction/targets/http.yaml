@@ -1,0 +1,10 @@
+# Your deployed extraction service (any cloud, any OCR / IDP pipeline). Send the document text, map the JSON back.
+# .env: EVAL_TARGETS=targets/http.yaml, SYSTEM_URL, SYSTEM_TOKEN
+targets:
+  - name: extractor
+    kind: http
+    options:
+      url: "${SYSTEM_URL}"
+      headers_env: {Authorization: SYSTEM_TOKEN}
+      body: {document_text: "{{ input }}", document_id: "{{ case_id }}"}
+      map: {output: "${SYSTEM_OUTPUT_FIELD:-fields}"}        # the object with the extracted fields

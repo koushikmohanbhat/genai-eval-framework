@@ -1,0 +1,13 @@
+# Offline profiles: deterministic mock judges, no network, no keys. `genai-evals run suite.yaml` works out of the box.
+# For real judges and models use providers.live.yaml (set GENAI_EVALS_PROVIDERS=providers.live.yaml in .env).
+profiles:
+  offline-judge-a:
+    provider: mock
+    model: heuristic-judge-a
+    family: openai
+    options: {mode: judge, strictness: 1.0}
+  offline-judge-b:
+    provider: mock
+    model: heuristic-judge-b
+    family: google
+    options: {mode: judge, strictness: 1.2}

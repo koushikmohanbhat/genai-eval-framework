@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "structured-extraction case",
+  "description": "One document (as text) and the fields that must be extracted from it.",
+  "type": "object",
+  "required": ["id", "input", "reference"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$"},
+    "input": {"type": "string", "minLength": 10, "description": "the document text (OCR output, email body, PDF text); tokenise personal data first"},
+    "tags": {"type": "array", "items": {"type": "string"}, "description": "slices: format (clean, email, ocr), currency, language, document type"},
+    "critical": {"type": "boolean", "description": "e.g. high-value invoices and documents that must be rejected"},
+    "source": {"enum": ["synthetic", "production", "sme"]},
+    "lineage_ref": {"type": "string"},
+    "metadata": {"type": "object", "description": "e.g. original file name or page count"},
+    "reference": {
+      "type": "object",
+      "required": ["fields"],
+      "additionalProperties": false,
+      "properties": {
+        "fields": {"type": "object", "description": "expected values, null where the document has none",
+                   "required": ["vendor_name", "invoice_number", "invoice_date", "due_date", "total_amount", "currency", "po_number", "tax_id"]}
+      }
+    }
+  }
+}

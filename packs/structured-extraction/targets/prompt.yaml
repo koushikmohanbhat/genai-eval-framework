@@ -1,0 +1,4 @@
+# Any model profile (OpenAI, Anthropic, Bedrock, Vertex, a gateway) with the versioned extraction prompt and the
+# output schema as structured output.  .env: EVAL_TARGETS=targets/prompt.yaml, EVAL_TARGET_PROFILE
+targets:
+  - {name: extractor, kind: prompt, profile: "${EVAL_TARGET_PROFILE:-openai}", prompt: invoice_extractor}

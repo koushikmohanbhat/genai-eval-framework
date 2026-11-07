@@ -1,0 +1,4 @@
+{"trace": "projects/p/traces/00000000000000000000000000000001", "spanId": "1", "timestamp": "2026-11-05T09:00:00.5Z", "jsonPayload": {"event.name": "gen_ai.user.message", "body": {"content": "user question 0"}}, "labels": {}}
+{"trace": "projects/p/traces/00000000000000000000000000000001", "spanId": "1", "timestamp": "2026-11-05T09:00:00.5Z", "jsonPayload": {"event.name": "gen_ai.choice", "body": {"message": {"content": "model answer 0"}}}, "labels": {}}
+{"trace": "projects/p/traces/00000000000000000000000000000002", "spanId": "1", "timestamp": "2026-11-05T09:01:00.5Z", "jsonPayload": {"event.name": "gen_ai.user.message", "body": {"content": "user question 1"}}, "labels": {}}
+{"trace": "projects/p/traces/00000000000000000000000000000002", "spanId": "1", "timestamp": "2026-11-05T09:01:00.5Z", "jsonPayload": {"event.name": "gen_ai.choice", "body": {"message": {"content": "model answer 1"}}}, "labels": {}}

@@ -1,0 +1,6 @@
+# Adapter validation records for this project. Built-in maturity tops out at fixture_tested; add a record when an
+# adapter has been run against a live service (live_tested) or validated and signed off in the customer's
+# environment (customer_validated). Reports show the effective status of every adapter a run used.
+#   genai-evals adapters record --kind source --name aws_agentcore_observability --status live_tested \
+#       --environment "customer sandbox, ap-south-1" --evidence out/run/result.json --by "partner name"
+adapters: []

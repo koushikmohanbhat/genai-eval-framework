@@ -1,0 +1,4 @@
+# An ADK agent on Vertex AI Agent Engine (function calls and responses are read from the event stream).
+# .env: EVAL_TARGETS=targets/agent-engine.yaml, AGENT_ENGINE_RESOURCE, GCP_PROJECT, GCP_LOCATION
+targets:
+  - {name: agent, kind: agent, framework: agent_engine, options: {resource: "${AGENT_ENGINE_RESOURCE}", project: "${GCP_PROJECT}", location: "${GCP_LOCATION}"}}

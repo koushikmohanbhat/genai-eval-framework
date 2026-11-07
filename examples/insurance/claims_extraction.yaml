@@ -1,0 +1,29 @@
+name: claims-extraction
+description: Structured extraction from motor claim forms, emails and Hinglish SMS (two extraction systems compared)
+dataset: data/claims_extraction.jsonl
+prompts_dir: prompts
+targets:
+  - {name: extractor-v1, kind: python, callable: "insurance_targets:extractor_v1", output: json}
+  - {name: extractor-v2, kind: python, callable: "insurance_targets:extractor_v2", output: json}
+  # live: the versioned prompt on any provider, e.g.
+  # - {name: openai, kind: prompt, profile: openai-main, prompt: claim_extractor, output: json}
+  # - {name: bedrock, kind: prompt, profile: bedrock-nova, prompt: claim_extractor, output: json}
+  # - {name: vertex, kind: prompt, profile: vertex-gemini, prompt: claim_extractor, output: json}
+graders:
+  - {name: schema, type: json_schema, schema: schemas/claim.schema.json}
+  - name: fields
+    type: field_match
+    fields:
+      policy_number: upper_alnum
+      claimant_name: name
+      incident_date: date
+      claim_amount: {normaliser: amount, tolerance: 0.01, weight: 2}
+      vehicle_reg: upper_alnum
+      incident_type: text
+  - {name: latency, type: latency, max_ms: 2500}
+gates:
+  - {name: field-accuracy, rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9"}
+  - {name: valid-json, rule: "mean(schema) >= 1.0"}
+  - {name: hinglish-slice, rule: "mean(fields, tag='lang:hinglish') >= 0.9"}
+  - {name: high-value-claims, rule: "critical_pass()"}
+  - {name: latency-budget, rule: "p95(latency_ms) <= 2000", severity: warn}

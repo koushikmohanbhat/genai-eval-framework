@@ -1,0 +1,29 @@
+# Where production telemetry comes from. Offline, a recorded OTLP export (fixtures/) stands in for your telemetry.
+# Keep the source for your stack, delete the others, and remove `fixture:` to read live (read-only, in your account).
+# Every connector produces the same cloud-neutral samples; see `genai-evals adapters` for each one's validation status.
+sources:
+  - name: agent
+    type: otlp
+    fixture: fixtures/telemetry.otlp.json
+    sampling: 1.0
+
+  # ---- any OpenTelemetry-instrumented app: OTLP JSON files from a collector's file exporter
+  # - {name: agent, type: otlp, path: "${OTLP_EXPORT_DIR}", sampling: "${ONLINE_SAMPLING:-0.1}"}
+
+  # ---- AWS: AgentCore Observability spans in CloudWatch (+ Bedrock invocation logs when span content is off)
+  # - name: agent
+  #   type: aws_agentcore_observability
+  #   region: "${AWS_REGION}"
+  #   filter: {service_name: "${AGENT_SERVICE_NAME}"}
+  #   sampling: "${ONLINE_SAMPLING:-0.1}"
+  #   join: [{type: aws_bedrock_invocation_logs, log_group: "${BEDROCK_INVOCATION_LOG_GROUP}", region: "${AWS_REGION}"}]
+
+  # ---- Google Cloud: Cloud Trace (+ Vertex request-response logs in BigQuery when span content is off)
+  # - name: agent
+  #   type: gcp_cloud_trace
+  #   project: "${GCP_PROJECT}"
+  #   filter: {service_name: "${AGENT_SERVICE_NAME}"}
+  #   join: [{type: gcp_vertex_request_response, table: "${VERTEX_REQUEST_RESPONSE_TABLE}"}]
+
+  # ---- Langfuse (any cloud or self-hosted)
+  # - {name: agent, type: langfuse, filter: {name: "${LANGFUSE_TRACE_NAME}"}}

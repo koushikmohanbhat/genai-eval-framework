@@ -1,0 +1,11 @@
+# Experiment: compare candidate changes with today's extractor on the same documents (docs: experiments.md).
+#   genai-evals experiment run experiment.yaml --out out/experiment
+# The variants use the simulator's options to show typical regressions; for your system, vary prompt
+# (invoice_extractor@1.1.0), profile (another model) or target settings instead.
+name: cheaper-model-and-loose-prompt
+hypothesis: A cheaper model keeps field accuracy above 95% at a third of the cost.
+suite: suite.yaml
+baseline: {name: current, description: "today's extractor"}
+variants:
+  - {name: fast-model, options: {model: fast}, description: "a cheaper, faster model"}
+  - {name: loose-prompt, options: {prose: 0.3}, description: "a prompt edit that dropped 'return only JSON'"}

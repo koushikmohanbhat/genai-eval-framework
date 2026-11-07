@@ -1,0 +1,44 @@
+# Copy to .github/workflows/evals.yml in your application repo and adjust paths.
+# Settings live in GitHub repository variables (vars.*) and secrets (secrets.*), not in this file.
+name: evals
+on:
+  pull_request:
+    paths: ["evals/**", "src/**"]
+permissions: {contents: read, pull-requests: write, id-token: write}
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    env:
+      GENAI_EVALS_PROVIDERS: evals/providers.live.yaml
+      EVAL_TARGETS: ${{ vars.EVAL_TARGETS }}
+      EVAL_TARGET_PROFILE: ${{ vars.EVAL_TARGET_PROFILE }}
+      EVAL_JUDGE_A: ${{ vars.EVAL_JUDGE_A }}
+      EVAL_JUDGE_B: ${{ vars.EVAL_JUDGE_B }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      GCP_LOCATION: ${{ vars.GCP_LOCATION }}
+      VERTEX_MODEL: ${{ vars.VERTEX_MODEL }}
+      JUDGE_VERTEX_MODEL: ${{ vars.JUDGE_VERTEX_MODEL }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      JUDGE_OPENAI_MODEL: ${{ vars.JUDGE_OPENAI_MODEL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GENAI_EVALS_TOKEN_KEY: ${{ secrets.GENAI_EVALS_TOKEN_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      # AWS: OIDC role with bedrock:InvokeModel on the models you evaluate (see docs/setup-aws.md)
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: vars.EVAL_AWS_ROLE_ARN != ''
+        with: {role-to-assume: "${{ vars.EVAL_AWS_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}"}
+      # Google Cloud: Workload Identity Federation (see docs/setup-gcp.md)
+      - uses: google-github-actions/auth@v2
+        if: vars.GCP_WIF_PROVIDER != ''
+        with: {workload_identity_provider: "${{ vars.GCP_WIF_PROVIDER }}", service_account: "${{ vars.GCP_EVAL_SERVICE_ACCOUNT }}"}
+      # Pinned to a release; see https://github.com/koushikmohanbhat/genai-eval-framework/releases
+      - uses: koushikmohanbhat/genai-eval-framework@v0.3.0
+        with:
+          suite: evals/suite.yaml
+          allow-missing-baseline: "true"            # until baselines/main.json exists; then set baseline and remove this
+          # baseline: evals/baselines/main.json   # after `genai-evals baseline promote` (RUNBOOK step 6)
+          extras: "openai,aws,gcp"
+          check-prompts: evals/prompts

@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (do not commit it) and fill in the customer's values.
+project                  = "<gcp-project>"
+region                   = "<gcp-region>"
+image                    = "<region>-docker.pkg.dev/<project>/<repo>/<image>:<tag>"   # your derived image with /evals
+request_response_dataset = "<BigQuery dataset holding Vertex request-response logs>"
+
+# use_vertex_judges = true
+# schedule          = "15 2 * * *"
+
+# values for the ${VAR} references in your sources.yaml / providers.live.yaml (no secrets here)
+environment = {
+  AGENT_SERVICE_NAME            = "<agent OTel service.name>"
+  GCP_LOCATION                  = "<vertex location>"
+  VERTEX_REQUEST_RESPONSE_TABLE = "bq://<project>.<dataset>.<table>"
+  # EVAL_JUDGE_A = "<judge profile>"
+  # EVAL_JUDGE_B = "<judge profile>"
+}

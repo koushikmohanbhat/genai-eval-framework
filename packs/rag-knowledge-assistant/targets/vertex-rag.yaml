@@ -1,0 +1,8 @@
+# Vertex AI RAG Engine retrieval + any model profile in providers.live.yaml, with the versioned prompt.
+# .env: EVAL_TARGETS=targets/vertex-rag.yaml, VERTEX_RAG_CORPUS, EVAL_TARGET_PROFILE (e.g. vertex)
+targets:
+  - name: assistant
+    kind: rag
+    profile: "${EVAL_TARGET_PROFILE:-vertex}"
+    prompt: assistant
+    retriever: {type: vertex_rag, corpus: "${VERTEX_RAG_CORPUS}", k: 4}

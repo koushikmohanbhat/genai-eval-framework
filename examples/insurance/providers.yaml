@@ -1,0 +1,20 @@
+# Offline profiles for the demo: deterministic mock judges, no network, no keys.
+# For real runs use providers.live.yaml (OpenAI, Anthropic, Bedrock, Vertex) - same suites, change --providers.
+profiles:
+  judge-a:
+    provider: mock
+    model: heuristic-judge-a
+    family: openai            # pretend family, so the "different family than the target" policy can be exercised
+    options: {mode: judge, strictness: 1.0}
+  judge-b:
+    provider: mock
+    model: heuristic-judge-b
+    family: google
+    options: {mode: judge, strictness: 1.25}
+  simulator:
+    provider: mock
+    model: scripted-customer
+    options: {mode: judge}
+  embeddings:
+    provider: mock
+    model: hashing-embeddings

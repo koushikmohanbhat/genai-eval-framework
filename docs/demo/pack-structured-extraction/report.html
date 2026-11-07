@@ -1,0 +1,1466 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>structured-extraction · genai-evals</title><style>
+:root{--fg:#1d1d1f;--mut:#6b6b70;--bd:#e3e3e8;--bg:#fafafa;--ok:#1a7f4b;--bad:#b42318;--warn:#a15c00;--acc:#2b59c3}
+*{box-sizing:border-box}body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);margin:0;background:#fff}
+main{max-width:1180px;margin:0 auto;padding:28px 24px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:6px 0 4px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.02em}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}.ok{background:#e6f4ec;color:var(--ok)}.bad{background:#fdecea;color:var(--bad)}
+.warn{background:#fff4e0;color:var(--warn)}.skip{background:#f0f0f3;color:var(--mut)}
+.verdict{font-size:15px;font-weight:600;padding:10px 14px;border-radius:8px;margin:14px 0}.verdict.ok{background:#e6f4ec}.verdict.bad{background:#fdecea}
+.ci{position:relative;height:8px;background:#eef0f4;border-radius:4px;width:120px;display:inline-block;margin-left:8px;vertical-align:middle}
+.ci span{position:absolute;top:0;height:8px;background:#9db3e6;border-radius:4px}.ci i{position:absolute;top:-2px;width:2px;height:12px;background:var(--acc)}
+details{border:1px solid var(--bd);border-radius:8px;margin:8px 0;background:#fff}summary{cursor:pointer;padding:8px 12px;list-style:none}
+summary::-webkit-details-marker{display:none}details[open] summary{border-bottom:1px solid var(--bd)}.body{padding:10px 14px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;margin:4px 0 10px;font-size:12.5px;max-height:340px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radius:6px}.k{font-weight:600}.tag{font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:8px;padding:0 6px;margin-right:4px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:14px 16px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.big{font-size:28px;font-weight:700}a{color:var(--acc)}
+</style></head><body><main>
+<h1>Invoice extraction quality</h1><div class="mut">Schema validity, field-level accuracy by format and currency, rejection of non-invoices, cost and latency</div><p>Does every document produce valid JSON with the right values, including totals and currencies, across clean, emailed and OCR-damaged documents, and are non-invoices rejected?</p>
+<div class="mut">Run run_946c6edad53b · 2026-11-07 03:16:35 UTC · 21 cases × 1 targets × 1 repeats
+
+ · git 2b3dd18dc0</div>
+
+
+<div class="verdict ok">All blocking gates passed</div>
+<h2>Gates</h2><table><tr><th>Gate</th><th>Target</th><th>Result</th><th>Rule</th><th>Values</th></tr><tr><td>valid-json</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(valid_json) &gt;= 1.0</code></td><td class='mut'>mean(valid_json) = 1.00</td></tr><tr><td>field-accuracy</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(fields) &gt;= 0.95 and ci_low(fields) &gt;= 0.9</code></td><td class='mut'>mean(fields) = 1.00, ci_low(fields) = 1.00</td></tr><tr><td>amounts</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(amount_exact) &gt;= 0.98</code></td><td class='mut'>mean(amount_exact) = 1.00</td></tr><tr><td>critical-documents</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>critical_pass()</code></td><td class='mut'>critical_pass() = True</td></tr><tr><td>ocr-slice</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(fields, tag=&#x27;ocr&#x27;) &gt;= 0.9</code></td><td class='mut'>mean(fields, tag=&#x27;ocr&#x27;) = 1.00</td></tr><tr><td>cost-budget</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(cost_usd) &lt;= 0.01</code></td><td class='mut'>mean(cost_usd) = 0.00</td></tr><tr><td>latency-budget</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>p95(latency_ms) &lt;= 5000</code></td><td class='mut'>p95(latency_ms) = 2043.00</td></tr><tr><td>gst-fields</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(fields, tag=&#x27;gst&#x27;) &gt;= 0.95</code></td><td class='mut'>mean(fields, tag=&#x27;gst&#x27;) = 1.00</td></tr><tr><td>gstin-format</td><td>extractor</td><td><span class="pill ok">pass</span></td><td><code>mean(gstin_format) &gt;= 1.0</code></td><td class='mut'>mean(gstin_format) = 1.00</td></tr></table>
+<h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2><table><tr><th>Grader</th><th>extractor</th></tr><tr><td>valid_json</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>fields</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>amount_exact</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>latency</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>gstin_format</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>16 skipped</div></td></tr><tr><td class='mut'>p95 latency (ms)</td><td class='num'>2,043</td></tr><tr><td class='mut'>cost / case (USD)</td><td class='num'>0.0042</td></tr><tr><td class='mut'>tokens / case</td><td class='num'>0</td></tr></table><h2>Failure categories</h2><p class='mut'>Cases failing at least one grader in each category (from the pack's report template). A case can fall in several categories.</p><table><tr><th>Category</th><th>extractor</th></tr><tr><td><b>invalid output</b><div class='mut'>valid_json</div></td><td class='num'>0 <span class='mut'>(0%)</span></td></tr><tr><td><b>wrong or missing field</b><div class='mut'>fields, gstin_format</div></td><td class='num'>0 <span class='mut'>(0%)</span></td></tr><tr><td><b>wrong amount or currency</b><div class='mut'>amount_exact</div></td><td class='num'>0 <span class='mut'>(0%)</span></td></tr><tr><td><b>too slow</b><div class='mut'>latency</div></td><td class='num'>0 <span class='mut'>(0%)</span></td></tr></table>
+<h2>Quality vs cost</h2><svg viewBox="0 0 520 260" width="100%" style="max-width:520px" role="img" aria-label="quality vs cost per case (USD)"><line x1="44" y1="216" x2="476" y2="216" stroke="#ccc"/><line x1="44" y1="44" x2="44" y2="216" stroke="#ccc"/><text x="260.0" y="252" text-anchor="middle" font-size="11" fill="#6b6b70">cost per case (USD)</text><text x="12" y="130.0" text-anchor="middle" font-size="11" fill="#6b6b70" transform="rotate(-90 12 130.0)">fields (mean)</text><text x="44.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0000</text><text x="260.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0024</text><text x="476.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0048</text><text x="38" y="220.0" text-anchor="end" font-size="10" fill="#6b6b70">0.50</text><text x="38" y="134.0" text-anchor="end" font-size="10" fill="#6b6b70">0.75</text><text x="38" y="48.0" text-anchor="end" font-size="10" fill="#6b6b70">1.00</text><line x1="419.7" y1="44.0" x2="419.7" y2="44.0" stroke="#9db3e6" stroke-width="3"/><circle cx="419.7" cy="44.0" r="5" fill="#2b59c3"/><text x="428.7" y="38.0" font-size="11">extractor</text></svg>
+<h2>Slices by tag</h2><table><tr><th>Tag</th><th>Target</th><th>valid_json</th><th>fields</th><th>amount_exact</th><th>latency</th><th>gstin_format</th></tr><tr><td><span class='tag'>clean</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>crore</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>email</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>eur</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>gbp</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>gst</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>high-value</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>informal</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>inr</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lakh</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>no-due-date</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>not-invoice</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>ocr</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr><tr><td><span class='tag'>usd</span></td><td>extractor</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td></tr></table>
+<h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option><option>extractor</option></select>
+<select id="fs" onchange="f()"><option value="">pass + fail</option><option value="fail">failing only</option><option value="pass">passing only</option></select>
+<input id="fq" placeholder="search id, tag, output" oninput="f()"></div><details class='case' data-target='extractor' data-fail='0' data-search='inv-01 clean inr {&quot;vendor_name&quot;: &quot;brightline office supplies pvt ltd&quot;, &quot;invoice_number&quot;: &quot;bos-2026-0412&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-12-05&quot;, &quot;total_amount&quot;: 49560.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: &quot;po-77812&quot;, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-01</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1682 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INVOICE
+Vendor: Brightline Office Supplies Pvt Ltd
+Invoice No: BOS-2026-0412
+Invoice Date: 05/11/2026
+Due Date: 05/12/2026
+PO Number: PO-77812
+Subtotal: INR 42,000.00
+GST 18%: INR 7,560.00
+Total Due: INR 49,560.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Brightline Office Supplies Pvt Ltd&quot;, &quot;invoice_number&quot;: &quot;BOS-2026-0412&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-12-05&quot;, &quot;total_amount&quot;: 49560.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: &quot;PO-77812&quot;, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Brightline Office Supplies Pvt Ltd&quot;,
+   &quot;got&quot;: &quot;Brightline Office Supplies Pvt Ltd&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;BOS-2026-0412&quot;,
+   &quot;got&quot;: &quot;BOS-2026-0412&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-05&quot;,
+   &quot;got&quot;: &quot;2026-11-05&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-05&quot;,
+   &quot;got&quot;: &quot;2026-12-05&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 49560.0,
+   &quot;got&quot;: 49560.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;PO-77812&quot;,
+   &quot;got&quot;: &quot;PO-77812&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 49560.0,
+   &quot;got&quot;: 49560.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1682.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-02 clean inr {&quot;vendor_name&quot;: &quot;kestrel logistics llp&quot;, &quot;invoice_number&quot;: &quot;kl/1187&quot;, &quot;invoice_date&quot;: &quot;2026-10-28&quot;, &quot;due_date&quot;: &quot;2026-11-27&quot;, &quot;total_amount&quot;: 123450.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-02</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1636 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Tax Invoice
+From: Kestrel Logistics LLP
+Invoice #: KL/1187
+Date: 2026-10-28
+Payment due: 2026-11-27
+Amount payable: Rs. 1,23,450.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Kestrel Logistics LLP&quot;, &quot;invoice_number&quot;: &quot;KL/1187&quot;, &quot;invoice_date&quot;: &quot;2026-10-28&quot;, &quot;due_date&quot;: &quot;2026-11-27&quot;, &quot;total_amount&quot;: 123450.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Kestrel Logistics LLP&quot;,
+   &quot;got&quot;: &quot;Kestrel Logistics LLP&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KL/1187&quot;,
+   &quot;got&quot;: &quot;KL/1187&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-28&quot;,
+   &quot;got&quot;: &quot;2026-10-28&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-27&quot;,
+   &quot;got&quot;: &quot;2026-11-27&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 123450.0,
+   &quot;got&quot;: 123450.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 123450.0,
+   &quot;got&quot;: 123450.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1636.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-03 email usd {&quot;vendor_name&quot;: &quot;harbor cloud services inc&quot;, &quot;invoice_number&quot;: &quot;inv-55102&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 1200.5, &quot;currency&quot;: &quot;usd&quot;, &quot;po_number&quot;: &quot;4410-a&quot;, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-03</span> <span class='mut'>· extractor</span> <span class='tag'>email</span><span class='tag'>usd</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1436 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, please find our invoice details below.
+Supplier: Harbor Cloud Services Inc
+Invoice number INV-55102 dated Nov 2, 2026, total USD 1,200.50, due Dec 2, 2026. Reference PO 4410-A.
+Regards, Accounts</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Harbor Cloud Services Inc&quot;, &quot;invoice_number&quot;: &quot;INV-55102&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 1200.5, &quot;currency&quot;: &quot;USD&quot;, &quot;po_number&quot;: &quot;4410-A&quot;, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Harbor Cloud Services Inc&quot;,
+   &quot;got&quot;: &quot;Harbor Cloud Services Inc&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INV-55102&quot;,
+   &quot;got&quot;: &quot;INV-55102&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-02&quot;,
+   &quot;got&quot;: &quot;2026-11-02&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-02&quot;,
+   &quot;got&quot;: &quot;2026-12-02&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 1200.5,
+   &quot;got&quot;: 1200.5
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;USD&quot;,
+   &quot;got&quot;: &quot;USD&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;4410-A&quot;,
+   &quot;got&quot;: &quot;4410-A&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 1200.5,
+   &quot;got&quot;: 1200.5
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;USD&quot;,
+   &quot;got&quot;: &quot;USD&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1436.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-04 clean inr no-due-date {&quot;vendor_name&quot;: &quot;saffron catering co&quot;, &quot;invoice_number&quot;: &quot;sc-0098&quot;, &quot;invoice_date&quot;: &quot;2026-11-03&quot;, &quot;due_date&quot;: null, &quot;total_amount&quot;: 18750.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-04</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><span class='tag'>no-due-date</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1662 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Vendor: Saffron Catering Co
+Invoice No: SC-0098
+Invoice Date: 3 Nov 2026
+Total: INR 18,750
+Terms: payable within 30 days</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Saffron Catering Co&quot;, &quot;invoice_number&quot;: &quot;SC-0098&quot;, &quot;invoice_date&quot;: &quot;2026-11-03&quot;, &quot;due_date&quot;: null, &quot;total_amount&quot;: 18750.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Saffron Catering Co&quot;,
+   &quot;got&quot;: &quot;Saffron Catering Co&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;SC-0098&quot;,
+   &quot;got&quot;: &quot;SC-0098&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-03&quot;,
+   &quot;got&quot;: &quot;2026-11-03&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18750.0,
+   &quot;got&quot;: 18750.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18750.0,
+   &quot;got&quot;: 18750.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1662.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-05 ocr inr {&quot;vendor_name&quot;: &quot;northgate print house&quot;, &quot;invoice_number&quot;: &quot;nph-3321&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-15&quot;, &quot;total_amount&quot;: 9840.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-05</span> <span class='mut'>· extractor</span> <span class='tag'>ocr</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 2096 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>lNVOlCE
+Vend0r: Northgate Print House
+lnvoice No: NPH-3321
+lnvoice Date: 01/11/2026
+Due Date: 15/11/2026
+Total Due: INR 9,840.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Northgate Print House&quot;, &quot;invoice_number&quot;: &quot;NPH-3321&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-15&quot;, &quot;total_amount&quot;: 9840.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Northgate Print House&quot;,
+   &quot;got&quot;: &quot;Northgate Print House&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;NPH-3321&quot;,
+   &quot;got&quot;: &quot;NPH-3321&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-01&quot;,
+   &quot;got&quot;: &quot;2026-11-01&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-15&quot;,
+   &quot;got&quot;: &quot;2026-11-15&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 9840.0,
+   &quot;got&quot;: 9840.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 9840.0,
+   &quot;got&quot;: 9840.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 2096.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-06 clean inr high-value {&quot;vendor_name&quot;: &quot;meridian engineering works&quot;, &quot;invoice_number&quot;: &quot;mew-2026-071&quot;, &quot;invoice_date&quot;: &quot;2026-10-30&quot;, &quot;due_date&quot;: &quot;2026-11-29&quot;, &quot;total_amount&quot;: 1357000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: &quot;po-90211&quot;, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-06</span> ⚑ critical <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1859 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INVOICE
+Vendor: Meridian Engineering Works
+Invoice No: MEW-2026-071
+Invoice Date: 30/10/2026
+Due Date: 29/11/2026
+PO Number: PO-90211
+Subtotal: INR 11,50,000.00
+GST 18%: INR 2,07,000.00
+Total Due: INR 13,57,000.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Meridian Engineering Works&quot;, &quot;invoice_number&quot;: &quot;MEW-2026-071&quot;, &quot;invoice_date&quot;: &quot;2026-10-30&quot;, &quot;due_date&quot;: &quot;2026-11-29&quot;, &quot;total_amount&quot;: 1357000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: &quot;PO-90211&quot;, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Meridian Engineering Works&quot;,
+   &quot;got&quot;: &quot;Meridian Engineering Works&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MEW-2026-071&quot;,
+   &quot;got&quot;: &quot;MEW-2026-071&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-30&quot;,
+   &quot;got&quot;: &quot;2026-10-30&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-29&quot;,
+   &quot;got&quot;: &quot;2026-11-29&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 1357000.0,
+   &quot;got&quot;: 1357000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;PO-90211&quot;,
+   &quot;got&quot;: &quot;PO-90211&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 1357000.0,
+   &quot;got&quot;: 1357000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1859.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-07 clean gbp {&quot;vendor_name&quot;: &quot;alder &amp; finch consulting ltd&quot;, &quot;invoice_number&quot;: &quot;af-7781&quot;, &quot;invoice_date&quot;: &quot;2026-10-12&quot;, &quot;due_date&quot;: &quot;2026-11-11&quot;, &quot;total_amount&quot;: 4800.0, &quot;currency&quot;: &quot;gbp&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-07</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>gbp</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1370 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Invoice from Alder &amp; Finch Consulting Ltd
+Invoice ref: AF-7781
+Issued: 12 October 2026
+Due: 11 November 2026
+Amount due: GBP 4,800.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Alder &amp; Finch Consulting Ltd&quot;, &quot;invoice_number&quot;: &quot;AF-7781&quot;, &quot;invoice_date&quot;: &quot;2026-10-12&quot;, &quot;due_date&quot;: &quot;2026-11-11&quot;, &quot;total_amount&quot;: 4800.0, &quot;currency&quot;: &quot;GBP&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Alder &amp; Finch Consulting Ltd&quot;,
+   &quot;got&quot;: &quot;Alder &amp; Finch Consulting Ltd&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;AF-7781&quot;,
+   &quot;got&quot;: &quot;AF-7781&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-12&quot;,
+   &quot;got&quot;: &quot;2026-10-12&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-11&quot;,
+   &quot;got&quot;: &quot;2026-11-11&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 4800.0,
+   &quot;got&quot;: 4800.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GBP&quot;,
+   &quot;got&quot;: &quot;GBP&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 4800.0,
+   &quot;got&quot;: 4800.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GBP&quot;,
+   &quot;got&quot;: &quot;GBP&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1370.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-08 email eur {&quot;vendor_name&quot;: &quot;tidewater marine supplies&quot;, &quot;invoice_number&quot;: &quot;tw-552&quot;, &quot;invoice_date&quot;: &quot;2026-11-07&quot;, &quot;due_date&quot;: &quot;2026-12-07&quot;, &quot;total_amount&quot;: 2350.0, &quot;currency&quot;: &quot;eur&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-08</span> <span class='mut'>· extractor</span> <span class='tag'>email</span><span class='tag'>eur</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1822 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir/Madam, we enclose invoice no. TW-552 from Tidewater Marine Supplies dated 07.11.2026 for EUR 2.350,00 (two thousand three hundred fifty euros), payable by 07.12.2026.</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Tidewater Marine Supplies&quot;, &quot;invoice_number&quot;: &quot;TW-552&quot;, &quot;invoice_date&quot;: &quot;2026-11-07&quot;, &quot;due_date&quot;: &quot;2026-12-07&quot;, &quot;total_amount&quot;: 2350.0, &quot;currency&quot;: &quot;EUR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Tidewater Marine Supplies&quot;,
+   &quot;got&quot;: &quot;Tidewater Marine Supplies&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TW-552&quot;,
+   &quot;got&quot;: &quot;TW-552&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-07&quot;,
+   &quot;got&quot;: &quot;2026-11-07&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-07&quot;,
+   &quot;got&quot;: &quot;2026-12-07&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 2350.0,
+   &quot;got&quot;: 2350.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;EUR&quot;,
+   &quot;got&quot;: &quot;EUR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 2350.0,
+   &quot;got&quot;: 2350.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;EUR&quot;,
+   &quot;got&quot;: &quot;EUR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1822.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-09 clean inr {&quot;vendor_name&quot;: &quot;quill &amp; ledger stationers&quot;, &quot;invoice_number&quot;: &quot;ql-1002&quot;, &quot;invoice_date&quot;: &quot;2026-11-04&quot;, &quot;due_date&quot;: &quot;2026-12-04&quot;, &quot;total_amount&quot;: 3000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-09</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1354 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INVOICE
+Vendor: Quill &amp; Ledger Stationers
+Invoice No: QL-1002
+Invoice Date: 04/11/2026
+Due Date: 04/12/2026
+Subtotal: INR 3,200.00
+Discount: INR 200.00
+Total Due: INR 3,000.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Quill &amp; Ledger Stationers&quot;, &quot;invoice_number&quot;: &quot;QL-1002&quot;, &quot;invoice_date&quot;: &quot;2026-11-04&quot;, &quot;due_date&quot;: &quot;2026-12-04&quot;, &quot;total_amount&quot;: 3000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Quill &amp; Ledger Stationers&quot;,
+   &quot;got&quot;: &quot;Quill &amp; Ledger Stationers&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;QL-1002&quot;,
+   &quot;got&quot;: &quot;QL-1002&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-04&quot;,
+   &quot;got&quot;: &quot;2026-11-04&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-04&quot;,
+   &quot;got&quot;: &quot;2026-12-04&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 3000.0,
+   &quot;got&quot;: 3000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 3000.0,
+   &quot;got&quot;: 3000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1354.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-10 clean inr high-value {&quot;vendor_name&quot;: &quot;granite peak security services&quot;, &quot;invoice_number&quot;: &quot;gps/26/883&quot;, &quot;invoice_date&quot;: &quot;2026-10-28&quot;, &quot;due_date&quot;: &quot;2026-11-12&quot;, &quot;total_amount&quot;: 2500000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: &quot;po-55120&quot;, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-10</span> ⚑ critical <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1451 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Vendor: Granite Peak Security Services
+Invoice No: GPS/26/883
+Invoice Date: 28/10/2026
+Due Date: 12/11/2026
+PO Number: PO-55120
+Total Due: INR 25,00,000.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Granite Peak Security Services&quot;, &quot;invoice_number&quot;: &quot;GPS/26/883&quot;, &quot;invoice_date&quot;: &quot;2026-10-28&quot;, &quot;due_date&quot;: &quot;2026-11-12&quot;, &quot;total_amount&quot;: 2500000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: &quot;PO-55120&quot;, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Granite Peak Security Services&quot;,
+   &quot;got&quot;: &quot;Granite Peak Security Services&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GPS/26/883&quot;,
+   &quot;got&quot;: &quot;GPS/26/883&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-28&quot;,
+   &quot;got&quot;: &quot;2026-10-28&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-12&quot;,
+   &quot;got&quot;: &quot;2026-11-12&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 2500000.0,
+   &quot;got&quot;: 2500000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;PO-55120&quot;,
+   &quot;got&quot;: &quot;PO-55120&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 2500000.0,
+   &quot;got&quot;: 2500000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1451.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-11 email inr {&quot;vendor_name&quot;: &quot;lumen fiber networks&quot;, &quot;invoice_number&quot;: &quot;lf-20931&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-16&quot;, &quot;total_amount&quot;: 7080.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-11</span> <span class='mut'>· extractor</span> <span class='tag'>email</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1834 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>From: &lt;EMAIL_16dc2c01e128&gt;
+Subject: Invoice LF-20931
+Lumen Fiber Networks invoice LF-20931, date 2026-11-01, total INR 7,080.00 incl. GST, due 2026-11-16.</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Lumen Fiber Networks&quot;, &quot;invoice_number&quot;: &quot;LF-20931&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-16&quot;, &quot;total_amount&quot;: 7080.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Lumen Fiber Networks&quot;,
+   &quot;got&quot;: &quot;Lumen Fiber Networks&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;LF-20931&quot;,
+   &quot;got&quot;: &quot;LF-20931&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-01&quot;,
+   &quot;got&quot;: &quot;2026-11-01&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-16&quot;,
+   &quot;got&quot;: &quot;2026-11-16&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 7080.0,
+   &quot;got&quot;: 7080.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 7080.0,
+   &quot;got&quot;: 7080.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1834.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-12 ocr inr {&quot;vendor_name&quot;: &quot;oakridge facility management&quot;, &quot;invoice_number&quot;: &quot;ofm-0451&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 64900.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-12</span> <span class='mut'>· extractor</span> <span class='tag'>ocr</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 2038 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INV0ICE
+Vendor: 0akridge Facility Management
+Invoice No: OFM-0451
+Invoice Date: 02/11/2026
+Due Date: 02/12/2026
+Total Due: INR 64,900.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Oakridge Facility Management&quot;, &quot;invoice_number&quot;: &quot;OFM-0451&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 64900.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Oakridge Facility Management&quot;,
+   &quot;got&quot;: &quot;Oakridge Facility Management&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;OFM-0451&quot;,
+   &quot;got&quot;: &quot;OFM-0451&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-02&quot;,
+   &quot;got&quot;: &quot;2026-11-02&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-02&quot;,
+   &quot;got&quot;: &quot;2026-12-02&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 64900.0,
+   &quot;got&quot;: 64900.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 64900.0,
+   &quot;got&quot;: 64900.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 2038.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-13 clean usd {&quot;vendor_name&quot;: &quot;bluebird travel desk&quot;, &quot;invoice_number&quot;: &quot;btd-1290&quot;, &quot;invoice_date&quot;: &quot;2026-11-06&quot;, &quot;due_date&quot;: &quot;2026-11-21&quot;, &quot;total_amount&quot;: 3410.0, &quot;currency&quot;: &quot;usd&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-13</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>usd</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1345 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INVOICE
+Vendor: Bluebird Travel Desk
+Invoice No: BTD-1290
+Invoice Date: 06/11/2026
+Due Date: 21/11/2026
+Total Due: USD 3,410.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Bluebird Travel Desk&quot;, &quot;invoice_number&quot;: &quot;BTD-1290&quot;, &quot;invoice_date&quot;: &quot;2026-11-06&quot;, &quot;due_date&quot;: &quot;2026-11-21&quot;, &quot;total_amount&quot;: 3410.0, &quot;currency&quot;: &quot;USD&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Bluebird Travel Desk&quot;,
+   &quot;got&quot;: &quot;Bluebird Travel Desk&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;BTD-1290&quot;,
+   &quot;got&quot;: &quot;BTD-1290&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-06&quot;,
+   &quot;got&quot;: &quot;2026-11-06&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-21&quot;,
+   &quot;got&quot;: &quot;2026-11-21&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 3410.0,
+   &quot;got&quot;: 3410.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;USD&quot;,
+   &quot;got&quot;: &quot;USD&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 3410.0,
+   &quot;got&quot;: 3410.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;USD&quot;,
+   &quot;got&quot;: &quot;USD&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1345.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-14 clean inr not-invoice {&quot;vendor_name&quot;: null, &quot;invoice_number&quot;: null, &quot;invoice_date&quot;: null, &quot;due_date&quot;: null, &quot;total_amount&quot;: null, &quot;currency&quot;: null, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-14</span> ⚑ critical <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><span class='tag'>not-invoice</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1322 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Credit note, not an invoice.
+Vendor: Brightline Office Supplies Pvt Ltd
+Credit Note No: CN-2026-0033
+Date: 06/11/2026
+Credit Amount: INR 2,000.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: null, &quot;invoice_number&quot;: null, &quot;invoice_date&quot;: null, &quot;due_date&quot;: null, &quot;total_amount&quot;: null, &quot;currency&quot;: null, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1322.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-15 clean inr {&quot;vendor_name&quot;: &quot;cedar lane analytics&quot;, &quot;invoice_number&quot;: &quot;cla-0007&quot;, &quot;invoice_date&quot;: &quot;2026-10-31&quot;, &quot;due_date&quot;: &quot;2026-11-30&quot;, &quot;total_amount&quot;: 295000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: &quot;po-12007&quot;, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-15</span> <span class='mut'>· extractor</span> <span class='tag'>clean</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1761 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>INVOICE
+Vendor: Cedar Lane Analytics
+Invoice No: CLA-0007
+Invoice Date: 31/10/2026
+Due Date: 30/11/2026
+PO Number: PO-12007
+Total Due: INR 2,95,000.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Cedar Lane Analytics&quot;, &quot;invoice_number&quot;: &quot;CLA-0007&quot;, &quot;invoice_date&quot;: &quot;2026-10-31&quot;, &quot;due_date&quot;: &quot;2026-11-30&quot;, &quot;total_amount&quot;: 295000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: &quot;PO-12007&quot;, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Cedar Lane Analytics&quot;,
+   &quot;got&quot;: &quot;Cedar Lane Analytics&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;CLA-0007&quot;,
+   &quot;got&quot;: &quot;CLA-0007&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-31&quot;,
+   &quot;got&quot;: &quot;2026-10-31&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-30&quot;,
+   &quot;got&quot;: &quot;2026-11-30&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 295000.0,
+   &quot;got&quot;: 295000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;PO-12007&quot;,
+   &quot;got&quot;: &quot;PO-12007&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 295000.0,
+   &quot;got&quot;: 295000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1761.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='inv-16 email inr informal {&quot;vendor_name&quot;: &quot;riverstone interiors&quot;, &quot;invoice_number&quot;: &quot;ri-660&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-11-20&quot;, &quot;total_amount&quot;: 58000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}'><summary><span class="pill ok">PASS</span> <span class='k'>inv-16</span> <span class='mut'>· extractor</span> <span class='tag'>email</span><span class='tag'>inr</span><span class='tag'>informal</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill skip">gstin_format –</span></div></summary><div class='body'><div class='mut'>latency 1439 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Pls pay asap - Vendor Riverstone Interiors, inv RI-660, dt 5/11/2026, amt Rs 58,000/-, due 20/11/2026</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Riverstone Interiors&quot;, &quot;invoice_number&quot;: &quot;RI-660&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-11-20&quot;, &quot;total_amount&quot;: 58000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: null}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Riverstone Interiors&quot;,
+   &quot;got&quot;: &quot;Riverstone Interiors&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;RI-660&quot;,
+   &quot;got&quot;: &quot;RI-660&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-05&quot;,
+   &quot;got&quot;: &quot;2026-11-05&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-20&quot;,
+   &quot;got&quot;: &quot;2026-11-20&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 58000.0,
+   &quot;got&quot;: 58000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 58000.0,
+   &quot;got&quot;: 58000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1439.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='gst-01 gst inr {&quot;vendor_name&quot;: &quot;shreeji packaging industries&quot;, &quot;invoice_number&quot;: &quot;spi/26-27/0141&quot;, &quot;invoice_date&quot;: &quot;2026-11-03&quot;, &quot;due_date&quot;: &quot;2026-12-03&quot;, &quot;total_amount&quot;: 141600.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;24aabcs1429b1z5&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>gst-01</span> <span class='mut'>· extractor</span> <span class='tag'>gst</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill ok">gstin_format 1.00</span></div></summary><div class='body'><div class='mut'>latency 1935 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>TAX INVOICE
+Vendor: Shreeji Packaging Industries
+GSTIN: 24AABCS1429B1Z5
+Invoice No: SPI/26-27/0141
+Invoice Date: 03/11/2026
+Due Date: 03/12/2026
+Taxable value: Rs. 1.2 lakh
+IGST 18%: Rs. 21,600
+Total: Rs. 1,41,600.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Shreeji Packaging Industries&quot;, &quot;invoice_number&quot;: &quot;SPI/26-27/0141&quot;, &quot;invoice_date&quot;: &quot;2026-11-03&quot;, &quot;due_date&quot;: &quot;2026-12-03&quot;, &quot;total_amount&quot;: 141600.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;24AABCS1429B1Z5&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Shreeji Packaging Industries&quot;,
+   &quot;got&quot;: &quot;Shreeji Packaging Industries&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;SPI/26-27/0141&quot;,
+   &quot;got&quot;: &quot;SPI/26-27/0141&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-03&quot;,
+   &quot;got&quot;: &quot;2026-11-03&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-03&quot;,
+   &quot;got&quot;: &quot;2026-12-03&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 141600.0,
+   &quot;got&quot;: 141600.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;24AABCS1429B1Z5&quot;,
+   &quot;got&quot;: &quot;24AABCS1429B1Z5&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 141600.0,
+   &quot;got&quot;: 141600.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1935.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill ok">1.00</span></td><td></td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='gst-02 gst inr {&quot;vendor_name&quot;: &quot;kaveri agro foods pvt ltd&quot;, &quot;invoice_number&quot;: &quot;kaf-8812&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-16&quot;, &quot;total_amount&quot;: 86730.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;29aagck5512m1zq&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>gst-02</span> <span class='mut'>· extractor</span> <span class='tag'>gst</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill ok">gstin_format 1.00</span></div></summary><div class='body'><div class='mut'>latency 2043 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>TAX INVOICE
+Supplier: Kaveri Agro Foods Pvt Ltd (GSTIN 29AAGCK5512M1ZQ)
+Inv No: KAF-8812
+Date: 01-11-2026
+Due: 16-11-2026
+Grand Total: INR 86,730.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Kaveri Agro Foods Pvt Ltd&quot;, &quot;invoice_number&quot;: &quot;KAF-8812&quot;, &quot;invoice_date&quot;: &quot;2026-11-01&quot;, &quot;due_date&quot;: &quot;2026-11-16&quot;, &quot;total_amount&quot;: 86730.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;29AAGCK5512M1ZQ&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Kaveri Agro Foods Pvt Ltd&quot;,
+   &quot;got&quot;: &quot;Kaveri Agro Foods Pvt Ltd&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KAF-8812&quot;,
+   &quot;got&quot;: &quot;KAF-8812&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-01&quot;,
+   &quot;got&quot;: &quot;2026-11-01&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-16&quot;,
+   &quot;got&quot;: &quot;2026-11-16&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 86730.0,
+   &quot;got&quot;: 86730.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;29AAGCK5512M1ZQ&quot;,
+   &quot;got&quot;: &quot;29AAGCK5512M1ZQ&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 86730.0,
+   &quot;got&quot;: 86730.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 2043.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill ok">1.00</span></td><td></td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='gst-03 gst inr lakh {&quot;vendor_name&quot;: &quot;deccan steel traders&quot;, &quot;invoice_number&quot;: &quot;dst-2026-554&quot;, &quot;invoice_date&quot;: &quot;2026-10-29&quot;, &quot;due_date&quot;: &quot;2026-11-28&quot;, &quot;total_amount&quot;: 450000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;36aajfd7781k1z2&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>gst-03</span> <span class='mut'>· extractor</span> <span class='tag'>gst</span><span class='tag'>inr</span><span class='tag'>lakh</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill ok">gstin_format 1.00</span></div></summary><div class='body'><div class='mut'>latency 1769 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>TAX INVOICE
+Vendor: Deccan Steel Traders
+GSTIN: 36AAJFD7781K1Z2
+Invoice No: DST-2026-554
+Invoice Date: 29/10/2026
+Due Date: 28/11/2026
+Total: INR 4.5 lakh</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Deccan Steel Traders&quot;, &quot;invoice_number&quot;: &quot;DST-2026-554&quot;, &quot;invoice_date&quot;: &quot;2026-10-29&quot;, &quot;due_date&quot;: &quot;2026-11-28&quot;, &quot;total_amount&quot;: 450000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;36AAJFD7781K1Z2&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Deccan Steel Traders&quot;,
+   &quot;got&quot;: &quot;Deccan Steel Traders&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DST-2026-554&quot;,
+   &quot;got&quot;: &quot;DST-2026-554&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-29&quot;,
+   &quot;got&quot;: &quot;2026-10-29&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-28&quot;,
+   &quot;got&quot;: &quot;2026-11-28&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 450000.0,
+   &quot;got&quot;: 450000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;36AAJFD7781K1Z2&quot;,
+   &quot;got&quot;: &quot;36AAJFD7781K1Z2&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 450000.0,
+   &quot;got&quot;: 450000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1769.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill ok">1.00</span></td><td></td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='gst-04 gst inr crore high-value {&quot;vendor_name&quot;: &quot;malabar spices export house&quot;, &quot;invoice_number&quot;: &quot;mse/0912&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 22500000.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: &quot;po-77420&quot;, &quot;tax_id&quot;: &quot;32aacfm3390r1zk&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>gst-04</span> ⚑ critical <span class='mut'>· extractor</span> <span class='tag'>gst</span><span class='tag'>inr</span><span class='tag'>crore</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill ok">gstin_format 1.00</span></div></summary><div class='body'><div class='mut'>latency 1677 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>TAX INVOICE
+Vendor: Malabar Spices Export House
+GSTIN: 32AACFM3390R1ZK
+Invoice No: MSE/0912
+Invoice Date: 02/11/2026
+Due Date: 02/12/2026
+PO Number: PO-77420
+Total: Rs. 2.25 crore</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Malabar Spices Export House&quot;, &quot;invoice_number&quot;: &quot;MSE/0912&quot;, &quot;invoice_date&quot;: &quot;2026-11-02&quot;, &quot;due_date&quot;: &quot;2026-12-02&quot;, &quot;total_amount&quot;: 22500000.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: &quot;PO-77420&quot;, &quot;tax_id&quot;: &quot;32AACFM3390R1ZK&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Malabar Spices Export House&quot;,
+   &quot;got&quot;: &quot;Malabar Spices Export House&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MSE/0912&quot;,
+   &quot;got&quot;: &quot;MSE/0912&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-02&quot;,
+   &quot;got&quot;: &quot;2026-11-02&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-12-02&quot;,
+   &quot;got&quot;: &quot;2026-12-02&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 22500000.0,
+   &quot;got&quot;: 22500000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;PO-77420&quot;,
+   &quot;got&quot;: &quot;PO-77420&quot;
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;32AACFM3390R1ZK&quot;,
+   &quot;got&quot;: &quot;32AACFM3390R1ZK&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 22500000.0,
+   &quot;got&quot;: 22500000.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1677.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill ok">1.00</span></td><td></td></tr></table></div></details><details class='case' data-target='extractor' data-fail='0' data-search='gst-05 gst inr {&quot;vendor_name&quot;: &quot;narmada textiles&quot;, &quot;invoice_number&quot;: &quot;nt-3001&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-11-20&quot;, &quot;total_amount&quot;: 38940.0, &quot;currency&quot;: &quot;inr&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;24aahfn0021c1zv&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>gst-05</span> <span class='mut'>· extractor</span> <span class='tag'>gst</span><span class='tag'>inr</span><div style='margin-top:4px'><span class="pill ok">valid_json 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">amount_exact 1.00</span> <span class="pill ok">latency 1.00</span> <span class="pill ok">gstin_format 1.00</span></div></summary><div class='body'><div class='mut'>latency 1901 ms · $0.0042 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>TAX INVOICE
+Vendor: Narmada Textiles
+GSTIN: 24AAHFN0021C1ZV
+Invoice No: NT-3001
+Invoice Date: 05/11/2026
+Due Date: 20/11/2026
+Total: INR 38,940.00</pre></div><div><div class='k'>Output</div><pre>{&quot;vendor_name&quot;: &quot;Narmada Textiles&quot;, &quot;invoice_number&quot;: &quot;NT-3001&quot;, &quot;invoice_date&quot;: &quot;2026-11-05&quot;, &quot;due_date&quot;: &quot;2026-11-20&quot;, &quot;total_amount&quot;: 38940.0, &quot;currency&quot;: &quot;INR&quot;, &quot;po_number&quot;: null, &quot;tax_id&quot;: &quot;24AAHFN0021C1ZV&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>valid_json</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>8/8 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;vendor_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Narmada Textiles&quot;,
+   &quot;got&quot;: &quot;Narmada Textiles&quot;
+  },
+  &quot;invoice_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;NT-3001&quot;,
+   &quot;got&quot;: &quot;NT-3001&quot;
+  },
+  &quot;invoice_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-05&quot;,
+   &quot;got&quot;: &quot;2026-11-05&quot;
+  },
+  &quot;due_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-11-20&quot;,
+   &quot;got&quot;: &quot;2026-11-20&quot;
+  },
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 38940.0,
+   &quot;got&quot;: 38940.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  },
+  &quot;po_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: null,
+   &quot;got&quot;: null
+  },
+  &quot;tax_id&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;24AAHFN0021C1ZV&quot;,
+   &quot;got&quot;: &quot;24AAHFN0021C1ZV&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>amount_exact</td><td><span class="pill ok">1.00</span></td><td>2/2 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;total_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 38940.0,
+   &quot;got&quot;: 38940.0
+  },
+  &quot;currency&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;INR&quot;,
+   &quot;got&quot;: &quot;INR&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1901.0,
+ &quot;max_ms&quot;: 5000.0
+}</pre></td></tr><tr><td>gstin_format</td><td><span class="pill ok">1.00</span></td><td></td></tr></table></div></details>
+<div style="margin-top:30px"><p class='mut'>Grader and target errors count as failed scores (value 0).</p></div>
+<p class="mut">Generated by genai-eval-framework. Inputs and outputs shown here were tokenised before storage when the suite has tokenize: true.</p>
+</main><script>
+function f(){const t=document.getElementById('ft').value,s=document.getElementById('fs').value,q=document.getElementById('fq').value.toLowerCase();
+document.querySelectorAll('details.case').forEach(d=>{const ok=(!t||d.dataset.target===t)&&(!s||(s==='fail'?d.dataset.fail==='1':d.dataset.fail==='0'))&&(!q||d.dataset.search.includes(q));d.style.display=ok?'':'none'})}
+</script></body></html>

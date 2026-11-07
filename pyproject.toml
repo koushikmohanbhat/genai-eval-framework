@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "genai-eval-framework"
+version = "0.3.0"
+description = "Evals as code for GenAI apps and agents: OpenAI, Anthropic, Amazon Bedrock / AgentCore and Google Vertex AI targets, native telemetry sources (CloudWatch, X-Ray, Cloud Trace, BigQuery), prompt versioning and CI release gates"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Koushik Mohan" }]
+keywords = ["llm", "evals", "agents", "rag", "openai", "bedrock", "agentcore", "vertex-ai", "opentelemetry", "dpdp"]
+dependencies = [
+  "pydantic>=2.5",
+  "PyYAML>=6",
+  "Jinja2>=3.1",
+  "SQLAlchemy>=2.0",
+  "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.60"]
+agents = ["openai-agents>=0.2"]
+anthropic = ["anthropic[vertex]>=0.60"]
+aws = ["boto3>=1.40"]
+gcp = [
+  "google-genai>=1.0",
+  "google-cloud-aiplatform>=1.60",
+  "google-cloud-trace>=1.13",
+  "google-cloud-logging>=3.10",
+  "google-cloud-bigquery>=3.20",
+  "google-cloud-monitoring>=2.20",
+  "google-auth>=2.30",
+]
+otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25", "opentelemetry-exporter-otlp-proto-http>=1.25"]
+postgres = ["psycopg[binary]>=3.1"]
+dpdp = ["dpdp-data-rights-framework>=0.2"]
+all = ["genai-eval-framework[openai,agents,anthropic,aws,gcp,otel,postgres]"]
+dev = ["pytest>=8", "ruff>=0.5", "boto3>=1.40", "opentelemetry-sdk>=1.25", "pip-audit>=2.7"]
+
+[project.scripts]
+genai-evals = "genai_evals.cli:main"
+
+[project.urls]
+Repository = "https://github.com/koushikmohanbhat/genai-eval-framework"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/genai_evals"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"packs" = "genai_evals/packs"          # eval packs ship inside the wheel for `genai-evals init --pack`
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "packs", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "examples/insurance"]
+
+[tool.ruff]
+line-length = 190
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["B008", "E741", "B024", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/genai_evals/report/html.py" = ["E501"]
+"examples/insurance/build_data.py" = ["E501"]
+"tests/test_sources.py" = ["E501"]

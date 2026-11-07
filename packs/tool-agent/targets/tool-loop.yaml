@@ -1,0 +1,5 @@
+# Any model profile (OpenAI, Anthropic, Bedrock, Vertex, a gateway) running the versioned prompt and tool schema
+# against the mock tools: test models and prompts before the real agent exists.
+# .env: EVAL_TARGETS=targets/tool-loop.yaml, EVAL_TARGET_PROFILE (a profile in providers.live.yaml)
+targets:
+  - {name: agent, kind: agent, framework: tool_loop, profile: "${EVAL_TARGET_PROFILE:-openai}", prompt: support_agent, tools_module: tools, max_steps: 8}

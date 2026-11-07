@@ -1,0 +1,227 @@
+{
+ "experiment": "fnol-injury-escalation",
+ "created_at": "2026-11-07T03:16:33.114341+00:00",
+ "run_id": "run_71310e98a288",
+ "experiment_path": "examples/insurance/fnol_experiment.yaml",
+ "files": {
+  "experiment": {
+   "path": "examples/insurance/fnol_experiment.yaml",
+   "sha256": "sha256:03675cf480d88cd90df278ad3ed1ce3e9f14ac2ea8bd981b847e6b0c6f93ae5c"
+  },
+  "suite": {
+   "path": "examples/insurance/fnol_agent.yaml",
+   "sha256": "sha256:86319738c5611ab3676d15cfbe1f08f5ca00c82058524d136490e0362212a6dd"
+  },
+  "providers": {
+   "path": "examples/insurance/providers.yaml",
+   "sha256": "sha256:b60977a437769c0d48c09d6d72f1ab2f44f9c44911f776a9ea8f17f37c5be4c6"
+  },
+  "dataset": {
+   "path": "examples/insurance/data/fnol_agent.jsonl",
+   "sha256": "sha256:12d3d8d60d32c6c7090f0462ae1d3150b150e4bb87d5768a54914bc95f4e032d"
+  },
+  "code:insurance_targets": {
+   "path": "examples/insurance/insurance_targets.py",
+   "sha256": "sha256:bd092f7ab82e5fd781bc24ed74e636d10068a31412fa150846cdfde23aa1b0ba"
+  }
+ },
+ "prompts": {
+  "claims_agent@1.3.2": "sha256:7a2425ac13841a193f05b6bfd8d41856995f91f6671a736b01e660d6801a4029",
+  "claims_agent@1.4.0": "sha256:e0dd1cd861dbdd515a0911a5e15347a2bc9146bbac82249576cdc50ca3552923"
+ },
+ "target": {
+  "base": "fnol-agent",
+  "baseline": "prod-1.3.2",
+  "variants": [
+   "prompt-1.4.0",
+   "fast-model"
+  ],
+  "specs": {
+   "prod-1.3.2": {
+    "name": "prod-1.3.2",
+    "kind": "python",
+    "profile": null,
+    "prompt": "claims_agent@1.3.2",
+    "prompt_stage": "prod",
+    "system": null,
+    "template": null,
+    "framework": null,
+    "tools_module": null,
+    "callable": "insurance_targets:fnol_agent",
+    "retriever": null,
+    "max_steps": 12,
+    "output": "text",
+    "options": {}
+   },
+   "prompt-1.4.0": {
+    "name": "prompt-1.4.0",
+    "kind": "python",
+    "profile": null,
+    "prompt": "claims_agent@1.4.0",
+    "prompt_stage": "prod",
+    "system": null,
+    "template": null,
+    "framework": null,
+    "tools_module": null,
+    "callable": "insurance_targets:fnol_agent",
+    "retriever": null,
+    "max_steps": 12,
+    "output": "text",
+    "options": {}
+   },
+   "fast-model": {
+    "name": "fast-model",
+    "kind": "python",
+    "profile": null,
+    "prompt": "claims_agent@1.3.2",
+    "prompt_stage": "prod",
+    "system": null,
+    "template": null,
+    "framework": null,
+    "tools_module": null,
+    "callable": "insurance_targets:fnol_agent",
+    "retriever": null,
+    "max_steps": 12,
+    "output": "text",
+    "options": {
+     "model": "fast"
+    }
+   }
+  }
+ },
+ "providers_used": {
+  "judge-a": {
+   "provider": "mock",
+   "model": "heuristic-judge-a",
+   "family": "openai",
+   "region": null,
+   "location": null,
+   "options": {
+    "mode": "judge",
+    "strictness": 1.0
+   }
+  },
+  "judge-b": {
+   "provider": "mock",
+   "model": "heuristic-judge-b",
+   "family": "google",
+   "region": null,
+   "location": null,
+   "options": {
+    "mode": "judge",
+    "strictness": 1.25
+   }
+  },
+  "simulator": {
+   "provider": "mock",
+   "model": "scripted-customer",
+   "family": "mock",
+   "region": null,
+   "location": null,
+   "options": {
+    "mode": "judge"
+   }
+  }
+ },
+ "judges": {
+  "names": [
+   "judge-a",
+   "judge-b"
+  ],
+  "provenance": {
+   "prompt_templates": "sha256:241b67f9030cef2c",
+   "temperature": 0.0,
+   "response_format": "json",
+   "policy": {},
+   "judges": {
+    "judge-a": {
+     "provider": "mock",
+     "configured_model": "heuristic-judge-a",
+     "family": "openai",
+     "region": null,
+     "options": {
+      "mode": "judge",
+      "strictness": 1.0
+     },
+     "reported_models": [
+      "heuristic-judge-a"
+     ]
+    },
+    "judge-b": {
+     "provider": "mock",
+     "configured_model": "heuristic-judge-b",
+     "family": "google",
+     "region": null,
+     "options": {
+      "mode": "judge",
+      "strictness": 1.25
+     },
+     "reported_models": [
+      "heuristic-judge-b"
+     ]
+    }
+   }
+  },
+  "graders": [
+   {
+    "name": "task_success",
+    "type": "final_state",
+    "config_hash": "sha256:40bff69462ce8d75"
+   },
+   {
+    "name": "verified_policy",
+    "type": "tool_args_match",
+    "config_hash": "sha256:ede533d4a843d235"
+   },
+   {
+    "name": "no_claim_on_inactive_policy",
+    "type": "tool_not_called",
+    "config_hash": "sha256:47f4aa3fc0d258a9"
+   },
+   {
+    "name": "escalated_injury",
+    "type": "tool_called",
+    "config_hash": "sha256:45318de185c5ee26"
+   },
+   {
+    "name": "no_payout_promise",
+    "type": "policy",
+    "config_hash": "sha256:19f0ca602f108fcb",
+    "judge_prompt_hash": "sha256:241b67f9030cef2c"
+   },
+   {
+    "name": "steps",
+    "type": "step_budget",
+    "config_hash": "sha256:62330ed0bc569d37"
+   },
+   {
+    "name": "no_pii_echo",
+    "type": "pii_leak",
+    "config_hash": "sha256:9b8d33ec7d893527"
+   }
+  ]
+ },
+ "env_vars": [],
+ "run": {
+  "seed": 7,
+  "repeats": 3,
+  "n_cases": 16,
+  "tokenize": true,
+  "on_error": "fail",
+  "min_n": 5,
+  "dropped_gates": [
+   "no-regression"
+  ]
+ },
+ "environment": {
+  "framework": "0.3.0",
+  "python": "3.13.18",
+  "git_sha": "2b3dd18dc08fe6b747c386c82c404796df37f439",
+  "git_dirty": true
+ },
+ "not_captured": [
+  "Python code outside the suite folder, and installed packages (pinned only by the git commit and framework version)",
+  "model behaviour behind a provider model id (providers can change it)",
+  "values of environment variables (names only)"
+ ]
+}

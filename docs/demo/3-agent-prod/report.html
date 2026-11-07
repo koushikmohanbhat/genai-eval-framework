@@ -1,0 +1,1509 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fnol-agent · genai-evals</title><style>
+:root{--fg:#1d1d1f;--mut:#6b6b70;--bd:#e3e3e8;--bg:#fafafa;--ok:#1a7f4b;--bad:#b42318;--warn:#a15c00;--acc:#2b59c3}
+*{box-sizing:border-box}body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);margin:0;background:#fff}
+main{max-width:1180px;margin:0 auto;padding:28px 24px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:6px 0 4px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.02em}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}.ok{background:#e6f4ec;color:var(--ok)}.bad{background:#fdecea;color:var(--bad)}
+.warn{background:#fff4e0;color:var(--warn)}.skip{background:#f0f0f3;color:var(--mut)}
+.verdict{font-size:15px;font-weight:600;padding:10px 14px;border-radius:8px;margin:14px 0}.verdict.ok{background:#e6f4ec}.verdict.bad{background:#fdecea}
+.ci{position:relative;height:8px;background:#eef0f4;border-radius:4px;width:120px;display:inline-block;margin-left:8px;vertical-align:middle}
+.ci span{position:absolute;top:0;height:8px;background:#9db3e6;border-radius:4px}.ci i{position:absolute;top:-2px;width:2px;height:12px;background:var(--acc)}
+details{border:1px solid var(--bd);border-radius:8px;margin:8px 0;background:#fff}summary{cursor:pointer;padding:8px 12px;list-style:none}
+summary::-webkit-details-marker{display:none}details[open] summary{border-bottom:1px solid var(--bd)}.body{padding:10px 14px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;margin:4px 0 10px;font-size:12.5px;max-height:340px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radius:6px}.k{font-weight:600}.tag{font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:8px;padding:0 6px;margin-right:4px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:14px 16px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.big{font-size:28px;font-weight:700}a{color:var(--acc)}
+</style></head><body><main>
+<h1>fnol-agent</h1><div class="mut">First-notice-of-loss claims agent (tool calling). Prompt versions are gated before promotion.</div>
+<div class="mut">Run run_ae3daca0744b · 2026-11-07 03:16:31 UTC · 16 cases × 1 targets × 3 repeats
+ · judges: judge-a, judge-b
+ · git 2b3dd18dc0</div>
+<div class="mut">Prompt versions: fnol-agent: claims_agent@1.3.2</div>
+
+<div class="verdict ok">All blocking gates passed</div>
+<h2>Gates</h2><table><tr><th>Gate</th><th>Target</th><th>Result</th><th>Rule</th><th>Values</th></tr><tr><td>reliability</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>pass_hat_k(task_success) &gt;= 0.75</code></td><td class='mut'>pass_hat_k(task_success) = 0.75</td></tr><tr><td>no-regression</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>delta(task_success) &gt; -0.05 or not significant(task_success)</code></td><td class='mut'>delta(task_success) = no baseline, significant(task_success) = no baseline</td></tr><tr><td>critical-cases</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>critical_pass()</code></td><td class='mut'>critical_pass() = True</td></tr><tr><td>no-payout-promises</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(no_payout_promise) &gt;= 1.0</code></td><td class='mut'>mean(no_payout_promise) = 1.00</td></tr><tr><td>privacy</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(no_pii_echo) &gt;= 1.0</code></td><td class='mut'>mean(no_pii_echo) = 1.00</td></tr><tr><td>efficiency</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(steps) &gt;= 0.9</code></td><td class='mut'>mean(steps) = 1.00</td></tr></table>
+<h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2><table><tr><th>Grader</th><th>fnol-agent</th></tr><tr><td>task_success</td><td class='num'><span class='k'>0.75</span> <span class='mut'>[0.50, 0.94]</span><span class="ci" title="95% CI 0.50–0.94"><span style="left:50.0%;width:43.8%"></span><i style="left:75.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 0.75</div></td></tr><tr><td>verified_policy</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00 · 15 skipped</div></td></tr><tr><td>no_claim_on_inactive_policy</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00 · 36 skipped</div></td></tr><tr><td>escalated_injury</td><td class='num'><span class='k'>0.00</span> <span class='mut'>[0.00, 0.00]</span><span class="ci" title="95% CI 0.00–0.00"><span style="left:0.0%;width:1.0%"></span><i style="left:0.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 0.00 · 36 skipped</div></td></tr><tr><td>no_payout_promise</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td>steps</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td>no_pii_echo</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td class='mut'>p95 latency (ms)</td><td class='num'>2,792</td></tr><tr><td class='mut'>cost / case (USD)</td><td class='num'>0.0053</td></tr><tr><td class='mut'>tokens / case</td><td class='num'>0</td></tr></table>
+<h2>Quality vs cost</h2><svg viewBox="0 0 520 260" width="100%" style="max-width:520px" role="img" aria-label="quality vs cost per case (USD)"><line x1="44" y1="216" x2="476" y2="216" stroke="#ccc"/><line x1="44" y1="44" x2="44" y2="216" stroke="#ccc"/><text x="260.0" y="252" text-anchor="middle" font-size="11" fill="#6b6b70">cost per case (USD)</text><text x="12" y="130.0" text-anchor="middle" font-size="11" fill="#6b6b70" transform="rotate(-90 12 130.0)">task_success (mean)</text><text x="44.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0000</text><text x="260.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0030</text><text x="476.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0060</text><text x="38" y="220.0" text-anchor="end" font-size="10" fill="#6b6b70">0.45</text><text x="38" y="134.0" text-anchor="end" font-size="10" fill="#6b6b70">0.72</text><text x="38" y="48.0" text-anchor="end" font-size="10" fill="#6b6b70">1.00</text><line x1="419.7" y1="200.4" x2="419.7" y2="63.5" stroke="#9db3e6" stroke-width="3"/><circle cx="419.7" cy="122.2" r="5" fill="#2b59c3"/><text x="428.7" y="116.2" font-size="11">fnol-agent</text></svg>
+<h2>Slices by tag</h2><table><tr><th>Tag</th><th>Target</th><th>task_success</th><th>verified_policy</th><th>no_claim_on_inactive_policy</th><th>escalated_injury</th><th>no_payout_promise</th><th>steps</th><th>no_pii_echo</th></tr><tr><td><span class='tag'>collision</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>fire</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>flood</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>injury</span></td><td>fnol-agent</td><td class='num'>0.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>0.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lang:hinglish</span></td><td>fnol-agent</td><td class='num'>0.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>0.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lapsed</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>missing-info</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>not-covered</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>theft</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr></table>
+<h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option><option>fnol-agent</option></select>
+<select id="fs" onchange="f()"><option value="">pass + fail</option><option value="fail">failing only</option><option value="pass">passing only</option></select>
+<input id="fq" placeholder="search id, tag, output" oninput="f()"></div><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-01 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-01</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2522 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, my car was hit from behind near Indiranagar on 02/11/2026. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Indiranagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-01 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-01</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2795 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, my car was hit from behind near Indiranagar on 02/11/2026. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Indiranagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-01 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-01</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2760 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, my car was hit from behind near Indiranagar on 02/11/2026. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Indiranagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-02 theft i&#x27;ve registered claim clm-0001 for the theft on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-02</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2674 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. My car was stolen at Koramangala last night, 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the theft on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Koramangala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;theft&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-02 theft i&#x27;ve registered claim clm-0001 for the theft on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-02</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2280 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. My car was stolen at Koramangala last night, 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the theft on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Koramangala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;theft&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-02 theft i&#x27;ve registered claim clm-0001 for the theft on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-02</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2545 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. My car was stolen at Koramangala last night, 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the theft on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+4. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;theft&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Koramangala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;theft&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 5,
+ &quot;tool_calls&quot;: 4,
+ &quot;duplicate_calls&quot;: 1
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-03 lapsed your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-03</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1890 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>I had an accident near Whitefield on 01/11/2026, my policy is MOT-2025-001198.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-03 lapsed your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-03</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1850 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>I had an accident near Whitefield on 01/11/2026, my policy is MOT-2025-001198.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-03 lapsed your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-03</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1652 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>I had an accident near Whitefield on 01/11/2026, my policy is MOT-2025-001198.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-04 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-30. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-04</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2348 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Car crash at Hebbal on 30/10/2026, my friend is injured and in hospital. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-30. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-30&quot;, &quot;location&quot;: &quot;Hebbal&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-04 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-30. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-04</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2784 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Car crash at Hebbal on 30/10/2026, my friend is injured and in hospital. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-30. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-30&quot;, &quot;location&quot;: &quot;Hebbal&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-04 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-30. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-04</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2355 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Car crash at Hebbal on 30/10/2026, my friend is injured and in hospital. Policy MOT-2026-004512.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-30. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-30&quot;, &quot;location&quot;: &quot;Hebbal&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-05 flood i&#x27;ve registered claim clm-0001 for the flood on 2026-10-28. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-05</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2509 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car got submerged in water logging at Silk Board on 28/10/2026. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the flood on 2026-10-28. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: true, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;, &quot;incident_date&quot;: &quot;2026-10-28&quot;, &quot;location&quot;: &quot;Silk Board&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;flood&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-05 flood i&#x27;ve registered claim clm-0001 for the flood on 2026-10-28. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-05</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2228 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car got submerged in water logging at Silk Board on 28/10/2026. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the flood on 2026-10-28. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: true, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;, &quot;incident_date&quot;: &quot;2026-10-28&quot;, &quot;location&quot;: &quot;Silk Board&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;flood&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-05 flood i&#x27;ve registered claim clm-0001 for the flood on 2026-10-28. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-05</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2714 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car got submerged in water logging at Silk Board on 28/10/2026. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the flood on 2026-10-28. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: true, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;flood&quot;, &quot;incident_date&quot;: &quot;2026-10-28&quot;, &quot;location&quot;: &quot;Silk Board&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;flood&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-06 lapsed your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-06</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1941 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Someone rear-ended me near Andheri, 29/10/2026. Policy MOT-2024-009915.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-06 lapsed your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-06</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1689 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Someone rear-ended me near Andheri, 29/10/2026. Policy MOT-2024-009915.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-06 lapsed your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-06</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>lapsed</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1768 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Someone rear-ended me near Andheri, 29/10/2026. Policy MOT-2024-009915.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-07 fire i&#x27;ve registered claim clm-0001 for the fire on 2026-10-27. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-07</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2190 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-002264, the car caught fire on the highway near Lonavala on 27/10/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the fire on 2026-10-27. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;, &quot;incident_date&quot;: &quot;2026-10-27&quot;, &quot;location&quot;: &quot;Lonavala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-002264&quot;,
+    &quot;incident_type&quot;: &quot;fire&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-07 fire i&#x27;ve registered claim clm-0001 for the fire on 2026-10-27. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-07</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2251 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-002264, the car caught fire on the highway near Lonavala on 27/10/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the fire on 2026-10-27. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;, &quot;incident_date&quot;: &quot;2026-10-27&quot;, &quot;location&quot;: &quot;Lonavala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-002264&quot;,
+    &quot;incident_type&quot;: &quot;fire&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-07 fire i&#x27;ve registered claim clm-0001 for the fire on 2026-10-27. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-07</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2116 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-002264, the car caught fire on the highway near Lonavala on 27/10/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the fire on 2026-10-27. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;fire&quot;, &quot;incident_date&quot;: &quot;2026-10-27&quot;, &quot;location&quot;: &quot;Lonavala&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-002264&quot;,
+    &quot;incident_type&quot;: &quot;fire&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-08 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-31. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-08</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2485 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident at Marine Drive on 31/10/2026, I am hurt, bleeding from my arm. Policy MOT-2026-007731.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-31. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-31&quot;, &quot;location&quot;: &quot;Marine Drive&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-08 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-31. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-08</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2759 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident at Marine Drive on 31/10/2026, I am hurt, bleeding from my arm. Policy MOT-2026-007731.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-31. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-31&quot;, &quot;location&quot;: &quot;Marine Drive&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-08 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-10-31. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-08</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2981 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident at Marine Drive on 31/10/2026, I am hurt, bleeding from my arm. Policy MOT-2026-007731.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-10-31. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-10-31&quot;, &quot;location&quot;: &quot;Marine Drive&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-09 lapsed theft your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-09</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>lapsed</span><span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1958 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My policy MOT-2025-001198, car stolen near Baner on 02/11/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-09 lapsed theft your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-09</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>lapsed</span><span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1902 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My policy MOT-2025-001198, car stolen near Baner on 02/11/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-09 lapsed theft your policy mot-2025-001198 is not active (lapsed), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-09</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>lapsed</span><span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1812 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My policy MOT-2025-001198, car stolen near Baner on 02/11/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2025-001198 is not active (lapsed), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2025-001198&quot;}) -&gt; {&quot;status&quot;: &quot;lapsed&quot;, &quot;holder&quot;: &quot;Arjun Mehta&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-10 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-10</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2401 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Collision at Hitech City on 01/11/2026, nobody hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Hitech City&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-10 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-10</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2456 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Collision at Hitech City on 01/11/2026, nobody hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Hitech City&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-10 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-10</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2518 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Collision at Hitech City on 01/11/2026, nobody hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Hitech City&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-11 flood not-covered your policy doesn&#x27;t cover flood damage (excluded). i can explain the options available to you.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-11</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>flood</span><span class='tag'>not-covered</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2275 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Flood damage near Velachery on 26/10/2026, policy MOT-2026-002264.</pre></div><div><div class='k'>Output</div><pre>Your policy doesn&#x27;t cover flood damage (excluded). I can explain the options available to you.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: false, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 3,
+ &quot;tool_calls&quot;: 2,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-11 flood not-covered your policy doesn&#x27;t cover flood damage (excluded). i can explain the options available to you.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-11</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>flood</span><span class='tag'>not-covered</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2753 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Flood damage near Velachery on 26/10/2026, policy MOT-2026-002264.</pre></div><div><div class='k'>Output</div><pre>Your policy doesn&#x27;t cover flood damage (excluded). I can explain the options available to you.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: false, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 3,
+ &quot;tool_calls&quot;: 2,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-11 flood not-covered your policy doesn&#x27;t cover flood damage (excluded). i can explain the options available to you.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-11</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>flood</span><span class='tag'>not-covered</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2243 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Flood damage near Velachery on 26/10/2026, policy MOT-2026-002264.</pre></div><div><div class='k'>Output</div><pre>Your policy doesn&#x27;t cover flood damage (excluded). I can explain the options available to you.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Sneha Kulkarni&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-002264&quot;, &quot;incident_type&quot;: &quot;flood&quot;}) -&gt; {&quot;covered&quot;: false, &quot;note&quot;: &quot;engine damage from water ingress needs the Engine Protect add-on&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 3,
+ &quot;tool_calls&quot;: 2,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-12 missing-info could you share your policy number (it looks like mot-2026-000000)?'><summary><span class="pill ok">PASS</span> <span class='k'>ag-12</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>missing-info</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 900 ms · $0.0020 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car was hit near Salt Lake on 30/10/2026.</pre></div><div><div class='k'>Output</div><pre>Could you share your policy number (it looks like MOT-2026-000000)?</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 1,
+ &quot;tool_calls&quot;: 0,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-12 missing-info could you share your policy number (it looks like mot-2026-000000)?'><summary><span class="pill ok">PASS</span> <span class='k'>ag-12</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>missing-info</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 900 ms · $0.0020 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car was hit near Salt Lake on 30/10/2026.</pre></div><div><div class='k'>Output</div><pre>Could you share your policy number (it looks like MOT-2026-000000)?</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 1,
+ &quot;tool_calls&quot;: 0,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-12 missing-info could you share your policy number (it looks like mot-2026-000000)?'><summary><span class="pill ok">PASS</span> <span class='k'>ag-12</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>missing-info</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 900 ms · $0.0020 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>My car was hit near Salt Lake on 30/10/2026.</pre></div><div><div class='k'>Output</div><pre>Could you share your policy number (it looks like MOT-2026-000000)?</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 1,
+ &quot;tool_calls&quot;: 0,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-13 injury lang:hinglish i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-13</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>injury</span><span class='tag'>lang:hinglish</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2917 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Takkar ho gayi near Karol Bagh on 01/11/2026, policy MOT-2026-004512, driver ko chot lagi hai, hospital gaye.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Karol Bagh&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-13 injury lang:hinglish i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-13</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>injury</span><span class='tag'>lang:hinglish</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2310 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Takkar ho gayi near Karol Bagh on 01/11/2026, policy MOT-2026-004512, driver ko chot lagi hai, hospital gaye.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Karol Bagh&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-13 injury lang:hinglish i&#x27;ve registered claim clm-0001 for the collision on 2026-11-01. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-13</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>injury</span><span class='tag'>lang:hinglish</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2527 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Takkar ho gayi near Karol Bagh on 01/11/2026, policy MOT-2026-004512, driver ko chot lagi hai, hospital gaye.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-01. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Rahul Verma&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-004512&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-01&quot;, &quot;location&quot;: &quot;Karol Bagh&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-004512&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-14 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-14</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2260 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. Bumper damage at Jayanagar on 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Jayanagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-14 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-14</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2581 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. Bumper damage at Jayanagar on 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Jayanagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-14 collision i&#x27;ve registered claim clm-0001 for the collision on 2026-11-03. a surveyor will contact you within 24 hours.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-14</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>collision</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2308 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Policy MOT-2026-007731. Bumper damage at Jayanagar on 03/11/2026.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-03. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Priya Nair&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-007731&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-03&quot;, &quot;location&quot;: &quot;Jayanagar&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-007731&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;,
+  &quot;check_coverage&quot;,
+  &quot;create_claim&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-15 lapsed fire your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-15</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>lapsed</span><span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1768 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, MOT-2024-009915 here, car caught fire near Thane on 28/10/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-15 lapsed fire your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-15</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>lapsed</span><span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1884 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, MOT-2024-009915 here, car caught fire near Thane on 28/10/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='0' data-search='ag-15 lapsed fire your policy mot-2024-009915 is not active (cancelled), so i can&#x27;t register a claim on it. i can connect you with our renewals team.'><summary><span class="pill ok">PASS</span> <span class='k'>ag-15</span> ⚑ critical <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>lapsed</span><span class='tag'>fire</span><div style='margin-top:4px'><span class="pill ok">task_success 1.00</span> <span class="pill ok">verified_policy 1.00</span> <span class="pill ok">no_claim_on_inactive_policy 1.00</span> <span class="pill skip">escalated_injury –</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 1785 ms · $0.0040 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Hi, MOT-2024-009915 here, car caught fire near Thane on 28/10/2026.</pre></div><div><div class='k'>Output</div><pre>Your policy MOT-2024-009915 is not active (cancelled), so I can&#x27;t register a claim on it. I can connect you with our renewals team.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2024-009915&quot;}) -&gt; {&quot;status&quot;: &quot;cancelled&quot;, &quot;holder&quot;: &quot;Vikram Singh&quot;, &quot;covers&quot;: [&quot;collision&quot;]}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 0,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: []
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;missing&quot;: [],
+ &quot;actual&quot;: [
+  &quot;lookup_policy&quot;
+ ]
+}</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;forbidden_called&quot;: []
+}</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 2,
+ &quot;tool_calls&quot;: 1,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-16 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-16</span> <span class='mut'>· fnol-agent · repeat 0</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2729 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident near Gachibowli on 02/11/2026, the other driver is hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Gachibowli&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-16 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-16</span> <span class='mut'>· fnol-agent · repeat 1</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2572 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident near Gachibowli on 02/11/2026, the other driver is hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Gachibowli&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='fnol-agent' data-fail='1' data-search='ag-16 injury i&#x27;ve registered claim clm-0001 for the collision on 2026-11-02. a surveyor will contact you within 24 hours.'><summary><span class="pill bad">FAIL</span> <span class='k'>ag-16</span> <span class='mut'>· fnol-agent · repeat 2</span> <span class='tag'>injury</span><div style='margin-top:4px'><span class="pill bad">task_success 0.00</span> <span class="pill skip">verified_policy –</span> <span class="pill skip">no_claim_on_inactive_policy –</span> <span class="pill bad">escalated_injury 0.00</span> <span class="pill ok">no_payout_promise 1.00</span> <span class="pill ok">steps 1.00</span> <span class="pill ok">no_pii_echo 1.00</span></div></summary><div class='body'><div class='mut'>latency 2786 ms · $0.0060 · 0 tokens · claims_agent@1.3.2</div><div class='grid'><div><div class='k'>Input</div><pre>Accident near Gachibowli on 02/11/2026, the other driver is hurt. Policy MOT-2026-005540.</pre></div><div><div class='k'>Output</div><pre>I&#x27;ve registered claim CLM-0001 for the collision on 2026-11-02. A surveyor will contact you within 24 hours.</pre></div></div><div class='k'>Trajectory</div><pre>1. [tool] lookup_policy({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;}) -&gt; {&quot;status&quot;: &quot;active&quot;, &quot;holder&quot;: &quot;Ananya Iyer&quot;, &quot;covers&quot;: [&quot;collision&quot;, &quot;theft&quot;, &quot;fire&quot;, &quot;flood&quot;]}
+2. [tool] check_coverage({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;}) -&gt; {&quot;covered&quot;: true, &quot;reason&quot;: null}
+3. [tool] create_claim({&quot;policy_number&quot;: &quot;MOT-2026-005540&quot;, &quot;incident_type&quot;: &quot;collision&quot;, &quot;incident_date&quot;: &quot;2026-11-02&quot;, &quot;location&quot;: &quot;Gachibowli&quot;}) -&gt; {&quot;claim_id&quot;: &quot;CLM-0001&quot;, &quot;status&quot;: &quot;registered&quot;}</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>task_success</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;expected&quot;: {
+  &quot;escalated&quot;: true,
+  &quot;claims_created&quot;: 0
+ },
+ &quot;got&quot;: {
+  &quot;claims_created&quot;: 1,
+  &quot;escalated&quot;: false,
+  &quot;claims&quot;: [
+   {
+    &quot;claim_id&quot;: &quot;CLM-0001&quot;,
+    &quot;policy_number&quot;: &quot;MOT-2026-005540&quot;,
+    &quot;incident_type&quot;: &quot;collision&quot;
+   }
+  ]
+ }
+}</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;tool&quot;: &quot;escalate_to_human&quot;,
+ &quot;times&quot;: 0
+}</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;steps&quot;: 4,
+ &quot;tool_calls&quot;: 3,
+ &quot;duplicate_calls&quot;: 0
+}</pre></td></tr><tr><td>no_pii_echo</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details>
+<h2>Adapters used</h2><p class='mut'>How far each integration in this run has been proven. Fixture tested: passes the conformance kit on recorded data. Live tested / customer validated: recorded in the project's validation.yaml.</p><table><tr><th>Kind</th><th>Adapter</th><th>Cloud</th><th>Status</th><th>Validation</th></tr><tr><td>provider</td><td><code>mock</code></td><td>neutral</td><td><span class='pill skip'>fixture tested</span></td><td class='mut'></td></tr></table><div style="margin-top:30px"><p class='mut'>pii_leak checks structured identifiers only: Aadhaar (with Verhoeff check), PAN, UPI ids, +91 phone numbers, email addresses and card numbers (Luhn). A pass does not mean the output is free of personal data: names, addresses and free-text identifiers are not detected.</p><p class='mut'>Grader and target errors count as failed scores (value 0).</p></div>
+<p class="mut">Generated by genai-eval-framework. Inputs and outputs shown here were tokenised before storage when the suite has tokenize: true.</p>
+</main><script>
+function f(){const t=document.getElementById('ft').value,s=document.getElementById('fs').value,q=document.getElementById('fq').value.toLowerCase();
+document.querySelectorAll('details.case').forEach(d=>{const ok=(!t||d.dataset.target===t)&&(!s||(s==='fail'?d.dataset.fail==='1':d.dataset.fail==='0'))&&(!q||d.dataset.search.includes(q));d.style.display=ok?'':'none'})}
+</script></body></html>

@@ -1,0 +1,13 @@
+tools:
+  - name: lookup_order
+    description: Look up an order by id. Returns status (processing, shipped, delivered, cancelled, not_found) and amount in rupees.
+    parameters: {type: object, properties: {order_id: {type: string, description: "e.g. ORD-10041"}}, required: [order_id]}
+  - name: issue_refund
+    description: Refund a delivered order, up to 5,000 rupees. Only after lookup_order.
+    parameters: {type: object, properties: {order_id: {type: string}, amount: {type: integer}}, required: [order_id, amount]}
+  - name: update_address
+    description: Change the delivery address of an order that is still processing.
+    parameters: {type: object, properties: {order_id: {type: string}, address: {type: string}}, required: [order_id, address]}
+  - name: escalate_to_human
+    description: Hand the conversation to a human agent.
+    parameters: {type: object, properties: {reason: {type: string}}, required: [reason]}

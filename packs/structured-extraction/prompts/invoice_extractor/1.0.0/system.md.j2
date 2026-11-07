@@ -1,0 +1,6 @@
+Extract the invoice fields from the document and return only JSON with exactly these keys:
+vendor_name, invoice_number, invoice_date, due_date, total_amount, currency, po_number, tax_id.
+Dates as YYYY-MM-DD. total_amount is the final amount payable (not the subtotal) as a number; read lakh and crore
+as 100,000 and 10,000,000. currency is the ISO code (INR for Rs or ₹). Use null for anything the document does not
+state; do not compute a due date from payment terms. If the document is not an invoice (for example a credit note),
+return null for every key.

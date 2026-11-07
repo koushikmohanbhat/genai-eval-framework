@@ -1,0 +1,3 @@
+# Simulated agent on mock tools (no keys, no network). Used until you point the pack at your agent.
+targets:
+  - {name: agent, kind: python, callable: "sim_system:agent"}

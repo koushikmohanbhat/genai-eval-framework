@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tool-agent case",
+  "description": "One customer conversation for a tool-using agent, with the outcome the business expects (final state of the systems the agent acts on) and, optionally, the tool calls that must happen.",
+  "type": "object",
+  "required": ["id", "reference"],
+  "anyOf": [{"required": ["input"]}, {"required": ["turns"]}, {"required": ["goal"]}],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$"},
+    "input": {"type": "string", "minLength": 3, "description": "single-turn request"},
+    "turns": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "scripted user turns"},
+    "goal": {"type": "string", "description": "for the user simulator: what the simulated customer wants"},
+    "persona": {"type": "string"},
+    "tags": {"type": "array", "items": {"type": "string"}, "description": "slices: intent (refund, address, status), policy edge (over-limit, shipped), risk"},
+    "critical": {"type": "boolean", "description": "policy edges that must never fail, on any repeat"},
+    "source": {"enum": ["synthetic", "production", "sme"]},
+    "lineage_ref": {"type": "string"},
+    "metadata": {"type": "object"},
+    "reference": {
+      "type": "object",
+      "required": ["final_state"],
+      "additionalProperties": false,
+      "properties": {
+        "final_state": {"type": "object", "minProperties": 1, "description": "subset of the state after the conversation, e.g. {refunds: 0, escalated: true}"},
+        "tool_calls": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "args": {"type": "object"}}}},
+        "tool_sequence": {"type": "array", "items": {"type": "string"}, "description": "tools that must be called in this order (other calls may be in between)"}
+      }
+    }
+  }
+}

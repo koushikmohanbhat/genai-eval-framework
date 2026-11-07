@@ -1,0 +1,11 @@
+# Experiment: compare candidate changes with today's system on the same cases (docs: experiments.md).
+#   genai-evals experiment run experiment.yaml --out out/experiment
+# The variants below use the simulator's options to show typical regressions; for your system, vary
+# prompt (assistant@1.1.0), profile (another model) or retriever settings instead.
+name: retrieval-depth-and-answer-style
+hypothesis: Retrieving 2 passages instead of 4 keeps answers grounded and cited, and refusals unchanged.
+suite: suite.yaml
+baseline: {name: current, description: today's configuration}
+variants:
+  - {name: k-2, options: {k: 2}, description: retrieve 2 passages}
+  - {name: chatty, options: {embellish: 0.7}, description: a prompt change that adds extra reassurance}

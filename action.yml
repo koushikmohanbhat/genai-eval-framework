@@ -1,0 +1,53 @@
+name: genai-evals
+description: Run a genai-eval-framework suite, post the gate summary on the pull request, fail on blocking gates
+branding: {icon: check-circle, color: blue}
+inputs:
+  suite: {description: "Path to suite.yaml", required: true}
+  providers: {description: "Path to providers.yaml", required: false, default: ""}
+  baseline: {description: "Baseline JSON to compare against (the run fails if the file is missing)", required: false, default: ""}
+  allow-missing-baseline: {description: "Let delta()/significant() gates pass without a baseline (only for the run that creates the first one)", required: false, default: "false"}
+  extras: {description: "pip extras, e.g. openai,aws,gcp,anthropic", required: false, default: ""}
+  python-version: {description: "Python version", required: false, default: "3.12"}
+  comment: {description: "Post the summary as a PR comment", required: false, default: "true"}
+  check-prompts: {description: "Run `genai-evals prompts check` first (path to prompts dir, or empty to skip)", required: false, default: ""}
+outputs:
+  passed: {description: "true when all blocking gates passed", value: "${{ steps.run.outputs.passed }}"}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with: {python-version: "${{ inputs.python-version }}"}
+    - shell: bash
+      run: |
+        EXTRAS="${{ inputs.extras }}"
+        pip install "${{ github.action_path }}${EXTRAS:+[$EXTRAS]}"
+    - if: inputs.check-prompts != ''
+      shell: bash
+      run: genai-evals prompts check --dir "${{ inputs.check-prompts }}"
+    - id: run
+      shell: bash
+      env:
+        IN_SUITE: ${{ inputs.suite }}
+        IN_PROVIDERS: ${{ inputs.providers }}
+        IN_BASELINE: ${{ inputs.baseline }}
+        IN_ALLOW_MISSING: ${{ inputs.allow-missing-baseline }}
+      run: |
+        set +e
+        ARGS=("$IN_SUITE" --out genai-evals-out --summary-md genai-evals-out/pr-comment.md)
+        [ -n "$IN_PROVIDERS" ] && ARGS+=(--providers "$IN_PROVIDERS")
+        [ -n "$IN_BASELINE" ] && ARGS+=(--baseline "$IN_BASELINE")
+        [ "$IN_ALLOW_MISSING" = "true" ] && ARGS+=(--allow-missing-baseline)
+        genai-evals run "${ARGS[@]}"
+        code=$?
+        echo "passed=$([ $code -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        cat genai-evals-out/summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with: {name: genai-evals-report, path: genai-evals-out}
+    - if: always() && inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env: {GH_TOKEN: "${{ github.token }}"}
+      run: gh pr comment "${{ github.event.pull_request.number }}" --body-file genai-evals-out/pr-comment.md --edit-last || gh pr comment "${{ github.event.pull_request.number }}" --body-file genai-evals-out/pr-comment.md
+    - shell: bash
+      run: exit ${{ steps.run.outputs.code }}

@@ -1,0 +1,9 @@
+# Your own retriever function (any vector store or search API) + any model profile (OpenAI, Anthropic, Bedrock,
+# Vertex, a gateway). The default retriever is the pack corpus, so you can try a live model before wiring search.
+# .env: EVAL_TARGETS=targets/python-retriever.yaml, EVAL_TARGET_PROFILE (e.g. openai), RETRIEVER (module:function)
+targets:
+  - name: assistant
+    kind: rag
+    profile: "${EVAL_TARGET_PROFILE:-openai}"
+    prompt: assistant
+    retriever: {type: python, callable: "${RETRIEVER:-sim_system:retrieve}", k: 4}

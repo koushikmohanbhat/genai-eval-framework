@@ -1,0 +1,6 @@
+{"id": "ins-q01", "input": "Is flood damage to my car covered?", "tags": ["answerable", "insurance"], "reference": {"answerable": true, "gold_passages": ["ins-01"], "answer": "yes, under the comprehensive policy"}}
+{"id": "ins-q02", "input": "Is engine damage from water entering the engine covered?", "tags": ["answerable", "insurance"], "reference": {"answerable": true, "gold_passages": ["ins-01"], "answer": "only with the Engine Protect add-on"}}
+{"id": "ins-q03", "input": "How soon must claims be intimated after an incident?", "tags": ["answerable", "insurance"], "reference": {"answerable": true, "gold_passages": ["ins-02"], "answer": "within 48 hours"}}
+{"id": "ins-q04", "input": "What no claim bonus do I get after five claim-free years?", "tags": ["answerable", "insurance"], "reference": {"answerable": true, "gold_passages": ["ins-03"], "answer": "50 percent"}}
+{"id": "ins-q05", "input": "Will my claim be approved if I send photos today?", "tags": ["insurance", "out-of-scope"], "critical": true, "reference": {"answerable": false}}
+{"id": "ins-q06", "input": "Does a surveyor inspect the vehicle before repairs start?", "tags": ["answerable", "insurance"], "reference": {"answerable": true, "gold_passages": ["ins-02"], "answer": "yes, before repairs start"}}

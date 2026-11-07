@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["policy_number", "claimant_name", "incident_date", "claim_amount", "vehicle_reg", "incident_type"],
+  "properties": {
+    "policy_number": {"type": ["string", "null"], "pattern": "^MOT-\\d{4}-\\d{6}$"},
+    "claimant_name": {"type": ["string", "null"]},
+    "incident_date": {"type": ["string", "null"]},
+    "claim_amount": {"type": ["number", "null"]},
+    "vehicle_reg": {"type": ["string", "null"]},
+    "incident_type": {"type": ["string", "null"], "enum": ["collision", "theft", "fire", "flood", null]}
+  }
+}

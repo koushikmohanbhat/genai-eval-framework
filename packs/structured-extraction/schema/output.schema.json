@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Extracted invoice",
+  "description": "The JSON the system must return. Every key is present; a value the document does not contain is null. A document that is not an invoice returns all nulls.",
+  "type": "object",
+  "required": ["vendor_name", "invoice_number", "invoice_date", "due_date", "total_amount", "currency", "po_number", "tax_id"],
+  "additionalProperties": false,
+  "properties": {
+    "vendor_name": {"type": ["string", "null"]},
+    "invoice_number": {"type": ["string", "null"]},
+    "invoice_date": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "due_date": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "total_amount": {"type": ["number", "null"], "minimum": 0},
+    "currency": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+    "po_number": {"type": ["string", "null"]},
+    "tax_id": {"type": ["string", "null"], "description": "GSTIN, VAT or other tax registration number"}
+  }
+}

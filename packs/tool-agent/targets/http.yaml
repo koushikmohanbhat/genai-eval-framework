@@ -1,0 +1,14 @@
+# Your deployed agent behind HTTP(S): any cloud, any framework. It runs its own tools; the response must say what
+# happened (tool calls and the resulting state) for the trajectory and outcome graders.
+# .env: EVAL_TARGETS=targets/http.yaml, SYSTEM_URL, SYSTEM_TOKEN
+targets:
+  - name: agent
+    kind: http
+    options:
+      url: "${SYSTEM_URL}"
+      headers_env: {Authorization: SYSTEM_TOKEN}
+      body: {message: "{{ input }}", session_id: "eval-{{ case_id }}", test_mode: true}
+      map:
+        output: "${SYSTEM_OUTPUT_FIELD:-reply}"
+        trajectory: "${SYSTEM_TRAJECTORY_FIELD:-tool_calls}"     # list of {name, args, result}
+        final_state: "${SYSTEM_STATE_FIELD:-state}"             # e.g. {refunds: 1, escalated: false} from a test sandbox

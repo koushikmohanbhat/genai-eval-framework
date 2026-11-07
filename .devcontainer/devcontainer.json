@@ -1,0 +1,20 @@
+{
+  "name": "genai-eval-framework demo",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -e '.[dev]' && python examples/insurance/demo.py",
+  "postAttachCommand": {
+    "reports": "python -m http.server 8000 --directory genai-evals-demo"
+  },
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {"label": "Demo reports", "onAutoForward": "openBrowser"}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "redhat.vscode-yaml"]
+    },
+    "codespaces": {
+      "openFiles": ["docs/demo-walkthrough.md"]
+    }
+  }
+}

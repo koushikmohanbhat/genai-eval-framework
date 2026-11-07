@@ -1,0 +1,58 @@
+# Eval pack manifest. `genai-evals pack info structured-extraction` shows it with live adapter statuses.
+name: structured-extraction
+version: 0.1.0
+title: Structured extraction
+workflow: extraction
+summary: >-
+  Documents in, schema-valid JSON out (the starter is supplier invoices from clean PDFs, emails and OCR output).
+  Measures schema validity, field-level accuracy with normalisers for dates, amounts, ids and names, totals and
+  currencies, rejection of documents that are not invoices, and cost and latency per document.
+contract_version: "1"
+framework: ">=0.3.0"
+
+inputs:
+  dataset:
+    schema: schema/case.schema.json
+    starter: data/starter.jsonl          # 16 synthetic documents across formats and currencies, 3 critical
+    guidance: data/README.md
+  output_schema: schema/output.schema.json
+  system: "one of targets/ (set EVAL_TARGETS in .env)"
+  telemetry: "optional: one source in sources.yaml"
+
+targets:
+  - {file: targets/offline.yaml, system: pattern-based extractor (offline), adapters: []}
+  - {file: targets/prompt.yaml, system: any model with the versioned prompt and the output schema, adapters: ["provider:*"]}
+  - {file: targets/http.yaml, system: any deployed extraction service or IDP pipeline, adapters: []}
+  - {file: targets/python.yaml, system: your extraction code (e.g. wrapping Textract or Document AI), adapters: []}
+
+graders: [valid_json, fields, amount_exact, latency]
+failure_categories:
+  invalid output: "not JSON, or JSON that breaks the output schema (valid_json)"
+  wrong or missing field: "a field differs from the reference after normalisation (fields)"
+  wrong amount or currency: "the payable total or its currency is wrong (amount_exact)"
+  too slow: "over the latency budget (latency)"
+gates:
+  valid-json: {rule: "mean(valid_json) >= 1.0", why: "downstream systems need every document to parse"}
+  field-accuracy: {rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9", why: "the accuracy the business case assumed"}
+  amounts: {rule: "mean(amount_exact) >= 0.98", why: "amounts go straight into payments"}
+  critical-documents: {rule: "critical_pass()", why: "high-value invoices and non-invoices never fail"}
+  ocr-slice: {rule: "mean(fields, tag='ocr') >= 0.9", severity: warn, why: "scanned documents are where extraction breaks first (raise min_n as OCR cases grow)"}
+  cost-budget: {rule: "mean(cost_usd) <= 0.01", severity: warn, why: "per-document cost from the business case"}
+  latency-budget: {rule: "p95(latency_ms) <= 5000", severity: warn, why: "set from the processing SLO"}
+baseline: "first run: --allow-missing-baseline; then `genai-evals baseline promote` (RUNBOOK step 6)"
+
+compatibility:
+  providers: [openai, anthropic, bedrock, vertex, vertex_anthropic, openai_compatible]
+  sources: [otlp, aws_bedrock_invocation_logs, gcp_vertex_request_response, langfuse]
+  stores: [file, sqlite, postgresql]
+validation:
+  offline: "runs and passes all blocking gates on the starter cases (checked in CI by tests/test_packs.py)"
+  online_offline: "online checks run on fixtures/telemetry.otlp.json and raise the invalid-JSON alert they are built to show"
+  live: "not yet run against a live system: record it with `genai-evals adapters record` when you do"
+
+overlays:
+  - {name: india-gst, description: "GST tax invoices with GSTINs, lakh and crore amounts, a GSTIN format check and a gate on that slice"}
+
+handover:
+  - "The output schema is a contract with downstream systems: changing it means a new prompt version, an updated schema and updated reference fields in the same pull request."
+  - "New document layouts or suppliers seen in production are added as cases (tokenised) before the extractor is changed for them."

@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Scorecard · claims-agent-online</title><style>
+:root{--fg:#1d1d1f;--mut:#6b6b70;--bd:#e3e3e8;--bg:#fafafa;--ok:#1a7f4b;--bad:#b42318;--warn:#a15c00;--acc:#2b59c3}
+*{box-sizing:border-box}body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);margin:0;background:#fff}
+main{max-width:1180px;margin:0 auto;padding:28px 24px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:6px 0 4px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.02em}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}.ok{background:#e6f4ec;color:var(--ok)}.bad{background:#fdecea;color:var(--bad)}
+.warn{background:#fff4e0;color:var(--warn)}.skip{background:#f0f0f3;color:var(--mut)}
+.verdict{font-size:15px;font-weight:600;padding:10px 14px;border-radius:8px;margin:14px 0}.verdict.ok{background:#e6f4ec}.verdict.bad{background:#fdecea}
+.ci{position:relative;height:8px;background:#eef0f4;border-radius:4px;width:120px;display:inline-block;margin-left:8px;vertical-align:middle}
+.ci span{position:absolute;top:0;height:8px;background:#9db3e6;border-radius:4px}.ci i{position:absolute;top:-2px;width:2px;height:12px;background:var(--acc)}
+details{border:1px solid var(--bd);border-radius:8px;margin:8px 0;background:#fff}summary{cursor:pointer;padding:8px 12px;list-style:none}
+summary::-webkit-details-marker{display:none}details[open] summary{border-bottom:1px solid var(--bd)}.body{padding:10px 14px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;margin:4px 0 10px;font-size:12.5px;max-height:340px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radius:6px}.k{font-weight:600}.tag{font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:8px;padding:0 6px;margin-right:4px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:14px 16px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.big{font-size:28px;font-weight:700}a{color:var(--acc)}
+</style></head>
+<body><main><h1>Production monitoring · claims-agent-online</h1><div class="mut">13 sampled sessions · 2026-11-07
+· judged by judge-a, judge-b</div>
+<div class='verdict' style='background:#eef4ff;color:#1f3b73'>Production monitoring: reference-free checks on sampled traffic. These scores are signals for alerting and investigation, not ground-truth quality claims: there are no reference answers, and sampled sessions only represent traffic the telemetry captured.</div><table><tr><th>Source</th><th>Type</th><th>Graded</th><th>Sampling rate</th><th>Window</th></tr><tr><td>claims-agent-aws</td><td>aws_agentcore_observability</td><td>8 of 8</td><td>1.00</td><td>last 24h</td></tr><tr><td>claims-agent-gcp</td><td>gcp_cloud_trace</td><td>5 of 5</td><td>1.00</td><td>last 24h</td></tr></table>
+<div class="verdict bad">Alerts: claims-agent-aws, claims-agent-gcp</div>
+<div class="cards"><div class='card'><div class='k'>claims-agent-aws</div><div class='big'>0.88</div><div class='mut'>no_pii_echo · 95% CI 0.62–1.00</div><div style='margin-top:8px'><span class="pill bad">alert</span> <span class='mut'>1/4 gates</span></div><div class='mut' style='margin-top:6px'>cost n/a · 3248 ms p95 · critical 0/0</div></div><div class='card'><div class='k'>claims-agent-gcp</div><div class='big'>1.00</div><div class='mut'>no_pii_echo · 95% CI 1.00–1.00</div><div style='margin-top:8px'><span class="pill bad">alert</span> <span class='mut'>3/4 gates</span></div><div class='mut' style='margin-top:6px'>cost n/a · 2184 ms p95 · critical 0/0</div></div></div><h2>Quality vs cost</h2><p class="mut">No cost or latency data for a quality / cost chart (add pricing to provider profiles).</p>
+<h2>Top risks</h2><ol><li>claims-agent-aws: gate “privacy” fail (mean(no_pii_echo) &gt;= 1.0)</li><li>claims-agent-aws: gate “no-payout-promises” fail (mean(no_payout_promise) &gt;= 0.99)</li><li>claims-agent-aws: gate “policy-verified” fail (mean(verified_policy_first) &gt;= 0.95)</li></ol>
+<p class="mut">Scores are means over sampled sessions with 95% confidence intervals; differences inside the intervals are not meaningful.</p><p class='mut'>pii_leak checks structured identifiers only: Aadhaar (with Verhoeff check), PAN, UPI ids, +91 phone numbers, email addresses and card numbers (Luhn). A pass does not mean the output is free of personal data: names, addresses and free-text identifiers are not detected.</p><p class='mut'>Grader and target errors count as failed scores (value 0).</p></main></body></html>

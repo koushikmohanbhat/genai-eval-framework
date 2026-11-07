@@ -1,0 +1,48 @@
+# Eval pack: structured-extraction. Documents in, schema-valid JSON out (the starter is supplier invoices).
+# Offline it runs a pattern-based extractor (sim_system.py): `genai-evals run suite.yaml`.
+# To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
+name: structured-extraction
+pack: structured-extraction@0.1.0
+description: Schema validity, field-level accuracy by format and currency, rejection of non-invoices, cost and latency
+dataset: data/starter.jsonl
+dataset_schema: schema/case.schema.json
+prompts_dir: prompts
+targets_from: "${EVAL_TARGETS:-targets/offline.yaml}"
+min_n: 5
+repeats: 1
+graders:
+  - {name: valid_json, type: json_schema, schema: schema/output.schema.json}
+  - name: fields
+    type: field_match
+    fields:
+      vendor_name: name
+      invoice_number: upper_alnum
+      invoice_date: date
+      due_date: date
+      total_amount: {normaliser: amount, tolerance: 0.01, weight: 2}
+      currency: upper_alnum
+      po_number: upper_alnum
+      tax_id: upper_alnum
+  - name: amount_exact
+    type: field_match
+    fields: {total_amount: {normaliser: amount, tolerance: 0.01}, currency: upper_alnum}
+  - {name: latency, type: latency, max_ms: 5000}
+gates:
+  - {name: valid-json, rule: "mean(valid_json) >= 1.0"}
+  - {name: field-accuracy, rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9"}
+  - {name: amounts, rule: "mean(amount_exact) >= 0.98"}
+  - {name: critical-documents, rule: "critical_pass()"}
+  - {name: ocr-slice, rule: "mean(fields, tag='ocr') >= 0.9", severity: warn, min_n: 2}
+  - {name: cost-budget, rule: "mean(cost_usd) <= 0.01", severity: warn}
+  - {name: latency-budget, rule: "p95(latency_ms) <= 5000", severity: warn}
+report:
+  title: Invoice extraction quality
+  intro: >-
+    Does every document produce valid JSON with the right values, including totals and currencies, across clean,
+    emailed and OCR-damaged documents, and are non-invoices rejected?
+  headline: fields
+  failure_categories:
+    invalid output: [valid_json]
+    wrong or missing field: [fields]
+    wrong amount or currency: [amount_exact]
+    too slow: [latency]

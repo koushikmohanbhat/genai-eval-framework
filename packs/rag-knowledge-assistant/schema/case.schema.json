@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rag-knowledge-assistant case",
+  "description": "One question for the assistant. Answerable questions name the passages that answer them; unanswerable ones (out of scope, secrets, personal data) must be refused.",
+  "type": "object",
+  "required": ["id", "input", "reference"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.:-]+$"},
+    "input": {"type": "string", "minLength": 3, "description": "the question, as a user would ask it (tokenise personal data first)"},
+    "tags": {"type": "array", "items": {"type": "string"}, "description": "slices: topic, 'answerable', 'out-of-scope', 'safety', language"},
+    "critical": {"type": "boolean", "description": "must pass every grader on every repeat (critical_pass gate)"},
+    "source": {"enum": ["synthetic", "production", "sme"]},
+    "lineage_ref": {"type": "string", "description": "DPDP lineage id for rows derived from production"},
+    "metadata": {"type": "object"},
+    "reference": {
+      "type": "object",
+      "required": ["answerable"],
+      "additionalProperties": false,
+      "properties": {
+        "answerable": {"type": "boolean"},
+        "gold_passages": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "ids of the passages that answer it"},
+        "answer": {"type": "string", "description": "the expected answer in a few words (for SMEs and reference graders)"}
+      },
+      "if": {"properties": {"answerable": {"const": true}}},
+      "then": {"required": ["answerable", "gold_passages", "answer"]}
+    }
+  },
+  "allOf": [{"if": {"properties": {"reference": {"properties": {"answerable": {"const": true}}}}},
+             "then": {"properties": {"tags": {"contains": {"const": "answerable"}}}, "required": ["tags"]}}]
+}

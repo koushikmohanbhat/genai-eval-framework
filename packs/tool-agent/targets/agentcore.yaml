@@ -1,0 +1,5 @@
+# An agent on Amazon Bedrock AgentCore Runtime. Join AgentCore Observability spans by session id for the tool
+# trajectory (docs/sources.md); final_state needs a test sandbox the agent writes to.
+# .env: EVAL_TARGETS=targets/agentcore.yaml, AGENTCORE_AGENT_ARN, AWS_REGION
+targets:
+  - {name: agent, kind: agent, framework: agentcore_runtime, options: {agent_arn: "${AGENTCORE_AGENT_ARN}", region: "${AWS_REGION}"}}

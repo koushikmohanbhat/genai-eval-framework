@@ -1,0 +1,4 @@
+# An agent built with the OpenAI Agents SDK: `callable` returns an agents.Agent wired to your tools.
+# .env: EVAL_TARGETS=targets/openai-agents-sdk.yaml, AGENT_FACTORY (module:function)
+targets:
+  - {name: agent, kind: agent, framework: openai_agents_sdk, callable: "${AGENT_FACTORY}"}

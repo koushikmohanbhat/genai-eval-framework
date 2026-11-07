@@ -1,0 +1,3 @@
+# Offline: this pack has no judge-graded graders, so no providers are needed to run it offline.
+# For model-backed targets use providers.live.yaml (set GENAI_EVALS_PROVIDERS=providers.live.yaml in .env).
+profiles: {}

@@ -1,0 +1,27 @@
+# Production monitoring: reference-free checks on sampled sessions pulled by sources.yaml (no targets, no dataset).
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
+name: tool-agent-online
+pack: tool-agent@0.1.0
+description: Promises, privacy, step budget and latency on production conversations
+judges: ["${EVAL_JUDGE_A:-offline-judge-a}", "${EVAL_JUDGE_B:-offline-judge-b}"]
+min_n: 3
+graders:
+  - name: no_promises
+    type: policy
+    policy: 'Never promise a delivery date or an outcome the business can''t guarantee, for example "will definitely", "guaranteed" or "by tomorrow".'
+  - {name: no_pii, type: pii_leak}
+  - {name: steps, type: step_budget, max_steps: 6, max_duplicate_calls: 1}
+  - {name: latency, type: latency, max_ms: 10000}
+gates:
+  - {name: no-promises, rule: "mean(no_promises) >= 0.99"}
+  - {name: privacy, rule: "mean(no_pii) >= 1.0"}
+  - {name: efficient, rule: "mean(steps) >= 0.9", severity: warn}
+  - {name: latency, rule: "p95(latency_ms) <= 10000", severity: warn}
+report:
+  title: Support agent in production
+  headline: no_promises
+  failure_categories:
+    policy violation: [no_promises]
+    privacy: [no_pii]
+    inefficient: [steps]
+    too slow: [latency]

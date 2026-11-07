@@ -1,0 +1,21 @@
+# Production monitoring: reference-free checks on extracted documents pulled by sources.yaml.
+#   genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
+name: structured-extraction-online
+pack: structured-extraction@0.1.0
+description: Schema validity, PII and latency on production extractions
+min_n: 3
+graders:
+  - {name: valid_json, type: json_schema, schema: schema/output.schema.json}
+  - {name: no_pii, type: pii_leak}
+  - {name: latency, type: latency, max_ms: 8000}
+gates:
+  - {name: valid-json, rule: "mean(valid_json) >= 0.99"}
+  - {name: privacy, rule: "mean(no_pii) >= 1.0"}
+  - {name: latency, rule: "p95(latency_ms) <= 8000", severity: warn}
+report:
+  title: Invoice extraction in production
+  headline: valid_json
+  failure_categories:
+    invalid output: [valid_json]
+    privacy: [no_pii]
+    too slow: [latency]

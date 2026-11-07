@@ -1,0 +1,4 @@
+# Your extraction code as a Python function fn(case, ctx) -> {"output": json_string} (e.g. wrapping Textract,
+# Document AI or a document-intelligence service).  .env: EVAL_TARGETS=targets/python.yaml, EXTRACTOR (module:function)
+targets:
+  - {name: extractor, kind: python, callable: "${EXTRACTOR}"}

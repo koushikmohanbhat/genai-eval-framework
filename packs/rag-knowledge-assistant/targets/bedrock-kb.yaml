@@ -1,0 +1,8 @@
+# Amazon Bedrock Knowledge Bases retrieval + any model profile in providers.live.yaml, with the versioned prompt.
+# .env: EVAL_TARGETS=targets/bedrock-kb.yaml, BEDROCK_KB_ID, AWS_REGION, EVAL_TARGET_PROFILE (e.g. bedrock)
+targets:
+  - name: assistant
+    kind: rag
+    profile: "${EVAL_TARGET_PROFILE:-bedrock}"
+    prompt: assistant
+    retriever: {type: bedrock_kb, knowledge_base_id: "${BEDROCK_KB_ID}", region: "${AWS_REGION}", k: 4}

@@ -1,0 +1,12 @@
+# Your deployed assistant behind HTTP(S): any cloud, any framework. Map the response fields to the sample.
+# .env: EVAL_TARGETS=targets/http.yaml, SYSTEM_URL=..., SYSTEM_TOKEN=...
+targets:
+  - name: assistant
+    kind: http
+    options:
+      url: "${SYSTEM_URL}"
+      headers_env: {Authorization: SYSTEM_TOKEN}       # header value read from this env var
+      body: {question: "{{ input }}", session_id: "eval-{{ case_id }}"}
+      map:
+        output: "${SYSTEM_OUTPUT_FIELD:-answer}"         # dotted paths into the JSON response
+        context: "${SYSTEM_CONTEXT_FIELD:-sources}"      # list of {id, text}; needed for retrieval and faithfulness graders

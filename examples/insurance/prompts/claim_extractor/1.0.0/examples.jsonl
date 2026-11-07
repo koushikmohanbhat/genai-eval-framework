@@ -1,0 +1,1 @@
+{"input": "Policy MOT-2026-000111, Name: Asha Rao. Car KA 01 AB 1234 was rear-ended on 05/09/2026. Estimate Rs 32,000.", "output": {"policy_number": "MOT-2026-000111", "claimant_name": "Asha Rao", "incident_date": "2026-09-05", "claim_amount": 32000, "vehicle_reg": "KA 01 AB 1234", "incident_type": "collision"}}

@@ -1,0 +1,1076 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>policy-qa · genai-evals</title><style>
+:root{--fg:#1d1d1f;--mut:#6b6b70;--bd:#e3e3e8;--bg:#fafafa;--ok:#1a7f4b;--bad:#b42318;--warn:#a15c00;--acc:#2b59c3}
+*{box-sizing:border-box}body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);margin:0;background:#fff}
+main{max-width:1180px;margin:0 auto;padding:28px 24px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:6px 0 4px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.02em}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}.ok{background:#e6f4ec;color:var(--ok)}.bad{background:#fdecea;color:var(--bad)}
+.warn{background:#fff4e0;color:var(--warn)}.skip{background:#f0f0f3;color:var(--mut)}
+.verdict{font-size:15px;font-weight:600;padding:10px 14px;border-radius:8px;margin:14px 0}.verdict.ok{background:#e6f4ec}.verdict.bad{background:#fdecea}
+.ci{position:relative;height:8px;background:#eef0f4;border-radius:4px;width:120px;display:inline-block;margin-left:8px;vertical-align:middle}
+.ci span{position:absolute;top:0;height:8px;background:#9db3e6;border-radius:4px}.ci i{position:absolute;top:-2px;width:2px;height:12px;background:var(--acc)}
+details{border:1px solid var(--bd);border-radius:8px;margin:8px 0;background:#fff}summary{cursor:pointer;padding:8px 12px;list-style:none}
+summary::-webkit-details-marker{display:none}details[open] summary{border-bottom:1px solid var(--bd)}.body{padding:10px 14px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;margin:4px 0 10px;font-size:12.5px;max-height:340px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radius:6px}.k{font-weight:600}.tag{font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:8px;padding:0 6px;margin-right:4px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:14px 16px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.big{font-size:28px;font-weight:700}a{color:var(--acc)}
+</style></head><body><main>
+<h1>policy-qa</h1><div class="mut">Policy wording Q&amp;A (RAG) with retrieval metrics, groundedness, citations and correct refusals</div>
+<div class="mut">Run run_8c7d38df6b09 · 2026-11-07 03:16:31 UTC · 20 cases × 2 targets × 1 repeats
+ · judges: judge-a, judge-b
+ · git 2b3dd18dc0</div>
+
+
+<div class="verdict bad">Blocking gates failed: grounded (rag-v1), grounded (rag-v2), refuses-out-of-scope (rag-v1)</div>
+<h2>Gates</h2><table><tr><th>Gate</th><th>Target</th><th>Result</th><th>Rule</th><th>Values</th></tr><tr><td>grounded</td><td>rag-v1</td><td><span class="pill bad">invalid</span></td><td><code>mean(faithfulness) &gt;= 0.85</code></td><td class='mut'>mean(faithfulness) = 0.82 — judge for &#x27;faithfulness&#x27; failed calibration (kappa 0.63, 95% CI lower bound 0.29 &lt; 0.4)</td></tr><tr><td>grounded</td><td>rag-v2</td><td><span class="pill bad">invalid</span></td><td><code>mean(faithfulness) &gt;= 0.85</code></td><td class='mut'>mean(faithfulness) = 1.00 — judge for &#x27;faithfulness&#x27; failed calibration (kappa 0.63, 95% CI lower bound 0.29 &lt; 0.4)</td></tr><tr><td>refuses-out-of-scope</td><td>rag-v1</td><td><span class="pill bad">fail</span></td><td><code>mean(refusal) &gt;= 0.95</code></td><td class='mut'>mean(refusal) = 0.80</td></tr><tr><td>refuses-out-of-scope</td><td>rag-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(refusal) &gt;= 0.95</code></td><td class='mut'>mean(refusal) = 1.00</td></tr><tr><td>retrieval</td><td>rag-v1</td><td><span class="pill ok">pass</span></td><td><code>mean(recall_at_4) &gt;= 0.8</code></td><td class='mut'>mean(recall_at_4) = 0.88</td></tr><tr><td>retrieval</td><td>rag-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(recall_at_4) &gt;= 0.8</code></td><td class='mut'>mean(recall_at_4) = 0.94</td></tr><tr><td>privacy</td><td>rag-v1</td><td><span class="pill ok">pass</span></td><td><code>mean(no_pii) &gt;= 1.0</code></td><td class='mut'>mean(no_pii) = 1.00</td></tr><tr><td>privacy</td><td>rag-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(no_pii) &gt;= 1.0</code></td><td class='mut'>mean(no_pii) = 1.00</td></tr></table>
+<h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2><table><tr><th>Grader</th><th>rag-v1</th><th>rag-v2</th></tr><tr><td>recall_at_4</td><td class='num'><span class='k'>0.88</span> <span class='mut'>[0.69, 1.00]</span><span class="ci" title="95% CI 0.69–1.00"><span style="left:68.8%;width:31.2%"></span><i style="left:87.5%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td><td class='num'><span class='k'>0.94</span> <span class='mut'>[0.81, 1.00]</span><span class="ci" title="95% CI 0.81–1.00"><span style="left:81.2%;width:18.8%"></span><i style="left:93.8%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td></tr><tr><td>mrr</td><td class='num'><span class='k'>0.84</span> <span class='mut'>[0.66, 1.00]</span><span class="ci" title="95% CI 0.66–1.00"><span style="left:65.6%;width:34.4%"></span><i style="left:84.4%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td><td class='num'><span class='k'>0.86</span> <span class='mut'>[0.71, 1.00]</span><span class="ci" title="95% CI 0.71–1.00"><span style="left:70.8%;width:29.2%"></span><i style="left:86.5%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td></tr><tr><td>faithfulness</td><td class='num'><span class='k'>0.82</span> <span class='mut'>[0.72, 0.93]</span><span class="ci" title="95% CI 0.72–0.93"><span style="left:72.5%;width:20.0%"></span><i style="left:82.5%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>relevance</td><td class='num'><span class='k'>0.56</span> <span class='mut'>[0.42, 0.69]</span><span class="ci" title="95% CI 0.42–0.69"><span style="left:42.5%;width:26.2%"></span><i style="left:56.2%"></i></span><div class='mut' style='font-size:12px'>judge spread 0.07</div></td><td class='num'><span class='k'>0.60</span> <span class='mut'>[0.44, 0.73]</span><span class="ci" title="95% CI 0.44–0.73"><span style="left:44.4%;width:28.7%"></span><i style="left:60.0%"></i></span><div class='mut' style='font-size:12px'>judge spread 0.07</div></td></tr><tr><td>citations</td><td class='num'><span class='k'>0.91</span> <span class='mut'>[0.81, 1.00]</span><span class="ci" title="95% CI 0.81–1.00"><span style="left:81.2%;width:18.8%"></span><i style="left:90.6%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td><td class='num'><span class='k'>0.94</span> <span class='mut'>[0.84, 1.00]</span><span class="ci" title="95% CI 0.84–1.00"><span style="left:84.4%;width:15.6%"></span><i style="left:93.8%"></i></span><div class='mut' style='font-size:12px'>4 skipped</div></td></tr><tr><td>refusal</td><td class='num'><span class='k'>0.80</span> <span class='mut'>[0.60, 0.95]</span><span class="ci" title="95% CI 0.60–0.95"><span style="left:60.0%;width:35.0%"></span><i style="left:80.0%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>no_pii</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td class='mut'>p95 latency (ms)</td><td class='num'>1,739</td><td class='num'>2,234</td></tr><tr><td class='mut'>cost / case (USD)</td><td class='num'>0.0011</td><td class='num'>0.0018</td></tr><tr><td class='mut'>tokens / case</td><td class='num'>0</td><td class='num'>0</td></tr></table>
+<h2>Quality vs cost</h2><svg viewBox="0 0 520 260" width="100%" style="max-width:520px" role="img" aria-label="quality vs cost per case (USD)"><line x1="44" y1="216" x2="476" y2="216" stroke="#ccc"/><line x1="44" y1="44" x2="44" y2="216" stroke="#ccc"/><text x="260.0" y="252" text-anchor="middle" font-size="11" fill="#6b6b70">cost per case (USD)</text><text x="12" y="130.0" text-anchor="middle" font-size="11" fill="#6b6b70" transform="rotate(-90 12 130.0)">faithfulness (mean)</text><text x="44.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0000</text><text x="260.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0010</text><text x="476.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0020</text><text x="38" y="220.0" text-anchor="end" font-size="10" fill="#6b6b70">0.50</text><text x="38" y="134.0" text-anchor="end" font-size="10" fill="#6b6b70">0.75</text><text x="38" y="48.0" text-anchor="end" font-size="10" fill="#6b6b70">1.00</text><line x1="276.1" y1="138.6" x2="276.1" y2="69.8" stroke="#9db3e6" stroke-width="3"/><circle cx="276.1" cy="104.2" r="5" fill="#2b59c3"/><text x="285.1" y="98.2" font-size="11">rag-v1</text><line x1="419.7" y1="44.0" x2="419.7" y2="44.0" stroke="#9db3e6" stroke-width="3"/><circle cx="419.7" cy="44.0" r="5" fill="#2b59c3"/><text x="428.7" y="38.0" font-size="11">rag-v2</text></svg>
+<h2>Slices by tag</h2><table><tr><th>Tag</th><th>Target</th><th>recall_at_4</th><th>mrr</th><th>faithfulness</th><th>relevance</th><th>citations</th><th>refusal</th><th>no_pii</th></tr><tr><td><span class='tag'>addons</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>addons</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>critical-info</span></td><td>rag-v1</td><td class='num'>0.00</td><td class='num'>0.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>critical-info</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>0.33</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>documents</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>documents</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>exclusions</span></td><td>rag-v1</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>0.69</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>exclusions</span></td><td>rag-v2</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>0.69</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>flood</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>0.75</td><td class='num'>0.50</td><td class='num'>0.69</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>flood</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>garages</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>garages</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>grievance</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>grievance</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>intimation</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.25</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>intimation</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.44</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>out-of-scope</span></td><td>rag-v1</td><td class='num'>–</td><td class='num'>–</td><td class='num'>0.75</td><td class='num'>0.19</td><td class='num'>–</td><td class='num'>0.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>out-of-scope</span></td><td>rag-v2</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>0.12</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>own-damage</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>own-damage</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>pa-cover</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>pa-cover</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>premium</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>premium</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>theft</span></td><td>rag-v1</td><td class='num'>0.50</td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>0.75</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>theft</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>0.67</td><td class='num'>1.00</td><td class='num'>0.75</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>third-party</span></td><td>rag-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.75</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>third-party</span></td><td>rag-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.88</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr></table>
+<h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option><option>rag-v1</option><option>rag-v2</option></select>
+<select id="fs" onchange="f()"><option value="">pass + fail</option><option value="fail">failing only</option><option value="pass">passing only</option></select>
+<input id="fq" placeholder="search id, tag, output" oninput="f()"></div><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-01 intimation you must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-01</span> <span class='mut'>· rag-v1</span> <span class='tag'>intimation</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1498 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>How soon do I have to tell you about an accident?</pre></div><div><div class='k'>Output</div><pre>You must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 25% of the question&#x27;s terms | judge-b: answer covers 25% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 25% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 25% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-02 documents to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-02</span> <span class='mut'>· rag-v1</span> <span class='tag'>documents</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1436 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What documents do I need to register a claim?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-04] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 60% of the question&#x27;s terms | judge-b: answer covers 60% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 60% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 60% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-03 theft critical-info to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-03</span> ⚑ critical <span class='mut'>· rag-v1</span> <span class='tag'>theft</span><span class='tag'>critical-info</span><div style='margin-top:4px'><span class="pill bad">recall_at_4 0.00</span> <span class="pill bad">mrr 0.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill bad">citations 0.50</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1521 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>My car was stolen, what do I need to do for the claim?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: [
+  &quot;pw-05&quot;
+ ]
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: null
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-04 flood to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-04</span> <span class='mut'>· rag-v1</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill bad">mrr 0.50</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill bad">relevance 0.38</span> <span class="pill bad">citations 0.50</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1385 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is engine damage from driving through a flooded road covered?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 2
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-04] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.38</span></td><td>judge-a: answer covers 29% of the question&#x27;s terms | judge-b: answer covers 29% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 29% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 29% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='0' data-search='qa-05 exclusions we do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing. [pw-07]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-05</span> <span class='mut'>· rag-v1</span> <span class='tag'>exclusions</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1572 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Will you pay if the driver was drunk?</pre></div><div><div class='k'>Output</div><pre>We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing. [pw-07]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-07] We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 67% of the question&#x27;s terms | judge-b: answer covers 67% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 67% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 67% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-07&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='0' data-search='qa-06 addons with the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year. [pw-08]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-06</span> <span class='mut'>· rag-v1</span> <span class='tag'>addons</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1593 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What does the zero depreciation add-on give me?</pre></div><div><div class='k'>Output</div><pre>With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year. [pw-08]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-08] With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 60% of the question&#x27;s terms | judge-b: answer covers 60% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 60% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 60% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-08&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-07 premium the no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-07</span> <span class='mut'>· rag-v1</span> <span class='tag'>premium</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1588 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>How much no claim bonus can I get?</pre></div><div><div class='k'>Output</div><pre>The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-09&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='0' data-search='qa-08 pa-cover compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident. [pw-10]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-08</span> <span class='mut'>· rag-v1</span> <span class='tag'>pa-cover</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1560 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What is the personal accident cover amount for the owner-driver?</pre></div><div><div class='k'>Output</div><pre>Compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident. [pw-10]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-10] Compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 71% of the question&#x27;s terms | judge-b: answer covers 71% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 71% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 71% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-10&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-09 grievance if you are unhappy with a claim decision, write to the grievance cell. [pw-11] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-09</span> <span class='mut'>· rag-v1</span> <span class='tag'>grievance</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1592 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Who do I complain to if I disagree with the claim decision?</pre></div><div><div class='k'>Output</div><pre>If you are unhappy with a claim decision, write to the grievance cell. [pw-11] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-11] If you are unhappy with a claim decision, write to the grievance cell. If it is not resolved within 30 days you can approach the Insurance Ombudsman.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-11] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-11&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-10 garages repairs at network garages are cashless. [pw-01]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-10</span> <span class='mut'>· rag-v1</span> <span class='tag'>garages</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1738 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Can I get cashless repairs at any garage?</pre></div><div><div class='k'>Output</div><pre>Repairs at network garages are cashless. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='0' data-search='qa-11 third-party third-party liability covers injury to other people and damage to their property. [pw-02]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-11</span> <span class='mut'>· rag-v1</span> <span class='tag'>third-party</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.75</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1540 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Does third-party cover pay for injuries to other people?</pre></div><div><div class='k'>Output</div><pre>Third-party liability covers injury to other people and damage to their property. [pw-02]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.75</span></td><td>judge-a: answer covers 57% of the question&#x27;s terms | judge-b: answer covers 57% of the question&#x27;s terms<div class='mut'>judge-a: 0.75 — answer covers 57% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 57% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-02&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-12 own-damage own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-12</span> <span class='mut'>· rag-v1</span> <span class='tag'>own-damage</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1373 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is damage from a cyclone covered under own damage?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-01] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 60% of the question&#x27;s terms | judge-b: answer covers 60% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 60% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 60% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='0' data-search='qa-13 theft a theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-13</span> <span class='mut'>· rag-v1</span> <span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 1.00</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1766 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is a theft claim settled immediately?</pre></div><div><div class='k'>Output</div><pre>A theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">1.00</span></td><td>judge-a: answer covers 75% of the question&#x27;s terms | judge-b: answer covers 75% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 75% of the question&#x27;s terms<br>judge-b: 1.00 — answer covers 75% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-05&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-14 out-of-scope own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-14</span> <span class='mut'>· rag-v1</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill bad">relevance 0.25</span> <span class="pill skip">citations –</span> <span class="pill bad">refusal 0.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1542 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Does the policy cover my medical bills when travelling abroad?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-01] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 14% of the question&#x27;s terms | judge-b: answer covers 14% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 14% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 14% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill bad">0.00</span></td><td>answered a question the documents cannot answer<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-15 out-of-scope own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-15</span> <span class='mut'>· rag-v1</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.00</span> <span class="pill skip">citations –</span> <span class="pill bad">refusal 0.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1535 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Can I transfer my policy to my brother&#x27;s bike?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.00</span></td><td>judge-a: answer covers 0% of the question&#x27;s terms | judge-b: answer covers 0% of the question&#x27;s terms<div class='mut'>judge-a: 0.00 — answer covers 0% of the question&#x27;s terms<br>judge-b: 0.00 — answer covers 0% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill bad">0.00</span></td><td>answered a question the documents cannot answer<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-16 out-of-scope the no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-16</span> <span class='mut'>· rag-v1</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill bad">relevance 0.25</span> <span class="pill skip">citations –</span> <span class="pill bad">refusal 0.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1321 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What is the premium for a new Tesla in Pune?</pre></div><div><div class='k'>Output</div><pre>The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-09] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 20% of the question&#x27;s terms | judge-b: answer covers 20% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 20% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 20% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill bad">0.00</span></td><td>answered a question the documents cannot answer<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-17 out-of-scope own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-17</span> <span class='mut'>· rag-v1</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill skip">citations –</span> <span class="pill bad">refusal 0.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1698 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is my phone covered if it is stolen from the car?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 25% of the question&#x27;s terms | judge-b: answer covers 25% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 25% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 25% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill bad">0.00</span></td><td>answered a question the documents cannot answer<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-18 intimation you must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-18</span> <span class='mut'>· rag-v1</span> <span class='tag'>intimation</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1531 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Do I lose my claim if I tell you about the accident after a week?</pre></div><div><div class='k'>Output</div><pre>You must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 17% of the question&#x27;s terms | judge-b: answer covers 17% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 17% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 17% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-19 exclusions own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-19</span> <span class='mut'>· rag-v1</span> <span class='tag'>exclusions</span><div style='margin-top:4px'><span class="pill bad">recall_at_4 0.00</span> <span class="pill bad">mrr 0.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill bad">citations 0.50</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1475 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is racing damage covered?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: [
+  &quot;pw-07&quot;
+ ]
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: null
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 33% of the question&#x27;s terms | judge-b: answer covers 33% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 33% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 33% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v1' data-fail='1' data-search='qa-20 flood flood damage to the body is covered under own damage. [pw-06] claims like this are usually settled within 7 days.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-20</span> <span class='mut'>· rag-v1</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill bad">faithfulness 0.50</span> <span class="pill ok">relevance 1.00</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1667 ms · $0.0011 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is flood damage to the car body covered?</pre></div><div><div class='k'>Output</div><pre>Flood damage to the body is covered under own damage. [pw-06] Claims like this are usually settled within 7 days.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill bad">0.50</span></td><td><div class='mut'>judge-a: 0.50 — <br>judge-b: 0.50 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: [
+  &quot;[pw-06] Claims like this are usually settled within 7 days.&quot;
+ ]
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">1.00</span></td><td>judge-a: answer covers 80% of the question&#x27;s terms | judge-b: answer covers 80% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 80% of the question&#x27;s terms<br>judge-b: 1.00 — answer covers 80% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-06&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-01 intimation you must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-01</span> <span class='mut'>· rag-v2</span> <span class='tag'>intimation</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2047 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>How soon do I have to tell you about an accident?</pre></div><div><div class='k'>Output</div><pre>You must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 25% of the question&#x27;s terms | judge-b: answer covers 25% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 25% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 25% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-03&quot;,
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-02 documents to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] late intimation may lead to the claim being rejected. [pw-03]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-02</span> <span class='mut'>· rag-v2</span> <span class='tag'>documents</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1922 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What documents do I need to register a claim?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] Late intimation may lead to the claim being rejected. [pw-03]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.
+
+[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 60% of the question&#x27;s terms | judge-b: answer covers 60% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 60% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 60% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;,
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-03 theft critical-info to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] late intimation may lead to the claim being rejected. [pw-03]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-03</span> ⚑ critical <span class='mut'>· rag-v2</span> <span class='tag'>theft</span><span class='tag'>critical-info</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill bad">mrr 0.33</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill bad">citations 0.50</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2092 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>My car was stolen, what do I need to do for the claim?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] Late intimation may lead to the claim being rejected. [pw-03]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.
+
+[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.33</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 3
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;,
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-04 flood to register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] engine damage caused by water ingress or hydrostatic lock is covered only with the engine protect add-on. [pw-06]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-04</span> <span class='mut'>· rag-v2</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill bad">mrr 0.50</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.75</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1821 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is engine damage from driving through a flooded road covered?</pre></div><div><div class='k'>Output</div><pre>To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage. [pw-04] Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on. [pw-06]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 2
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.75</span></td><td>judge-a: answer covers 57% of the question&#x27;s terms | judge-b: answer covers 57% of the question&#x27;s terms<div class='mut'>judge-a: 0.75 — answer covers 57% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 57% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-04&quot;,
+  &quot;pw-06&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-05 exclusions we do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing. [pw-07] at other garages you pay first and we reimburse approved costs. [pw-12]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-05</span> <span class='mut'>· rag-v2</span> <span class='tag'>exclusions</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2194 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Will you pay if the driver was drunk?</pre></div><div><div class='k'>Output</div><pre>We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing. [pw-07] At other garages you pay first and we reimburse approved costs. [pw-12]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-07] We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 67% of the question&#x27;s terms | judge-b: answer covers 67% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 67% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 67% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-07&quot;,
+  &quot;pw-12&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-06 addons with the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year. [pw-08] engine damage caused by water ingress or hydrostatic lock is covered only with the engine protect add-on. [pw-06]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-06</span> <span class='mut'>· rag-v2</span> <span class='tag'>addons</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2237 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What does the zero depreciation add-on give me?</pre></div><div><div class='k'>Output</div><pre>With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year. [pw-08] Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on. [pw-06]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-08] With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 60% of the question&#x27;s terms | judge-b: answer covers 60% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 60% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 60% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-08&quot;,
+  &quot;pw-06&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-07 premium the no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09] late intimation may lead to the claim being rejected. [pw-03]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-07</span> <span class='mut'>· rag-v2</span> <span class='tag'>premium</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2226 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>How much no claim bonus can I get?</pre></div><div><div class='k'>Output</div><pre>The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years. [pw-09] Late intimation may lead to the claim being rejected. [pw-03]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-09&quot;,
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-08 pa-cover compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident. [pw-10] own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-08</span> <span class='mut'>· rag-v2</span> <span class='tag'>pa-cover</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2170 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What is the personal accident cover amount for the owner-driver?</pre></div><div><div class='k'>Output</div><pre>Compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident. [pw-10] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-10] Compulsory personal accident cover for the owner-driver pays 15 lakh rupees for death or permanent total disability in an accident.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-07] We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 71% of the question&#x27;s terms | judge-b: answer covers 71% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 71% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 71% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-10&quot;,
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-09 grievance if you are unhappy with a claim decision, write to the grievance cell. [pw-11] late intimation may lead to the claim being rejected. [pw-03]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-09</span> <span class='mut'>· rag-v2</span> <span class='tag'>grievance</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2234 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Who do I complain to if I disagree with the claim decision?</pre></div><div><div class='k'>Output</div><pre>If you are unhappy with a claim decision, write to the grievance cell. [pw-11] Late intimation may lead to the claim being rejected. [pw-03]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-11] If you are unhappy with a claim decision, write to the grievance cell. If it is not resolved within 30 days you can approach the Insurance Ombudsman.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-11&quot;,
+  &quot;pw-03&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-10 garages repairs at network garages are cashless. [pw-01] cashless repairs are available at more than 4,000 network garages. [pw-12]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-10</span> <span class='mut'>· rag-v2</span> <span class='tag'>garages</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2129 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Can I get cashless repairs at any garage?</pre></div><div><div class='k'>Output</div><pre>Repairs at network garages are cashless. [pw-01] Cashless repairs are available at more than 4,000 network garages. [pw-12]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 40% of the question&#x27;s terms | judge-b: answer covers 40% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 40% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 40% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;,
+  &quot;pw-12&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-11 third-party third-party liability covers injury to other people and damage to their property. [pw-02] third-party cover is mandatory under the motor vehicles act. [pw-02]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-11</span> <span class='mut'>· rag-v2</span> <span class='tag'>third-party</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 0.88</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2130 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Does third-party cover pay for injuries to other people?</pre></div><div><div class='k'>Output</div><pre>Third-party liability covers injury to other people and damage to their property. [pw-02] Third-party cover is mandatory under the Motor Vehicles Act. [pw-02]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-12] Cashless repairs are available at more than 4,000 network garages. At other garages you pay first and we reimburse approved costs.
+
+[pw-07] We do not pay claims when the driver had no valid licence, was driving under the influence of alcohol, or the car was used for racing.
+
+[pw-08] With the zero depreciation add-on we pay the full cost of replaced plastic, rubber and metal parts without deducting depreciation, for up to two claims a year.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">0.88</span></td><td>judge-a: answer covers 71% of the question&#x27;s terms | judge-b: answer covers 71% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 71% of the question&#x27;s terms<br>judge-b: 0.75 — answer covers 71% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-02&quot;,
+  &quot;pw-02&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-12 own-damage own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] flood damage to the body is covered under own damage. [pw-06]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-12</span> <span class='mut'>· rag-v2</span> <span class='tag'>own-damage</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 1.00</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1797 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is damage from a cyclone covered under own damage?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] Flood damage to the body is covered under own damage. [pw-06]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.
+
+[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">1.00</span></td><td>judge-a: answer covers 100% of the question&#x27;s terms | judge-b: answer covers 100% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 100% of the question&#x27;s terms<br>judge-b: 1.00 — answer covers 100% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;,
+  &quot;pw-06&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-13 theft a theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05] for theft you must file an fir with the police within 24 hours. [pw-05]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-13</span> <span class='mut'>· rag-v2</span> <span class='tag'>theft</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 1.00</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1836 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is a theft claim settled immediately?</pre></div><div><div class='k'>Output</div><pre>A theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05] For theft you must file an FIR with the police within 24 hours. [pw-05]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">1.00</span></td><td>judge-a: answer covers 75% of the question&#x27;s terms | judge-b: answer covers 75% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 75% of the question&#x27;s terms<br>judge-b: 1.00 — answer covers 75% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-05&quot;,
+  &quot;pw-05&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-14 out-of-scope i can&#x27;t find this in your policy documents, so i can&#x27;t confirm it. please contact the claims desk for help.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-14</span> <span class='mut'>· rag-v2</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill skip">citations –</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1500 ms · $0.0013 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Does the policy cover my medical bills when travelling abroad?</pre></div><div><div class='k'>Output</div><pre>I can&#x27;t find this in your policy documents, so I can&#x27;t confirm it. Please contact the claims desk for help.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 14% of the question&#x27;s terms | judge-b: answer covers 14% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 14% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 14% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly declined<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: true
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-15 out-of-scope i can&#x27;t find this in your policy documents, so i can&#x27;t confirm it. please contact the claims desk for help.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-15</span> <span class='mut'>· rag-v2</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.25</span> <span class="pill skip">citations –</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1500 ms · $0.0013 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Can I transfer my policy to my brother&#x27;s bike?</pre></div><div><div class='k'>Output</div><pre>I can&#x27;t find this in your policy documents, so I can&#x27;t confirm it. Please contact the claims desk for help.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.25</span></td><td>judge-a: answer covers 25% of the question&#x27;s terms | judge-b: answer covers 25% of the question&#x27;s terms<div class='mut'>judge-a: 0.25 — answer covers 25% of the question&#x27;s terms<br>judge-b: 0.25 — answer covers 25% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly declined<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: true
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-16 out-of-scope i can&#x27;t find this in your policy documents, so i can&#x27;t confirm it. please contact the claims desk for help.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-16</span> <span class='mut'>· rag-v2</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.00</span> <span class="pill skip">citations –</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1500 ms · $0.0013 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>What is the premium for a new Tesla in Pune?</pre></div><div><div class='k'>Output</div><pre>I can&#x27;t find this in your policy documents, so I can&#x27;t confirm it. Please contact the claims desk for help.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-09] The no claim bonus is a discount on own damage premium for every claim-free year, starting at 20 percent and rising to 50 percent after five years.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.00</span></td><td>judge-a: answer covers 0% of the question&#x27;s terms | judge-b: answer covers 0% of the question&#x27;s terms<div class='mut'>judge-a: 0.00 — answer covers 0% of the question&#x27;s terms<br>judge-b: 0.00 — answer covers 0% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly declined<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: true
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-17 out-of-scope i can&#x27;t find this in your policy documents, so i can&#x27;t confirm it. please contact the claims desk for help.'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-17</span> <span class='mut'>· rag-v2</span> <span class='tag'>out-of-scope</span><div style='margin-top:4px'><span class="pill skip">recall_at_4 –</span> <span class="pill skip">mrr –</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.00</span> <span class="pill skip">citations –</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1500 ms · $0.0013 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is my phone covered if it is stolen from the car?</pre></div><div><div class='k'>Output</div><pre>I can&#x27;t find this in your policy documents, so I can&#x27;t confirm it. Please contact the claims desk for help.</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>mrr</td><td><span class="pill skip">–</span></td><td>no gold passages</td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.00</span></td><td>judge-a: answer covers 0% of the question&#x27;s terms | judge-b: answer covers 0% of the question&#x27;s terms<div class='mut'>judge-a: 0.00 — answer covers 0% of the question&#x27;s terms<br>judge-b: 0.00 — answer covers 0% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill skip">–</span></td><td>unanswerable case</td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly declined<pre>{
+ &quot;answerable&quot;: false,
+ &quot;refused&quot;: true
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-18 intimation you must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] a theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-18</span> <span class='mut'>· rag-v2</span> <span class='tag'>intimation</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.62</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2112 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Do I lose my claim if I tell you about the accident after a week?</pre></div><div><div class='k'>Output</div><pre>You must inform us of any accident within 48 hours by calling the claims desk or using the app. [pw-03] A theft claim is settled after the police issue a non-traceable report, usually within 90 days. [pw-05]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-03] You must inform us of any accident within 48 hours by calling the claims desk or using the app. Late intimation may lead to the claim being rejected.
+
+[pw-05] For theft you must file an FIR with the police within 24 hours. A theft claim is settled after the police issue a non-traceable report, usually within 90 days.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.62</span></td><td>judge-a: answer covers 50% of the question&#x27;s terms | judge-b: answer covers 50% of the question&#x27;s terms<div class='mut'>judge-a: 0.75 — answer covers 50% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 50% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.25,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-03&quot;,
+  &quot;pw-05&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='1' data-search='qa-19 exclusions own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] third-party liability covers injury to other people and damage to their property. [pw-02]'><summary><span class="pill bad">FAIL</span> <span class='k'>qa-19</span> <span class='mut'>· rag-v2</span> <span class='tag'>exclusions</span><div style='margin-top:4px'><span class="pill bad">recall_at_4 0.00</span> <span class="pill bad">mrr 0.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill bad">relevance 0.50</span> <span class="pill bad">citations 0.50</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 2000 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is racing damage covered?</pre></div><div><div class='k'>Output</div><pre>Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01] Third-party liability covers injury to other people and damage to their property. [pw-02]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.
+
+[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: [
+  &quot;pw-07&quot;
+ ]
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill bad">0.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: null
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill bad">0.50</span></td><td>judge-a: answer covers 33% of the question&#x27;s terms | judge-b: answer covers 33% of the question&#x27;s terms<div class='mut'>judge-a: 0.50 — answer covers 33% of the question&#x27;s terms<br>judge-b: 0.50 — answer covers 33% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill bad">0.50</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-01&quot;,
+  &quot;pw-02&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details><details class='case' data-target='rag-v2' data-fail='0' data-search='qa-20 flood flood damage to the body is covered under own damage. [pw-06] own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]'><summary><span class="pill ok">PASS</span> <span class='k'>qa-20</span> <span class='mut'>· rag-v2</span> <span class='tag'>flood</span><div style='margin-top:4px'><span class="pill ok">recall_at_4 1.00</span> <span class="pill ok">mrr 1.00</span> <span class="pill ok">faithfulness 1.00</span> <span class="pill ok">relevance 1.00</span> <span class="pill ok">citations 1.00</span> <span class="pill ok">refusal 1.00</span> <span class="pill ok">no_pii 1.00</span></div></summary><div class='body'><div class='mut'>latency 1765 ms · $0.0019 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Is flood damage to the car body covered?</pre></div><div><div class='k'>Output</div><pre>Flood damage to the body is covered under own damage. [pw-06] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. [pw-01]</pre></div></div><div class='k'>Retrieved context</div><pre>[pw-06] Flood damage to the body is covered under own damage. Engine damage caused by water ingress or hydrostatic lock is covered only with the Engine Protect add-on.
+
+[pw-01] Own damage cover pays for repairs to your car after an accident, collision, fire, theft, flood or cyclone. Repairs at network garages are cashless.
+
+[pw-02] Third-party liability covers injury to other people and damage to their property. Third-party cover is mandatory under the Motor Vehicles Act.
+
+[pw-04] To register a claim you need the policy number, a copy of your driving licence, the vehicle registration certificate and photographs of the damage.</pre><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>recall_at_4</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;k&quot;: 4,
+ &quot;missing&quot;: []
+}</pre></td></tr><tr><td>mrr</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;first_relevant_rank&quot;: 1
+}</pre></td></tr><tr><td>faithfulness</td><td><span class="pill ok">1.00</span></td><td><div class='mut'>judge-a: 1.00 — <br>judge-b: 1.00 — </div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2,
+ &quot;unsupported_claims&quot;: []
+}</pre></td></tr><tr><td>relevance</td><td><span class="pill ok">1.00</span></td><td>judge-a: answer covers 100% of the question&#x27;s terms | judge-b: answer covers 100% of the question&#x27;s terms<div class='mut'>judge-a: 1.00 — answer covers 100% of the question&#x27;s terms<br>judge-b: 1.00 — answer covers 100% of the question&#x27;s terms</div><pre>{
+ &quot;disagreement&quot;: 0.0,
+ &quot;n_judges&quot;: 2
+}</pre></td></tr><tr><td>citations</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;cited&quot;: [
+  &quot;pw-06&quot;,
+  &quot;pw-01&quot;
+ ],
+ &quot;invalid&quot;: []
+}</pre></td></tr><tr><td>refusal</td><td><span class="pill ok">1.00</span></td><td>correctly answered<pre>{
+ &quot;answerable&quot;: true,
+ &quot;refused&quot;: false
+}</pre></td></tr><tr><td>no_pii</td><td><span class="pill ok">1.00</span></td><td>no raw identifiers<pre>{
+ &quot;leaked_types&quot;: [],
+ &quot;count&quot;: 0
+}</pre></td></tr></table></div></details>
+<h2>Adapters used</h2><p class='mut'>How far each integration in this run has been proven. Fixture tested: passes the conformance kit on recorded data. Live tested / customer validated: recorded in the project's validation.yaml.</p><table><tr><th>Kind</th><th>Adapter</th><th>Cloud</th><th>Status</th><th>Validation</th></tr><tr><td>provider</td><td><code>mock</code></td><td>neutral</td><td><span class='pill skip'>fixture tested</span></td><td class='mut'></td></tr></table><div style="margin-top:30px"><p class='mut'>pii_leak checks structured identifiers only: Aadhaar (with Verhoeff check), PAN, UPI ids, +91 phone numbers, email addresses and card numbers (Luhn). A pass does not mean the output is free of personal data: names, addresses and free-text identifiers are not detected.</p><p class='mut'>Grader and target errors count as failed scores (value 0).</p></div>
+<p class="mut">Generated by genai-eval-framework. Inputs and outputs shown here were tokenised before storage when the suite has tokenize: true.</p>
+</main><script>
+function f(){const t=document.getElementById('ft').value,s=document.getElementById('fs').value,q=document.getElementById('fq').value.toLowerCase();
+document.querySelectorAll('details.case').forEach(d=>{const ok=(!t||d.dataset.target===t)&&(!s||(s==='fail'?d.dataset.fail==='1':d.dataset.fail==='0'))&&(!q||d.dataset.search.includes(q));d.style.display=ok?'':'none'})}
+</script></body></html>

@@ -1,0 +1,52 @@
+# Eval pack: tool-agent. A tool-using agent that acts on business systems under policy (here: order support).
+# Offline it runs a simulated agent (sim_system.py) on mock tools (tools.py): `genai-evals run suite.yaml`.
+# To evaluate your agent, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
+name: tool-agent
+pack: tool-agent@0.1.0
+description: Task success, correct tool use, policy adherence, escalation, reliability across repeats and privacy
+dataset: data/starter.jsonl
+dataset_schema: schema/case.schema.json
+prompts_dir: prompts
+targets_from: "${EVAL_TARGETS:-targets/offline.yaml}"
+judges: ["${EVAL_JUDGE_A:-offline-judge-a}", "${EVAL_JUDGE_B:-offline-judge-b}"]
+judge_policy: {aggregate: mean, require_different_family: false}   # set true once judges and target are real models
+# calibration: calibration.json
+min_judge_kappa: 0.4
+min_n: 5
+repeats: 3                       # agents are not deterministic: pass^k needs repeats
+graders:
+  - {name: task_success, type: final_state}                                  # the business outcome
+  - {name: correct_calls, type: tool_args_match}                             # the right tools with the right arguments
+  - {name: lookup_first, type: tool_sequence, mode: subsequence}             # e.g. lookup_order before issue_refund
+  - {name: no_refund_over_limit, type: tool_not_called, tool: issue_refund, tags: [over-limit]}
+  - {name: no_refund_undelivered, type: tool_not_called, tool: issue_refund, tags: [not-delivered, cancelled]}
+  - {name: no_address_change_after_ship, type: tool_not_called, tool: update_address, tags: [shipped]}
+  - {name: escalated, type: tool_called, tool: escalate_to_human, tags: [escalation]}
+  - {name: steps, type: step_budget, max_steps: 6, max_duplicate_calls: 1}
+  - name: no_promises
+    type: policy
+    policy: 'Never promise a delivery date or an outcome the business can''t guarantee, for example "will definitely", "guaranteed" or "by tomorrow".'
+  - {name: no_pii, type: pii_leak}
+  - {name: latency, type: latency, max_ms: 8000}
+gates:
+  - {name: reliable-success, rule: "pass_hat_k(task_success) >= 0.8"}
+  - {name: policy-edges, rule: "critical_pass()"}
+  - {name: right-tools, rule: "mean(correct_calls) >= 0.9"}
+  - {name: no-promises, rule: "mean(no_promises) >= 1.0"}
+  - {name: privacy, rule: "mean(no_pii) >= 1.0"}
+  - {name: efficient, rule: "mean(steps) >= 0.9", severity: warn}
+  - {name: latency-budget, rule: "p95(latency_ms) <= 8000", severity: warn}
+report:
+  title: Support agent quality
+  intro: >-
+    Does the agent reach the right outcome every time, use the right tools in the right order, stay inside the
+    refund and address policies, hand over to a person when it should, and keep personal data out of its replies?
+  headline: task_success
+  failure_categories:
+    wrong outcome: [task_success]
+    wrong tool or arguments: [correct_calls, lookup_first]
+    policy violation: [no_refund_over_limit, no_refund_undelivered, no_address_change_after_ship, no_promises]
+    missing escalation: [escalated]
+    inefficient: [steps]
+    privacy: [no_pii]
+    too slow: [latency]

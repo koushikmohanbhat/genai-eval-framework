@@ -1,0 +1,9 @@
+id: invoice_extractor
+version: 1.0.0
+description: Extract invoice fields from document text as JSON
+output_schema: ../../../schema/output.schema.json
+model_hints: {temperature: 0}
+data_elements: [FREE_TEXT]
+purposes: [accounts_payable]
+owner: "<team that owns the extraction>"
+changelog: "Pack starter prompt"

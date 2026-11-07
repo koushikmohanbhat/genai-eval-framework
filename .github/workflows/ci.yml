@@ -1,0 +1,60 @@
+name: ci
+on: [push, pull_request]
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { python: ["3.10", "3.12", "3.13"] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python }}" }
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests examples scripts packs
+      - run: pytest -q
+      - name: offline demo
+        run: cd /tmp && python $GITHUB_WORKSPACE/examples/insurance/demo.py
+      - name: prompts lock integrity
+        run: cd examples/insurance && genai-evals prompts check
+      - name: adapter conformance kit
+        run: genai-evals conformance
+      - name: eval packs validate, scaffold and run offline
+        run: |
+          for p in $(genai-evals pack list | awk '{print $1}'); do
+            genai-evals pack validate "$p"
+            genai-evals init "/tmp/pack-$p" --pack "$p"
+            (cd "/tmp/pack-$p" && genai-evals run suite.yaml --out out/ci --allow-missing-baseline --no-html && genai-evals result validate out/ci/result.json)
+          done
+      - name: wheel ships the packs
+        run: |
+          pip install build && python -m build --wheel -o /tmp/dist
+          python -m zipfile -l /tmp/dist/*.whl | grep -q "genai_evals/packs/rag-knowledge-assistant/pack.yaml"
+      - name: live configs validate
+        run: |
+          cd examples/insurance
+          genai-evals validate claims_extraction.live.yaml --providers providers.live.yaml
+          genai-evals validate fnol_agent.live.yaml --providers providers.live.yaml
+          genai-evals check-config providers.live.yaml
+  self-gate:
+    # dogfood the composite action on the demo (extractor-v2 only, expected to pass)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: suite for the action self-test
+        run: |
+          pip install pyyaml
+          python -c "import yaml,pathlib; p=pathlib.Path('examples/insurance/claims_extraction.yaml'); d=yaml.safe_load(p.read_text()); d['targets']=[t for t in d['targets'] if t['name']=='extractor-v2']; pathlib.Path('examples/insurance/ci_extraction.yaml').write_text(yaml.safe_dump(d, sort_keys=False))"
+      - uses: ./
+        with: {suite: examples/insurance/ci_extraction.yaml, comment: "false", check-prompts: examples/insurance/prompts}
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true      # advisory: surfaces CVEs in dependencies without blocking PRs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          pip install . pip-audit
+          pip freeze --exclude genai-eval-framework > requirements.audit.txt
+          pip-audit --no-deps --disable-pip -r requirements.audit.txt

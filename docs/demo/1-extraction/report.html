@@ -1,0 +1,2025 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>claims-extraction · genai-evals</title><style>
+:root{--fg:#1d1d1f;--mut:#6b6b70;--bd:#e3e3e8;--bg:#fafafa;--ok:#1a7f4b;--bad:#b42318;--warn:#a15c00;--acc:#2b59c3}
+*{box-sizing:border-box}body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--fg);margin:0;background:#fff}
+main{max-width:1180px;margin:0 auto;padding:28px 24px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:6px 0 4px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.02em}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}.ok{background:#e6f4ec;color:var(--ok)}.bad{background:#fdecea;color:var(--bad)}
+.warn{background:#fff4e0;color:var(--warn)}.skip{background:#f0f0f3;color:var(--mut)}
+.verdict{font-size:15px;font-weight:600;padding:10px 14px;border-radius:8px;margin:14px 0}.verdict.ok{background:#e6f4ec}.verdict.bad{background:#fdecea}
+.ci{position:relative;height:8px;background:#eef0f4;border-radius:4px;width:120px;display:inline-block;margin-left:8px;vertical-align:middle}
+.ci span{position:absolute;top:0;height:8px;background:#9db3e6;border-radius:4px}.ci i{position:absolute;top:-2px;width:2px;height:12px;background:var(--acc)}
+details{border:1px solid var(--bd);border-radius:8px;margin:8px 0;background:#fff}summary{cursor:pointer;padding:8px 12px;list-style:none}
+summary::-webkit-details-marker{display:none}details[open] summary{border-bottom:1px solid var(--bd)}.body{padding:10px 14px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;margin:4px 0 10px;font-size:12.5px;max-height:340px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
+select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radius:6px}.k{font-weight:600}.tag{font-size:11px;color:var(--mut);border:1px solid var(--bd);border-radius:8px;padding:0 6px;margin-right:4px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:14px 16px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.big{font-size:28px;font-weight:700}a{color:var(--acc)}
+</style></head><body><main>
+<h1>claims-extraction</h1><div class="mut">Structured extraction from motor claim forms, emails and Hinglish SMS (two extraction systems compared)</div>
+<div class="mut">Run run_3cde466d6741 · 2026-11-07 03:16:31 UTC · 24 cases × 2 targets × 1 repeats
+
+ · git 2b3dd18dc0</div>
+
+
+<div class="verdict bad">Blocking gates failed: field-accuracy (extractor-v1), high-value-claims (extractor-v1), hinglish-slice (extractor-v1)</div>
+<h2>Gates</h2><table><tr><th>Gate</th><th>Target</th><th>Result</th><th>Rule</th><th>Values</th></tr><tr><td>field-accuracy</td><td>extractor-v1</td><td><span class="pill bad">fail</span></td><td><code>mean(fields) &gt;= 0.95 and ci_low(fields) &gt;= 0.9</code></td><td class='mut'>mean(fields) = 0.76, ci_low(fields) = 0.65</td></tr><tr><td>field-accuracy</td><td>extractor-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(fields) &gt;= 0.95 and ci_low(fields) &gt;= 0.9</code></td><td class='mut'>mean(fields) = 1.00, ci_low(fields) = 1.00</td></tr><tr><td>valid-json</td><td>extractor-v1</td><td><span class="pill ok">pass</span></td><td><code>mean(schema) &gt;= 1.0</code></td><td class='mut'>mean(schema) = 1.00</td></tr><tr><td>valid-json</td><td>extractor-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(schema) &gt;= 1.0</code></td><td class='mut'>mean(schema) = 1.00</td></tr><tr><td>hinglish-slice</td><td>extractor-v1</td><td><span class="pill bad">fail</span></td><td><code>mean(fields, tag=&#x27;lang:hinglish&#x27;) &gt;= 0.9</code></td><td class='mut'>mean(fields, tag=&#x27;lang:hinglish&#x27;) = 0.57</td></tr><tr><td>hinglish-slice</td><td>extractor-v2</td><td><span class="pill ok">pass</span></td><td><code>mean(fields, tag=&#x27;lang:hinglish&#x27;) &gt;= 0.9</code></td><td class='mut'>mean(fields, tag=&#x27;lang:hinglish&#x27;) = 1.00</td></tr><tr><td>high-value-claims</td><td>extractor-v1</td><td><span class="pill bad">fail</span></td><td><code>critical_pass()</code></td><td class='mut'>critical_pass() = False</td></tr><tr><td>high-value-claims</td><td>extractor-v2</td><td><span class="pill ok">pass</span></td><td><code>critical_pass()</code></td><td class='mut'>critical_pass() = True</td></tr><tr><td>latency-budget</td><td>extractor-v1</td><td><span class="pill ok">pass</span></td><td><code>p95(latency_ms) &lt;= 2000</code></td><td class='mut'>p95(latency_ms) = 1067.65</td></tr><tr><td>latency-budget</td><td>extractor-v2</td><td><span class="pill ok">pass</span></td><td><code>p95(latency_ms) &lt;= 2000</code></td><td class='mut'>p95(latency_ms) = 1583.70</td></tr></table>
+<h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2><table><tr><th>Grader</th><th>extractor-v1</th><th>extractor-v2</th></tr><tr><td>schema</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>fields</td><td class='num'><span class='k'>0.76</span> <span class='mut'>[0.65, 0.86]</span><span class="ci" title="95% CI 0.65–0.86"><span style="left:65.5%;width:20.2%"></span><i style="left:76.2%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td>latency</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'></div></td></tr><tr><td class='mut'>p95 latency (ms)</td><td class='num'>1,068</td><td class='num'>1,584</td></tr><tr><td class='mut'>cost / case (USD)</td><td class='num'>0.0009</td><td class='num'>0.0016</td></tr><tr><td class='mut'>tokens / case</td><td class='num'>0</td><td class='num'>0</td></tr></table>
+<h2>Quality vs cost</h2><svg viewBox="0 0 520 260" width="100%" style="max-width:520px" role="img" aria-label="quality vs cost per case (USD)"><line x1="44" y1="216" x2="476" y2="216" stroke="#ccc"/><line x1="44" y1="44" x2="44" y2="216" stroke="#ccc"/><text x="260.0" y="252" text-anchor="middle" font-size="11" fill="#6b6b70">cost per case (USD)</text><text x="12" y="130.0" text-anchor="middle" font-size="11" fill="#6b6b70" transform="rotate(-90 12 130.0)">fields (mean)</text><text x="44.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0000</text><text x="260.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0009</text><text x="476.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0018</text><text x="38" y="220.0" text-anchor="end" font-size="10" fill="#6b6b70">0.50</text><text x="38" y="134.0" text-anchor="end" font-size="10" fill="#6b6b70">0.75</text><text x="38" y="48.0" text-anchor="end" font-size="10" fill="#6b6b70">1.00</text><line x1="255.3" y1="162.8" x2="255.3" y2="93.1" stroke="#9db3e6" stroke-width="3"/><circle cx="255.3" cy="125.9" r="5" fill="#2b59c3"/><text x="264.3" y="119.9" font-size="11">extractor-v1</text><line x1="419.7" y1="44.0" x2="419.7" y2="44.0" stroke="#9db3e6" stroke-width="3"/><circle cx="419.7" cy="44.0" r="5" fill="#2b59c3"/><text x="428.7" y="38.0" font-size="11">extractor-v2</text></svg>
+<h2>Slices by tag</h2><table><tr><th>Tag</th><th>Target</th><th>schema</th><th>fields</th><th>latency</th></tr><tr><td><span class='tag'>format:email</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>0.74</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>format:email</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>format:form</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>format:form</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>high-value</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>0.73</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>high-value</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:collision</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:collision</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:fire</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>0.57</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:fire</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:flood</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>0.48</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:flood</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:theft</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>incident:theft</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lang:hinglish</span></td><td>extractor-v1</td><td class='num'>1.00</td><td class='num'>0.57</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lang:hinglish</span></td><td>extractor-v2</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr></table>
+<h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option><option>extractor-v1</option><option>extractor-v2</option></select>
+<select id="fs" onchange="f()"><option value="">pass + fail</option><option value="fail">failing only</option><option value="pass">passing only</option></select>
+<input id="fq" placeholder="search id, tag, output" oninput="f()"></div><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-01 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-125906&quot;, &quot;claimant_name&quot;: &quot;rahul verma&quot;, &quot;incident_date&quot;: &quot;2026-06-17&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-01</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 963 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-125906
+Name: Rahul Verma
+Date of incident: 17/06/2026
+Vehicle: KA 05 MN 4521
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-125906&quot;, &quot;claimant_name&quot;: &quot;Rahul Verma&quot;, &quot;incident_date&quot;: &quot;2026-06-17&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-125906&quot;,
+   &quot;got&quot;: &quot;MOT-2026-125906&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rahul Verma&quot;,
+   &quot;got&quot;: &quot;Rahul Verma&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-17&quot;,
+   &quot;got&quot;: &quot;2026-06-17&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 963.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-02 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-679636&quot;, &quot;claimant_name&quot;: &quot;priya nair&quot;, &quot;incident_date&quot;: &quot;2026-02-08&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-02</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 990 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Priya Nair. On 2026-02-08 my car was stolen from outside my house. Policy MOT-2026-679636, registration MH 12 AB 9087. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-679636&quot;, &quot;claimant_name&quot;: &quot;Priya Nair&quot;, &quot;incident_date&quot;: &quot;2026-02-08&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-679636&quot;,
+   &quot;got&quot;: &quot;MOT-2026-679636&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Priya Nair&quot;,
+   &quot;got&quot;: &quot;Priya Nair&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-08&quot;,
+   &quot;got&quot;: &quot;2026-02-08&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 990.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-03 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-652673&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-03</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.43</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1060 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Arjun Mehta. The car was submerged in water logging on 14 Sep 2026. My policy number is MOT-2026-652673 and the car is DL 3C AQ 1123. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-652673&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.43</span></td><td>3/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-652673&quot;,
+   &quot;got&quot;: &quot;MOT-2026-652673&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Arjun Mehta&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-09-14&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 2.5
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1060.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-04 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-575421&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-25&quot;, &quot;claim_amount&quot;: 250.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-04</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1069 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Sneha Kulkarni bol raha hoon. 25/08/2026 ko the car caught fire on the highway. Policy MOT-2026-575421, gaadi TN 09 BX 7765. Kharcha approx Rs 250k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-575421&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-25&quot;, &quot;claim_amount&quot;: 250.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-575421&quot;,
+   &quot;got&quot;: &quot;MOT-2026-575421&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Sneha Kulkarni&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-25&quot;,
+   &quot;got&quot;: &quot;2026-08-25&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1069.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-05 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-463521&quot;, &quot;claimant_name&quot;: &quot;vikram singh&quot;, &quot;incident_date&quot;: &quot;2026-04-01&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-05</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 984 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-463521
+Name: Vikram Singh
+Date of incident: 01/04/2026
+Vehicle: KA 51 HE 3309
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-463521&quot;, &quot;claimant_name&quot;: &quot;Vikram Singh&quot;, &quot;incident_date&quot;: &quot;2026-04-01&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-463521&quot;,
+   &quot;got&quot;: &quot;MOT-2026-463521&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Vikram Singh&quot;,
+   &quot;got&quot;: &quot;Vikram Singh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-04-01&quot;,
+   &quot;got&quot;: &quot;2026-04-01&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 984.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-06 format:email incident:theft {&quot;policy_number&quot;: &quot;mot-2026-085644&quot;, &quot;claimant_name&quot;: &quot;ananya iyer&quot;, &quot;incident_date&quot;: &quot;2026-02-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-06</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1054 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Ananya Iyer. On 2026-02-10 my car was stolen from outside my house. Policy MOT-2026-085644, registration GJ 01 RT 5512. The garage estimate is INR 18500. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-085644&quot;, &quot;claimant_name&quot;: &quot;Ananya Iyer&quot;, &quot;incident_date&quot;: &quot;2026-02-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-085644&quot;,
+   &quot;got&quot;: &quot;MOT-2026-085644&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Ananya Iyer&quot;,
+   &quot;got&quot;: &quot;Ananya Iyer&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-10&quot;,
+   &quot;got&quot;: &quot;2026-02-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1054.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-07 format:email incident:flood {&quot;policy_number&quot;: &quot;mot-2026-472497&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 87500.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-07</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.71</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1002 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Karthik Rao. The car was submerged in water logging on 27 Jan 2026. My policy number is MOT-2026-472497 and the car is KA 05 MN 4521. Loss is around ₹87,500.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-472497&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 87500.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.71</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-472497&quot;,
+   &quot;got&quot;: &quot;MOT-2026-472497&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Karthik Rao&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-01-27&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 87500.0,
+   &quot;got&quot;: 87500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1002.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-08 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-515102&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-06-07&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-08</span> <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1007 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Meera Joshi bol raha hoon. 07/06/2026 ko the car caught fire on the highway. Policy MOT-2026-515102, gaadi MH 12 AB 9087. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-515102&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-06-07&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-515102&quot;,
+   &quot;got&quot;: &quot;MOT-2026-515102&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Meera Joshi&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-07&quot;,
+   &quot;got&quot;: &quot;2026-06-07&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1007.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-09 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-264730&quot;, &quot;claimant_name&quot;: &quot;imran shaikh&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-09</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 888 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-264730
+Name: Imran Shaikh
+Date of incident: 12/06/2026
+Vehicle: DL 3C AQ 1123
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 120,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-264730&quot;, &quot;claimant_name&quot;: &quot;Imran Shaikh&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-264730&quot;,
+   &quot;got&quot;: &quot;MOT-2026-264730&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Imran Shaikh&quot;,
+   &quot;got&quot;: &quot;Imran Shaikh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-12&quot;,
+   &quot;got&quot;: &quot;2026-06-12&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 888.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-10 format:email incident:theft {&quot;policy_number&quot;: &quot;mot-2026-783206&quot;, &quot;claimant_name&quot;: &quot;divya menon&quot;, &quot;incident_date&quot;: &quot;2026-09-21&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-10</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 973 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Divya Menon. On 2026-09-21 my car was stolen from outside my house. Policy MOT-2026-783206, registration TN 09 BX 7765. The garage estimate is INR 18500. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-783206&quot;, &quot;claimant_name&quot;: &quot;Divya Menon&quot;, &quot;incident_date&quot;: &quot;2026-09-21&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-783206&quot;,
+   &quot;got&quot;: &quot;MOT-2026-783206&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Divya Menon&quot;,
+   &quot;got&quot;: &quot;Divya Menon&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-21&quot;,
+   &quot;got&quot;: &quot;2026-09-21&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 973.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-11 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-759237&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-11</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.43</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 943 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Rohan Gupta. The car was submerged in water logging on 03 Jun 2026. My policy number is MOT-2026-759237 and the car is KA 51 HE 3309. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-759237&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.43</span></td><td>3/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-759237&quot;,
+   &quot;got&quot;: &quot;MOT-2026-759237&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Rohan Gupta&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-06-03&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 2.5
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 943.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-12 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-565201&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-05-10&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-12</span> <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 996 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Fatima Khan bol raha hoon. 10/05/2026 ko the car caught fire on the highway. Policy MOT-2026-565201, gaadi GJ 01 RT 5512. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-565201&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-05-10&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-565201&quot;,
+   &quot;got&quot;: &quot;MOT-2026-565201&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Fatima Khan&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-05-10&quot;,
+   &quot;got&quot;: &quot;2026-05-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 996.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-13 format:form incident:collision {&quot;policy_number&quot;: &quot;mot-2026-148732&quot;, &quot;claimant_name&quot;: &quot;rahul verma&quot;, &quot;incident_date&quot;: &quot;2026-10-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-13</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1085 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-148732
+Name: Rahul Verma
+Date of incident: 10/10/2026
+Vehicle: KA 05 MN 4521
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 18,500</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-148732&quot;, &quot;claimant_name&quot;: &quot;Rahul Verma&quot;, &quot;incident_date&quot;: &quot;2026-10-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-148732&quot;,
+   &quot;got&quot;: &quot;MOT-2026-148732&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rahul Verma&quot;,
+   &quot;got&quot;: &quot;Rahul Verma&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-10&quot;,
+   &quot;got&quot;: &quot;2026-10-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1085.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-14 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-889976&quot;, &quot;claimant_name&quot;: &quot;priya nair&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-14</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 989 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Priya Nair. On 2026-06-12 my car was stolen from outside my house. Policy MOT-2026-889976, registration MH 12 AB 9087. The garage estimate is INR 120000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-889976&quot;, &quot;claimant_name&quot;: &quot;Priya Nair&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-889976&quot;,
+   &quot;got&quot;: &quot;MOT-2026-889976&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Priya Nair&quot;,
+   &quot;got&quot;: &quot;Priya Nair&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-12&quot;,
+   &quot;got&quot;: &quot;2026-06-12&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 989.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-15 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-443727&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-15</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.43</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1029 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Arjun Mehta. The car was submerged in water logging on 13 Feb 2026. My policy number is MOT-2026-443727 and the car is DL 3C AQ 1123. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-443727&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.43</span></td><td>3/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-443727&quot;,
+   &quot;got&quot;: &quot;MOT-2026-443727&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Arjun Mehta&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-02-13&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 2.5
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1029.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-16 lang:hinglish incident:fire {&quot;policy_number&quot;: &quot;mot-2026-582381&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-28&quot;, &quot;claim_amount&quot;: 18.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-16</span> <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 872 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Sneha Kulkarni bol raha hoon. 28/08/2026 ko the car caught fire on the highway. Policy MOT-2026-582381, gaadi TN 09 BX 7765. Kharcha approx Rs 18k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-582381&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-28&quot;, &quot;claim_amount&quot;: 18.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-582381&quot;,
+   &quot;got&quot;: &quot;MOT-2026-582381&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Sneha Kulkarni&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-28&quot;,
+   &quot;got&quot;: &quot;2026-08-28&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 18000.0,
+   &quot;got&quot;: 18.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 872.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-17 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-447109&quot;, &quot;claimant_name&quot;: &quot;vikram singh&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-17</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 939 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-447109
+Name: Vikram Singh
+Date of incident: 26/09/2026
+Vehicle: KA 51 HE 3309
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-447109&quot;, &quot;claimant_name&quot;: &quot;Vikram Singh&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-447109&quot;,
+   &quot;got&quot;: &quot;MOT-2026-447109&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Vikram Singh&quot;,
+   &quot;got&quot;: &quot;Vikram Singh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-26&quot;,
+   &quot;got&quot;: &quot;2026-09-26&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 939.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-18 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-918958&quot;, &quot;claimant_name&quot;: &quot;ananya iyer&quot;, &quot;incident_date&quot;: &quot;2026-08-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-18</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 931 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Ananya Iyer. On 2026-08-13 my car was stolen from outside my house. Policy MOT-2026-918958, registration GJ 01 RT 5512. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-918958&quot;, &quot;claimant_name&quot;: &quot;Ananya Iyer&quot;, &quot;incident_date&quot;: &quot;2026-08-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-918958&quot;,
+   &quot;got&quot;: &quot;MOT-2026-918958&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Ananya Iyer&quot;,
+   &quot;got&quot;: &quot;Ananya Iyer&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-13&quot;,
+   &quot;got&quot;: &quot;2026-08-13&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 931.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-19 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-272207&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 1.2, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-19</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.43</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 994 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Karthik Rao. The car was submerged in water logging on 19 Jul 2026. My policy number is MOT-2026-272207 and the car is KA 05 MN 4521. Loss is around ₹1.2 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-272207&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 1.2, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.43</span></td><td>3/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-272207&quot;,
+   &quot;got&quot;: &quot;MOT-2026-272207&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Karthik Rao&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-07-19&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 1.2
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 994.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-20 lang:hinglish incident:fire {&quot;policy_number&quot;: &quot;mot-2026-538866&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 18.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-20</span> <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 864 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Meera Joshi bol raha hoon. 26/09/2026 ko the car caught fire on the highway. Policy MOT-2026-538866, gaadi MH 12 AB 9087. Kharcha approx Rs 18k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-538866&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 18.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-538866&quot;,
+   &quot;got&quot;: &quot;MOT-2026-538866&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Meera Joshi&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-26&quot;,
+   &quot;got&quot;: &quot;2026-09-26&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 18000.0,
+   &quot;got&quot;: 18.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 864.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-21 format:form incident:collision {&quot;policy_number&quot;: &quot;mot-2026-604472&quot;, &quot;claimant_name&quot;: &quot;imran shaikh&quot;, &quot;incident_date&quot;: &quot;2026-04-25&quot;, &quot;claim_amount&quot;: 42000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-21</span> <span class='mut'>· extractor-v1</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1030 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-604472
+Name: Imran Shaikh
+Date of incident: 25/04/2026
+Vehicle: DL 3C AQ 1123
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 42,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-604472&quot;, &quot;claimant_name&quot;: &quot;Imran Shaikh&quot;, &quot;incident_date&quot;: &quot;2026-04-25&quot;, &quot;claim_amount&quot;: 42000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-604472&quot;,
+   &quot;got&quot;: &quot;MOT-2026-604472&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Imran Shaikh&quot;,
+   &quot;got&quot;: &quot;Imran Shaikh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-04-25&quot;,
+   &quot;got&quot;: &quot;2026-04-25&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 42000.0,
+   &quot;got&quot;: 42000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1030.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='0' data-search='ex-22 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-858873&quot;, &quot;claimant_name&quot;: &quot;divya menon&quot;, &quot;incident_date&quot;: &quot;2026-01-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-22</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1025 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Divya Menon. On 2026-01-23 my car was stolen from outside my house. Policy MOT-2026-858873, registration TN 09 BX 7765. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-858873&quot;, &quot;claimant_name&quot;: &quot;Divya Menon&quot;, &quot;incident_date&quot;: &quot;2026-01-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-858873&quot;,
+   &quot;got&quot;: &quot;MOT-2026-858873&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Divya Menon&quot;,
+   &quot;got&quot;: &quot;Divya Menon&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-01-23&quot;,
+   &quot;got&quot;: &quot;2026-01-23&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1025.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-23 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-930903&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-23</span> ⚑ critical <span class='mut'>· extractor-v1</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.43</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1042 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Rohan Gupta. The car was submerged in water logging on 23 Feb 2026. My policy number is MOT-2026-930903 and the car is KA 51 HE 3309. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-930903&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: null, &quot;claim_amount&quot;: 2.5, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.43</span></td><td>3/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-930903&quot;,
+   &quot;got&quot;: &quot;MOT-2026-930903&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Rohan Gupta&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;2026-02-23&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 2.5
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;incident_date&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1042.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v1' data-fail='1' data-search='ex-24 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-451268&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-05&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill bad">FAIL</span> <span class='k'>ex-24</span> <span class='mut'>· extractor-v1</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill bad">fields 0.57</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 826 ms · $0.0009 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Fatima Khan bol raha hoon. 05/08/2026 ko the car caught fire on the highway. Policy MOT-2026-451268, gaadi GJ 01 RT 5512. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-451268&quot;, &quot;claimant_name&quot;: null, &quot;incident_date&quot;: &quot;2026-08-05&quot;, &quot;claim_amount&quot;: 120.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill bad">0.57</span></td><td>4/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-451268&quot;,
+   &quot;got&quot;: &quot;MOT-2026-451268&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: &quot;Fatima Khan&quot;,
+   &quot;got&quot;: null
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-05&quot;,
+   &quot;got&quot;: &quot;2026-08-05&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 0.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: [
+  &quot;claimant_name&quot;,
+  &quot;claim_amount&quot;
+ ]
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 826.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-01 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-125906&quot;, &quot;claimant_name&quot;: &quot;rahul verma&quot;, &quot;incident_date&quot;: &quot;2026-06-17&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-01</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1291 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-125906
+Name: Rahul Verma
+Date of incident: 17/06/2026
+Vehicle: KA 05 MN 4521
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-125906&quot;, &quot;claimant_name&quot;: &quot;Rahul Verma&quot;, &quot;incident_date&quot;: &quot;2026-06-17&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-125906&quot;,
+   &quot;got&quot;: &quot;MOT-2026-125906&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rahul Verma&quot;,
+   &quot;got&quot;: &quot;Rahul Verma&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-17&quot;,
+   &quot;got&quot;: &quot;2026-06-17&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1291.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-02 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-679636&quot;, &quot;claimant_name&quot;: &quot;priya nair&quot;, &quot;incident_date&quot;: &quot;2026-02-08&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-02</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1322 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Priya Nair. On 2026-02-08 my car was stolen from outside my house. Policy MOT-2026-679636, registration MH 12 AB 9087. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-679636&quot;, &quot;claimant_name&quot;: &quot;Priya Nair&quot;, &quot;incident_date&quot;: &quot;2026-02-08&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-679636&quot;,
+   &quot;got&quot;: &quot;MOT-2026-679636&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Priya Nair&quot;,
+   &quot;got&quot;: &quot;Priya Nair&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-08&quot;,
+   &quot;got&quot;: &quot;2026-02-08&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1322.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-03 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-652673&quot;, &quot;claimant_name&quot;: &quot;arjun mehta&quot;, &quot;incident_date&quot;: &quot;2026-09-14&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-03</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1250 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Arjun Mehta. The car was submerged in water logging on 14 Sep 2026. My policy number is MOT-2026-652673 and the car is DL 3C AQ 1123. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-652673&quot;, &quot;claimant_name&quot;: &quot;Arjun Mehta&quot;, &quot;incident_date&quot;: &quot;2026-09-14&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-652673&quot;,
+   &quot;got&quot;: &quot;MOT-2026-652673&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Arjun Mehta&quot;,
+   &quot;got&quot;: &quot;Arjun Mehta&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-14&quot;,
+   &quot;got&quot;: &quot;2026-09-14&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1250.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-04 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-575421&quot;, &quot;claimant_name&quot;: &quot;sneha kulkarni&quot;, &quot;incident_date&quot;: &quot;2026-08-25&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-04</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1565 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Sneha Kulkarni bol raha hoon. 25/08/2026 ko the car caught fire on the highway. Policy MOT-2026-575421, gaadi TN 09 BX 7765. Kharcha approx Rs 250k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-575421&quot;, &quot;claimant_name&quot;: &quot;Sneha Kulkarni&quot;, &quot;incident_date&quot;: &quot;2026-08-25&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-575421&quot;,
+   &quot;got&quot;: &quot;MOT-2026-575421&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Sneha Kulkarni&quot;,
+   &quot;got&quot;: &quot;Sneha Kulkarni&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-25&quot;,
+   &quot;got&quot;: &quot;2026-08-25&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1565.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-05 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-463521&quot;, &quot;claimant_name&quot;: &quot;vikram singh&quot;, &quot;incident_date&quot;: &quot;2026-04-01&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-05</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1326 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-463521
+Name: Vikram Singh
+Date of incident: 01/04/2026
+Vehicle: KA 51 HE 3309
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-463521&quot;, &quot;claimant_name&quot;: &quot;Vikram Singh&quot;, &quot;incident_date&quot;: &quot;2026-04-01&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-463521&quot;,
+   &quot;got&quot;: &quot;MOT-2026-463521&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Vikram Singh&quot;,
+   &quot;got&quot;: &quot;Vikram Singh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-04-01&quot;,
+   &quot;got&quot;: &quot;2026-04-01&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1326.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-06 format:email incident:theft {&quot;policy_number&quot;: &quot;mot-2026-085644&quot;, &quot;claimant_name&quot;: &quot;ananya iyer&quot;, &quot;incident_date&quot;: &quot;2026-02-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-06</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1214 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Ananya Iyer. On 2026-02-10 my car was stolen from outside my house. Policy MOT-2026-085644, registration GJ 01 RT 5512. The garage estimate is INR 18500. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-085644&quot;, &quot;claimant_name&quot;: &quot;Ananya Iyer&quot;, &quot;incident_date&quot;: &quot;2026-02-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-085644&quot;,
+   &quot;got&quot;: &quot;MOT-2026-085644&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Ananya Iyer&quot;,
+   &quot;got&quot;: &quot;Ananya Iyer&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-10&quot;,
+   &quot;got&quot;: &quot;2026-02-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1214.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-07 format:email incident:flood {&quot;policy_number&quot;: &quot;mot-2026-472497&quot;, &quot;claimant_name&quot;: &quot;karthik rao&quot;, &quot;incident_date&quot;: &quot;2026-01-27&quot;, &quot;claim_amount&quot;: 87500.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-07</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1564 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Karthik Rao. The car was submerged in water logging on 27 Jan 2026. My policy number is MOT-2026-472497 and the car is KA 05 MN 4521. Loss is around ₹87,500.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-472497&quot;, &quot;claimant_name&quot;: &quot;Karthik Rao&quot;, &quot;incident_date&quot;: &quot;2026-01-27&quot;, &quot;claim_amount&quot;: 87500.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-472497&quot;,
+   &quot;got&quot;: &quot;MOT-2026-472497&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Karthik Rao&quot;,
+   &quot;got&quot;: &quot;Karthik Rao&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-01-27&quot;,
+   &quot;got&quot;: &quot;2026-01-27&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 87500.0,
+   &quot;got&quot;: 87500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1564.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-08 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-515102&quot;, &quot;claimant_name&quot;: &quot;meera joshi&quot;, &quot;incident_date&quot;: &quot;2026-06-07&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-08</span> <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1451 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Meera Joshi bol raha hoon. 07/06/2026 ko the car caught fire on the highway. Policy MOT-2026-515102, gaadi MH 12 AB 9087. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-515102&quot;, &quot;claimant_name&quot;: &quot;Meera Joshi&quot;, &quot;incident_date&quot;: &quot;2026-06-07&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-515102&quot;,
+   &quot;got&quot;: &quot;MOT-2026-515102&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Meera Joshi&quot;,
+   &quot;got&quot;: &quot;Meera Joshi&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-07&quot;,
+   &quot;got&quot;: &quot;2026-06-07&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1451.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-09 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-264730&quot;, &quot;claimant_name&quot;: &quot;imran shaikh&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-09</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1301 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-264730
+Name: Imran Shaikh
+Date of incident: 12/06/2026
+Vehicle: DL 3C AQ 1123
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 120,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-264730&quot;, &quot;claimant_name&quot;: &quot;Imran Shaikh&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-264730&quot;,
+   &quot;got&quot;: &quot;MOT-2026-264730&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Imran Shaikh&quot;,
+   &quot;got&quot;: &quot;Imran Shaikh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-12&quot;,
+   &quot;got&quot;: &quot;2026-06-12&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1301.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-10 format:email incident:theft {&quot;policy_number&quot;: &quot;mot-2026-783206&quot;, &quot;claimant_name&quot;: &quot;divya menon&quot;, &quot;incident_date&quot;: &quot;2026-09-21&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-10</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1439 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Divya Menon. On 2026-09-21 my car was stolen from outside my house. Policy MOT-2026-783206, registration TN 09 BX 7765. The garage estimate is INR 18500. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-783206&quot;, &quot;claimant_name&quot;: &quot;Divya Menon&quot;, &quot;incident_date&quot;: &quot;2026-09-21&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-783206&quot;,
+   &quot;got&quot;: &quot;MOT-2026-783206&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Divya Menon&quot;,
+   &quot;got&quot;: &quot;Divya Menon&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-21&quot;,
+   &quot;got&quot;: &quot;2026-09-21&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1439.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-11 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-759237&quot;, &quot;claimant_name&quot;: &quot;rohan gupta&quot;, &quot;incident_date&quot;: &quot;2026-06-03&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-11</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1171 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Rohan Gupta. The car was submerged in water logging on 03 Jun 2026. My policy number is MOT-2026-759237 and the car is KA 51 HE 3309. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-759237&quot;, &quot;claimant_name&quot;: &quot;Rohan Gupta&quot;, &quot;incident_date&quot;: &quot;2026-06-03&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-759237&quot;,
+   &quot;got&quot;: &quot;MOT-2026-759237&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rohan Gupta&quot;,
+   &quot;got&quot;: &quot;Rohan Gupta&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-03&quot;,
+   &quot;got&quot;: &quot;2026-06-03&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1171.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-12 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-565201&quot;, &quot;claimant_name&quot;: &quot;fatima khan&quot;, &quot;incident_date&quot;: &quot;2026-05-10&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-12</span> <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1373 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Fatima Khan bol raha hoon. 10/05/2026 ko the car caught fire on the highway. Policy MOT-2026-565201, gaadi GJ 01 RT 5512. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-565201&quot;, &quot;claimant_name&quot;: &quot;Fatima Khan&quot;, &quot;incident_date&quot;: &quot;2026-05-10&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-565201&quot;,
+   &quot;got&quot;: &quot;MOT-2026-565201&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Fatima Khan&quot;,
+   &quot;got&quot;: &quot;Fatima Khan&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-05-10&quot;,
+   &quot;got&quot;: &quot;2026-05-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1373.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-13 format:form incident:collision {&quot;policy_number&quot;: &quot;mot-2026-148732&quot;, &quot;claimant_name&quot;: &quot;rahul verma&quot;, &quot;incident_date&quot;: &quot;2026-10-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-13</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1535 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-148732
+Name: Rahul Verma
+Date of incident: 10/10/2026
+Vehicle: KA 05 MN 4521
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 18,500</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-148732&quot;, &quot;claimant_name&quot;: &quot;Rahul Verma&quot;, &quot;incident_date&quot;: &quot;2026-10-10&quot;, &quot;claim_amount&quot;: 18500.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-148732&quot;,
+   &quot;got&quot;: &quot;MOT-2026-148732&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rahul Verma&quot;,
+   &quot;got&quot;: &quot;Rahul Verma&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-10-10&quot;,
+   &quot;got&quot;: &quot;2026-10-10&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18500.0,
+   &quot;got&quot;: 18500.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1535.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-14 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-889976&quot;, &quot;claimant_name&quot;: &quot;priya nair&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-14</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1353 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Priya Nair. On 2026-06-12 my car was stolen from outside my house. Policy MOT-2026-889976, registration MH 12 AB 9087. The garage estimate is INR 120000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-889976&quot;, &quot;claimant_name&quot;: &quot;Priya Nair&quot;, &quot;incident_date&quot;: &quot;2026-06-12&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-889976&quot;,
+   &quot;got&quot;: &quot;MOT-2026-889976&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Priya Nair&quot;,
+   &quot;got&quot;: &quot;Priya Nair&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-06-12&quot;,
+   &quot;got&quot;: &quot;2026-06-12&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1353.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-15 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-443727&quot;, &quot;claimant_name&quot;: &quot;arjun mehta&quot;, &quot;incident_date&quot;: &quot;2026-02-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-15</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1374 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Arjun Mehta. The car was submerged in water logging on 13 Feb 2026. My policy number is MOT-2026-443727 and the car is DL 3C AQ 1123. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-443727&quot;, &quot;claimant_name&quot;: &quot;Arjun Mehta&quot;, &quot;incident_date&quot;: &quot;2026-02-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-443727&quot;,
+   &quot;got&quot;: &quot;MOT-2026-443727&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Arjun Mehta&quot;,
+   &quot;got&quot;: &quot;Arjun Mehta&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-13&quot;,
+   &quot;got&quot;: &quot;2026-02-13&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1374.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-16 lang:hinglish incident:fire {&quot;policy_number&quot;: &quot;mot-2026-582381&quot;, &quot;claimant_name&quot;: &quot;sneha kulkarni&quot;, &quot;incident_date&quot;: &quot;2026-08-28&quot;, &quot;claim_amount&quot;: 18000.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-16</span> <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1590 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Sneha Kulkarni bol raha hoon. 28/08/2026 ko the car caught fire on the highway. Policy MOT-2026-582381, gaadi TN 09 BX 7765. Kharcha approx Rs 18k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-582381&quot;, &quot;claimant_name&quot;: &quot;Sneha Kulkarni&quot;, &quot;incident_date&quot;: &quot;2026-08-28&quot;, &quot;claim_amount&quot;: 18000.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-582381&quot;,
+   &quot;got&quot;: &quot;MOT-2026-582381&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Sneha Kulkarni&quot;,
+   &quot;got&quot;: &quot;Sneha Kulkarni&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-28&quot;,
+   &quot;got&quot;: &quot;2026-08-28&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18000.0,
+   &quot;got&quot;: 18000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1590.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-17 format:form incident:collision high-value {&quot;policy_number&quot;: &quot;mot-2026-447109&quot;, &quot;claimant_name&quot;: &quot;vikram singh&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-17</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1587 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-447109
+Name: Vikram Singh
+Date of incident: 26/09/2026
+Vehicle: KA 51 HE 3309
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 250,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-447109&quot;, &quot;claimant_name&quot;: &quot;Vikram Singh&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-447109&quot;,
+   &quot;got&quot;: &quot;MOT-2026-447109&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Vikram Singh&quot;,
+   &quot;got&quot;: &quot;Vikram Singh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-26&quot;,
+   &quot;got&quot;: &quot;2026-09-26&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1587.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-18 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-918958&quot;, &quot;claimant_name&quot;: &quot;ananya iyer&quot;, &quot;incident_date&quot;: &quot;2026-08-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-18</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1555 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Ananya Iyer. On 2026-08-13 my car was stolen from outside my house. Policy MOT-2026-918958, registration GJ 01 RT 5512. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-918958&quot;, &quot;claimant_name&quot;: &quot;Ananya Iyer&quot;, &quot;incident_date&quot;: &quot;2026-08-13&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-918958&quot;,
+   &quot;got&quot;: &quot;MOT-2026-918958&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Ananya Iyer&quot;,
+   &quot;got&quot;: &quot;Ananya Iyer&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-13&quot;,
+   &quot;got&quot;: &quot;2026-08-13&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1555.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-19 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-272207&quot;, &quot;claimant_name&quot;: &quot;karthik rao&quot;, &quot;incident_date&quot;: &quot;2026-07-19&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;ka 05 mn 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-19</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1475 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Karthik Rao. The car was submerged in water logging on 19 Jul 2026. My policy number is MOT-2026-272207 and the car is KA 05 MN 4521. Loss is around ₹1.2 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-272207&quot;, &quot;claimant_name&quot;: &quot;Karthik Rao&quot;, &quot;incident_date&quot;: &quot;2026-07-19&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;KA 05 MN 4521&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-272207&quot;,
+   &quot;got&quot;: &quot;MOT-2026-272207&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Karthik Rao&quot;,
+   &quot;got&quot;: &quot;Karthik Rao&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-07-19&quot;,
+   &quot;got&quot;: &quot;2026-07-19&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 05 MN 4521&quot;,
+   &quot;got&quot;: &quot;KA 05 MN 4521&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1475.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-20 lang:hinglish incident:fire {&quot;policy_number&quot;: &quot;mot-2026-538866&quot;, &quot;claimant_name&quot;: &quot;meera joshi&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 18000.0, &quot;vehicle_reg&quot;: &quot;mh 12 ab 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-20</span> <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1451 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Meera Joshi bol raha hoon. 26/09/2026 ko the car caught fire on the highway. Policy MOT-2026-538866, gaadi MH 12 AB 9087. Kharcha approx Rs 18k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-538866&quot;, &quot;claimant_name&quot;: &quot;Meera Joshi&quot;, &quot;incident_date&quot;: &quot;2026-09-26&quot;, &quot;claim_amount&quot;: 18000.0, &quot;vehicle_reg&quot;: &quot;MH 12 AB 9087&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-538866&quot;,
+   &quot;got&quot;: &quot;MOT-2026-538866&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Meera Joshi&quot;,
+   &quot;got&quot;: &quot;Meera Joshi&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-09-26&quot;,
+   &quot;got&quot;: &quot;2026-09-26&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 18000.0,
+   &quot;got&quot;: 18000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MH 12 AB 9087&quot;,
+   &quot;got&quot;: &quot;MH 12 AB 9087&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1451.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-21 format:form incident:collision {&quot;policy_number&quot;: &quot;mot-2026-604472&quot;, &quot;claimant_name&quot;: &quot;imran shaikh&quot;, &quot;incident_date&quot;: &quot;2026-04-25&quot;, &quot;claim_amount&quot;: 42000.0, &quot;vehicle_reg&quot;: &quot;dl 3c aq 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-21</span> <span class='mut'>· extractor-v2</span> <span class='tag'>format:form</span><span class='tag'>incident:collision</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1513 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>CLAIM FORM
+Policy No: MOT-2026-604472
+Name: Imran Shaikh
+Date of incident: 25/04/2026
+Vehicle: DL 3C AQ 1123
+Description: my car was hit from behind at a signal.
+Estimated loss: Rs 42,000</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-604472&quot;, &quot;claimant_name&quot;: &quot;Imran Shaikh&quot;, &quot;incident_date&quot;: &quot;2026-04-25&quot;, &quot;claim_amount&quot;: 42000.0, &quot;vehicle_reg&quot;: &quot;DL 3C AQ 1123&quot;, &quot;incident_type&quot;: &quot;collision&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-604472&quot;,
+   &quot;got&quot;: &quot;MOT-2026-604472&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Imran Shaikh&quot;,
+   &quot;got&quot;: &quot;Imran Shaikh&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-04-25&quot;,
+   &quot;got&quot;: &quot;2026-04-25&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 42000.0,
+   &quot;got&quot;: 42000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;DL 3C AQ 1123&quot;,
+   &quot;got&quot;: &quot;DL 3C AQ 1123&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;collision&quot;,
+   &quot;got&quot;: &quot;collision&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1513.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-22 format:email incident:theft high-value {&quot;policy_number&quot;: &quot;mot-2026-858873&quot;, &quot;claimant_name&quot;: &quot;divya menon&quot;, &quot;incident_date&quot;: &quot;2026-01-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;tn 09 bx 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-22</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:theft</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1195 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Hi team, this is Divya Menon. On 2026-01-23 my car was stolen from outside my house. Policy MOT-2026-858873, registration TN 09 BX 7765. The garage estimate is INR 250000. Please help.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-858873&quot;, &quot;claimant_name&quot;: &quot;Divya Menon&quot;, &quot;incident_date&quot;: &quot;2026-01-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;TN 09 BX 7765&quot;, &quot;incident_type&quot;: &quot;theft&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-858873&quot;,
+   &quot;got&quot;: &quot;MOT-2026-858873&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Divya Menon&quot;,
+   &quot;got&quot;: &quot;Divya Menon&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-01-23&quot;,
+   &quot;got&quot;: &quot;2026-01-23&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;TN 09 BX 7765&quot;,
+   &quot;got&quot;: &quot;TN 09 BX 7765&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;theft&quot;,
+   &quot;got&quot;: &quot;theft&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1195.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-23 format:email incident:flood high-value {&quot;policy_number&quot;: &quot;mot-2026-930903&quot;, &quot;claimant_name&quot;: &quot;rohan gupta&quot;, &quot;incident_date&quot;: &quot;2026-02-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;ka 51 he 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-23</span> ⚑ critical <span class='mut'>· extractor-v2</span> <span class='tag'>format:email</span><span class='tag'>incident:flood</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1540 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Dear Sir, I am Rohan Gupta. The car was submerged in water logging on 23 Feb 2026. My policy number is MOT-2026-930903 and the car is KA 51 HE 3309. Loss is around ₹2.5 lakh.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-930903&quot;, &quot;claimant_name&quot;: &quot;Rohan Gupta&quot;, &quot;incident_date&quot;: &quot;2026-02-23&quot;, &quot;claim_amount&quot;: 250000.0, &quot;vehicle_reg&quot;: &quot;KA 51 HE 3309&quot;, &quot;incident_type&quot;: &quot;flood&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-930903&quot;,
+   &quot;got&quot;: &quot;MOT-2026-930903&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Rohan Gupta&quot;,
+   &quot;got&quot;: &quot;Rohan Gupta&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-02-23&quot;,
+   &quot;got&quot;: &quot;2026-02-23&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 250000.0,
+   &quot;got&quot;: 250000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;KA 51 HE 3309&quot;,
+   &quot;got&quot;: &quot;KA 51 HE 3309&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;flood&quot;,
+   &quot;got&quot;: &quot;flood&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1540.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details><details class='case' data-target='extractor-v2' data-fail='0' data-search='ex-24 lang:hinglish incident:fire high-value {&quot;policy_number&quot;: &quot;mot-2026-451268&quot;, &quot;claimant_name&quot;: &quot;fatima khan&quot;, &quot;incident_date&quot;: &quot;2026-08-05&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;gj 01 rt 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}'><summary><span class="pill ok">PASS</span> <span class='k'>ex-24</span> <span class='mut'>· extractor-v2</span> <span class='tag'>lang:hinglish</span><span class='tag'>incident:fire</span><span class='tag'>high-value</span><div style='margin-top:4px'><span class="pill ok">schema 1.00</span> <span class="pill ok">fields 1.00</span> <span class="pill ok">latency 1.00</span></div></summary><div class='body'><div class='mut'>latency 1328 ms · $0.0016 · 0 tokens</div><div class='grid'><div><div class='k'>Input</div><pre>Namaste, main Fatima Khan bol raha hoon. 05/08/2026 ko the car caught fire on the highway. Policy MOT-2026-451268, gaadi GJ 01 RT 5512. Kharcha approx Rs 120k hoga.</pre></div><div><div class='k'>Output</div><pre>{&quot;policy_number&quot;: &quot;MOT-2026-451268&quot;, &quot;claimant_name&quot;: &quot;Fatima Khan&quot;, &quot;incident_date&quot;: &quot;2026-08-05&quot;, &quot;claim_amount&quot;: 120000.0, &quot;vehicle_reg&quot;: &quot;GJ 01 RT 5512&quot;, &quot;incident_type&quot;: &quot;fire&quot;}</pre></div></div><table><tr><th>Grader</th><th>Score</th><th>Reasoning / details</th></tr><tr><td>schema</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;errors&quot;: []
+}</pre></td></tr><tr><td>fields</td><td><span class="pill ok">1.00</span></td><td>6/6 fields correct<pre>{
+ &quot;per_field&quot;: {
+  &quot;policy_number&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;MOT-2026-451268&quot;,
+   &quot;got&quot;: &quot;MOT-2026-451268&quot;
+  },
+  &quot;claimant_name&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;Fatima Khan&quot;,
+   &quot;got&quot;: &quot;Fatima Khan&quot;
+  },
+  &quot;incident_date&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;2026-08-05&quot;,
+   &quot;got&quot;: &quot;2026-08-05&quot;
+  },
+  &quot;claim_amount&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: 120000.0,
+   &quot;got&quot;: 120000.0
+  },
+  &quot;vehicle_reg&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;GJ 01 RT 5512&quot;,
+   &quot;got&quot;: &quot;GJ 01 RT 5512&quot;
+  },
+  &quot;incident_type&quot;: {
+   &quot;score&quot;: 1.0,
+   &quot;expected&quot;: &quot;fire&quot;,
+   &quot;got&quot;: &quot;fire&quot;
+  }
+ },
+ &quot;wrong_fields&quot;: []
+}</pre></td></tr><tr><td>latency</td><td><span class="pill ok">1.00</span></td><td><pre>{
+ &quot;ms&quot;: 1328.0,
+ &quot;max_ms&quot;: 2500.0
+}</pre></td></tr></table></div></details>
+<div style="margin-top:30px"><p class='mut'>Grader and target errors count as failed scores (value 0).</p></div>
+<p class="mut">Generated by genai-eval-framework. Inputs and outputs shown here were tokenised before storage when the suite has tokenize: true.</p>
+</main><script>
+function f(){const t=document.getElementById('ft').value,s=document.getElementById('fs').value,q=document.getElementById('fq').value.toLowerCase();
+document.querySelectorAll('details.case').forEach(d=>{const ok=(!t||d.dataset.target===t)&&(!s||(s==='fail'?d.dataset.fail==='1':d.dataset.fail==='0'))&&(!q||d.dataset.search.includes(q));d.style.display=ok?'':'none'})}
+</script></body></html>

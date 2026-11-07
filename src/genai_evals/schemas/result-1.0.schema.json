@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/koushikmohanbhat/genai-eval-framework/schemas/result-1.0.schema.json",
+  "title": "genai-evals result, schema 1.0",
+  "description": "One evaluation run: what ran, how it scored, and the gate outcomes. Cloud-neutral; produced offline and online. Minor versions only add optional fields.",
+  "type": "object",
+  "required": ["schema", "schema_version", "run_id", "suite", "created_at", "passed", "targets", "cases", "graders", "summary", "gates", "samples", "scores"],
+  "properties": {
+    "schema": {"const": "genai-evals/result"},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$"},
+    "framework_version": {"type": "string"},
+    "run_id": {"type": "string"},
+    "suite": {"type": "string"},
+    "description": {"type": ["string", "null"]},
+    "created_at": {"type": "string"},
+    "git_sha": {"type": ["string", "null"]},
+    "mode": {"type": "string", "description": "offline | online | import:<tool>"},
+    "passed": {"type": "boolean"},
+    "repeats": {"type": ["integer", "null"]},
+    "judges": {"type": "array", "items": {"type": "string"}},
+    "targets": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "kind": {"type": ["string", "null"]}}}},
+    "cases": {"type": "array", "items": {"type": "object", "required": ["id"], "properties": {
+      "id": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "critical": {"type": "boolean"}}}},
+    "graders": {"type": "array", "items": {"type": "object", "required": ["name", "type"]}},
+    "summary": {"type": "object", "additionalProperties": {"type": "object", "required": ["target", "graders", "ops", "critical"], "properties": {
+      "graders": {"type": "object", "additionalProperties": {"type": "object", "required": ["mean", "n", "per_case"], "properties": {
+        "mean": {"type": ["number", "null"]}, "ci_low": {"type": ["number", "null"]}, "ci_high": {"type": ["number", "null"]},
+        "n": {"type": "integer"}, "per_case": {"type": "object", "additionalProperties": {"type": "number"}},
+        "per_case_pass": {"type": "object", "additionalProperties": {"type": "boolean"}}}}},
+      "ops": {"type": "object"}, "slices": {"type": "object"}, "critical": {"type": "object"}}}},
+    "gates": {"type": "array", "items": {"type": "object", "required": ["gate", "target", "rule", "severity", "passed"], "properties": {
+      "status": {"enum": ["pass", "fail", "invalid"]}, "severity": {"enum": ["block", "warn"]}, "passed": {"type": "boolean"}}}},
+    "comparisons": {"type": "object"},
+    "baseline": {"type": ["string", "null"]},
+    "prompt_versions": {"type": "object"},
+    "calibration": {"type": "object"},
+    "judge_provenance": {"type": "object"},
+    "data_handling": {"type": "object"},
+    "adapters": {"type": "array", "items": {"type": "object", "required": ["kind", "name", "status"], "properties": {
+      "status": {"enum": ["implemented", "fixture_tested", "live_tested", "customer_validated"]}}}},
+    "samples": {"type": "array", "items": {"type": "object", "required": ["case_id", "target"]}},
+    "scores": {"type": "array", "items": {"type": "object", "required": ["grader", "case_id", "target"], "properties": {
+      "value": {"type": ["number", "null"]}, "passed": {"type": ["boolean", "null"]}}}}
+  }
+}

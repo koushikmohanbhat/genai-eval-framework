@@ -1,0 +1,8 @@
+id: support_agent
+version: 1.0.0
+description: "Order support agent: status, refunds, address changes and escalation, within policy"
+model_hints: {temperature: 0}
+data_elements: [FREE_TEXT, ORDER_ID]
+purposes: [customer_support]
+owner: "<team that owns the agent>"
+changelog: "Pack starter prompt"
