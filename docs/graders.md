@@ -10,9 +10,9 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
 |---|---|
 | String / structure | `exact`, `contains` (any / all / negate), `regex`, `json_schema`, `field_match`, `numeric_tolerance` |
 | Similarity | `rouge` (ROUGE-L), `bleu`, `embedding_similarity` (suite `embeddings` profile) |
-| Trajectory | `tool_called`, `tool_not_called`, `tool_args_match`, `tool_sequence` (exact / subsequence / unordered), `final_state`, `step_budget`, `handoff_to` |
-| RAG | `retrieval_recall_at_k`, `mrr`, `ndcg`, `faithfulness`, `answer_relevance`, `citation_accuracy`, `correct_refusal` |
-| Judges | `rubric` (1–5 or pass/fail, anchors), `reference_match`, `policy`, `pairwise` (`against: <target>`, both orders) |
+| Trajectory | `tool_called`, `tool_not_called`, `tool_args_match`, `tool_sequence` (exact / subsequence / unordered), `final_state`, `step_budget`, `handoff_to`, `no_handoff_loop` (`max_handoffs`, `allow_return`) |
+| RAG | `retrieval_recall_at_k`, `mrr`, `ndcg` (need relevance labels), `context_precision`, `context_recall` (judge-labelled, no relevance labels), `faithfulness`, `answer_relevance`, `citation_accuracy`, `correct_refusal` |
+| Judges | `rubric` (1–5 or pass/fail, anchors), `reference_match`, `policy`, `pairwise` (`against: <target>`, both orders, length recorded, optional `max_length_ratio`) |
 | Ops | `latency` (`max_ms`, `field`), `cost` (`max_usd`), `token_budget` |
 | Safety / privacy | `pii_leak` (Aadhaar with Verhoeff check, PAN, UPI, +91 phones, email, Luhn-valid cards), `refusal_appropriate`, `guardrail_triggered` |
 | Custom | `python` (`module:fn(sample, case, params)`), `http`, `agentcore_evaluator` (experimental), `vertex_metric` (experimental) |
@@ -26,10 +26,35 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
   providers (for example `judge-openai` and `judge-gemini`).
 - Calls use temperature 0 and JSON verdicts. Each judge's value and reasoning is stored, along with the panel's
   `disagreement`.
+- **A short, checkable rationale before the verdict.** Every verdict schema puts `rationale` (or per-claim /
+  per-chunk `evidence`) before the score, winner or verdict. Judges are asked for at most two sentences that quote
+  the deciding words from the output, reference or context (claim evidence: a quote of at most 20 words, or "none").
+  They are told not to write out step-by-step thinking, and not to repeat personal details. The point is a reason a
+  reviewer can check against the texts, not a private chain of thought.
+- **Stored rationales are minimal.** Each judge's rationale is whitespace-collapsed and capped at
+  `judge_policy.max_rationale_chars` (default 300). `judge_policy.store_rationale: false` keeps only the verdicts.
+  Rationales and evidence are stored in `reasoning` and `details`, which go through the run's tokeniser exactly like
+  outputs ([DPDP](dpdp.md#data-flow)). Judges only ever see tokenised inputs, so they can't echo raw identifiers.
+- **Length is not quality.** Rubric, relevance and pairwise prompts tell the judge not to reward length, padding or
+  repetition. `pairwise` also records both answers' word counts on every score, and the run summary reports
+  `length_bias`: `longer_win_rate` (share of decided comparisons won by the longer answer), the mean length ratio,
+  how many comparisons were `length_confounded` (ratio above `max_length_ratio`), and position consistency. A
+  longer-answer win rate far above 50% when lengths differ a lot means the judge is rewarding length.
 - `judge_policy.require_different_family: true` drops judges from the same model family as the target, to avoid
   self-preference.
 - `judge_policy.aggregate`: `mean` (default), `min` or `majority`.
 - Judge inputs are tokenised (DPDP) before they leave the process.
+
+## RAG context graders
+
+- `context_precision`: the judge marks each retrieved chunk useful or not for answering the question (using the
+  reference answer when the case has one). The score is average precision, so useful chunks ranked low cost more.
+  `k` (default 10) limits the chunks judged. Default threshold 0.7.
+- `context_recall`: the judge splits the reference answer into statements and checks which ones the retrieved
+  context supports. Skips cases with no reference answer. Default threshold 0.85.
+
+Use them when the dataset has no per-document relevance labels; `retrieval_recall_at_k`, `mrr` and `ndcg` are
+cheaper and exact when it does.
 
 ## Calibration
 
@@ -37,7 +62,10 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
 genai-evals calibrate out/result.json --grader faithfulness --labels labels.csv --out calibration.json --min-kappa 0.4
 ```
 
-The labels CSV has columns `case_id,target,label`, where `target` may be `*`. Point the suite at the file with
+The labels CSV has columns `case_id,target,label`, where `target` may be `*`. With several reviewers, add `reviewer`
+(and optionally `round` and `adjudicated`): labels are combined into a consensus first and the reviewers' agreement
+is reported alongside. `--compare-to <grader>` checks whether a cheaper judge can replace a stronger one. Both are
+covered in [human labels and the judge ladder](human-labels.md). Point the suite at the file with
 `calibration: calibration.json` and set `min_judge_kappa: 0.4`.
 
 A judge is **trusted** only when it was calibrated on at least `min_calibration_n` labels (default 30) **and** the lower

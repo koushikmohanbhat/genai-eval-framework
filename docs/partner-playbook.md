@@ -7,7 +7,7 @@
 | **Eval sprint** (about 2 weeks) | workshop with SMEs to define "good"; build a 100–300 case golden set (tokenised or synthetic); baseline the current system on whatever cloud it runs on; compare 2–3 models across providers; readout | exec scorecard, engineer report, gates in the customer's repo |
 | **Prompt and release governance** | move prompts into the repo, set up `prompts.lock` stages and gated promotion, wire the GitHub Action / CodeBuild / Cloud Build | every prompt or model change measured before it ships |
 | **Production quality monitoring** | connect AgentCore / CloudWatch or Cloud Trace / BigQuery sources in the customer's account, schedule online evals, publish quality metrics and alarms | quality next to latency on the same dashboards |
-| **Managed eval ops** | monthly review, golden-set refresh from production failures, judge recalibration, model-upgrade regression runs | a running quality programme |
+| **Managed eval ops** | monthly review, golden-set refresh from production failures (`cases harvest` → SME review → `cases promote`), judge recalibration and judge-ladder checks, model-upgrade regression runs | a running quality programme |
 
 ## Sprint plan
 
@@ -20,5 +20,6 @@
 ## Why it helps the OpenAI go-to-market
 
 Partners can show OpenAI models against the incumbent on the customer's own data and cloud, with error bars and no
-re-instrumentation. Customers moving off the hosted Evals platform and prompt objects get a code-first landing place
-that also exports to Promptfoo.
+re-instrumentation. Teams already on Promptfoo keep it: the framework exports suites to Promptfoo and gates and
+reports Promptfoo's results ([Promptfoo](promptfoo.md)), and its evals follow OpenAI's evaluation best practices
+([mapping](openai-best-practices.md)). Customers still on the hosted Evals platform have a migration appendix.

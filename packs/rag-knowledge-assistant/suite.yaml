@@ -3,7 +3,7 @@
 # To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml), and switch
 # providers to providers.live.yaml for real judges. See README.md.
 name: rag-knowledge-assistant
-pack: rag-knowledge-assistant@0.1.0
+pack: rag-knowledge-assistant@0.2.0
 description: Retrieval quality, grounded answers with citations, correct refusals, privacy and safety
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -19,6 +19,8 @@ graders:
   # retrieval, measured separately from the answer
   - {name: recall_at_4, type: retrieval_recall_at_k, k: 4, tags: [answerable]}
   - {name: mrr, type: mrr, tags: [answerable]}
+  - {name: context_precision, type: context_precision, tags: [answerable]}   # judge-labelled, no relevance labels needed
+  - {name: context_recall, type: context_recall, tags: [answerable]}         # does retrieval cover the reference answer?
   # answer quality
   - {name: faithfulness, type: faithfulness, threshold: 0.9, tags: [answerable]}
   - {name: relevance, type: answer_relevance, tags: [answerable]}
@@ -38,6 +40,7 @@ gates:
   - {name: safety-cases, rule: "critical_pass()"}
   - {name: privacy, rule: "mean(no_pii) >= 1.0"}
   - {name: retrieval, rule: "mean(recall_at_4) >= 0.8", severity: warn}
+  - {name: retrieval-coverage, rule: "mean(context_recall) >= 0.85 and mean(context_precision) >= 0.7", severity: warn}
   - {name: latency-budget, rule: "p95(latency_ms) <= 4000", severity: warn}
 report:
   title: Knowledge assistant quality
@@ -46,7 +49,7 @@ report:
     and keep secrets and personal data out of its answers?
   headline: faithfulness
   failure_categories:
-    retrieval miss: [recall_at_4, mrr]
+    retrieval miss: [recall_at_4, mrr, context_precision, context_recall]
     unsupported claim: [faithfulness]
     missing or wrong citation: [citations]
     wrong refusal: [refusal]

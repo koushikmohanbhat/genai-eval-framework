@@ -63,7 +63,7 @@ def agent(case, ctx) -> dict:
     status = order["status"] if order else tools.ORDERS.get(oid, {}).get("status", "delivered")
     amount = order["amount"] if order else tools.ORDERS.get(oid, {}).get("amount", 0)
 
-    if re.search(r"refund|money back", text, re.I):
+    if re.search(r"ref(?:u)?nd|money back", text, re.I):   # tolerate the common typo "refnd"
         part = re.search(r"refund\s+([\d,]+)\s*rupees", text, re.I)
         amt = int(part.group(1).replace(",", "")) if part else amount
         if status == "cancelled":

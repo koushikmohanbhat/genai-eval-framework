@@ -1,6 +1,6 @@
 # Runbook: Structured extraction
 
-The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.0).
+The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.1).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -35,9 +35,15 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
+genai-evals cases coverage suite.yaml    # standard coverage tags: typical / edge / adversarial, multilingual, typos, jailbreak ...
+genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
 
-Done when the dataset has the agreed slices and critical cases, SMEs have reviewed it, and personal data is tokenised.
+Generated (and later, harvested) cases are drafts: they don't count until an SME writes the reference and
+`genai-evals cases promote` marks them reviewed ([growing the eval set](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md)).
+
+Done when the dataset has the agreed slices and critical cases, every applicable coverage tag has cases (or the gap
+is agreed), SMEs have reviewed it, and personal data is tokenised.
 
 ## 4. Connect the customer's system
 
@@ -100,8 +106,9 @@ Keep the customer's source in `sources.yaml`, remove `fixture:`, and run:
 genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
 ```
 
-Add `--publish cloudwatch` or `--publish cloud_monitoring` to alarm on scores. Done when a scheduled run grades
-real sessions and an alert reaches the team that owns the system.
+Add `--publish cloudwatch` or `--publish cloud_monitoring` to alarm on scores. Each month, turn the failures into new
+cases: `genai-evals cases harvest out/online/result.json --out drafts.jsonl`, review, then `cases promote`. Done when a
+scheduled run grades real sessions and an alert reaches the team that owns the system.
 
 ## 8. Change things with experiments
 

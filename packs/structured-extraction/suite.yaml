@@ -2,7 +2,7 @@
 # Offline it runs a pattern-based extractor (sim_system.py): `genai-evals run suite.yaml`.
 # To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: structured-extraction
-pack: structured-extraction@0.1.0
+pack: structured-extraction@0.1.1
 description: Schema validity, field-level accuracy by format and currency, rejection of non-invoices, cost and latency
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json

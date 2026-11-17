@@ -100,12 +100,19 @@ class PromptfooResults(ReportWriter):
         for sc in result.get("scores", []):
             by.setdefault((sc["target"], sc["case_id"], sc.get("repeat", 0)), []).append(sc)
         rows = []
+        cases = {c["id"]: c for c in result.get("cases", [])}
         for s in result.get("samples", []):
             comps = [{"pass": bool(sc.get("passed")), "score": sc.get("value") if sc.get("value") is not None else 0.0, "reason": sc.get("reasoning") or "",
                       "assertion": {"type": "genai-evals", "metric": sc["grader"]}}
                      for sc in by.get((s["target"], s["case_id"], s.get("repeat", 0)), []) if not sc.get("skipped")]
             u = s.get("usage") or {}
-            rows.append({"testCase": {"description": s["case_id"]}, "vars": {"id": s["case_id"]}, "provider": {"id": s["target"], "label": s["target"]},
+            c = cases.get(s["case_id"], {})
+            inp = s.get("input") if s.get("input") is not None else c.get("input")
+            rows.append({"testCase": {"description": s["case_id"],
+                                      "metadata": {"tags": c.get("tags") or [], "critical": bool(c.get("critical")),
+                                                   "repeat": s.get("repeat", 0)}},
+                         "vars": {"id": s["case_id"], **({"input": inp} if isinstance(inp, str) else {})},
+                         "provider": {"id": s["target"], "label": s["target"]},
                          "response": {"output": s.get("output"), "tokenUsage": {"prompt": u.get("input_tokens", 0), "completion": u.get("output_tokens", 0),
                                                                                 "cached": u.get("cached_tokens", 0)}},
                          "latencyMs": s.get("latency_ms"), "cost": s.get("cost_usd"), "error": s.get("error"),

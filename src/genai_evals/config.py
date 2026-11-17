@@ -150,6 +150,7 @@ class SuiteSpec(BaseModel):
     on_error: Literal["fail", "exclude"] = "fail"    # grader / target errors count as failed scores (value 0)
     min_n: int = 5                                   # fewest cases behind any gated metric or slice
     min_calibration_n: int = 30                      # fewest human labels before a calibration result is trusted
+    include_draft_cases: bool = False                # draft cases (review_status: draft) are left out of runs and gates
     tokenizer: dict[str, Any] = Field(default_factory=dict)
     validation: str | None = None                    # adapter validation records (default: validation.yaml next to the suite)
     overlays: list[str] = Field(default_factory=list)  # pack overlays (folders with overlay.yaml): extra cases, graders, gates
@@ -297,6 +298,9 @@ def load_cases(suite: SuiteSpec) -> list[Case]:
     if suite.dataset_schema:
         check_rows(rows, suite.path(suite.dataset_schema))
     cases = [Case(**r) for r in rows]
+    if not suite.include_draft_cases:
+        # generated / harvested cases count only once an expert has reviewed them (review_status: reviewed)
+        cases = [c for c in cases if c.review_status != "draft"]
     ids = [c.id for c in cases]
     if len(ids) != len(set(ids)):
         dup = sorted({i for i in ids if ids.count(i) > 1})

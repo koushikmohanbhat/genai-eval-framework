@@ -11,6 +11,7 @@
     "tags": {"type": "array", "items": {"type": "string"}, "description": "slices: topic, 'answerable', 'out-of-scope', 'safety', language"},
     "critical": {"type": "boolean", "description": "must pass every grader on every repeat (critical_pass gate)"},
     "source": {"enum": ["synthetic", "production", "sme"]},
+    "review_status": {"enum": ["draft", "reviewed"], "description": "draft cases (generated or harvested) are skipped until an expert marks them reviewed"},
     "lineage_ref": {"type": "string", "description": "DPDP lineage id for rows derived from production"},
     "metadata": {"type": "object"},
     "reference": {

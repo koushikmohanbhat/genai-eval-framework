@@ -13,6 +13,9 @@ Digital Personal Data Protection Act. This page states exactly what is protected
 | Sample → judge | input, output and context are tokenised before the judge call | **tokenised** |
 | Provider-side records of judge calls | the provider may log prompts per its data-use terms | tokenised (only tokens leave the process) |
 | Result JSON, reports, OTel spans, published metrics | samples (input, output, messages, context, trajectory, error strings, metadata) and scores (reasoning, details, errors, labels) are tokenised before they are written | **tokenised** (`suite.tokenize: true`, the default) |
+| Judge rationales and evidence | judges see only tokenised text and are told not to repeat personal details; each judge's rationale is capped (`judge_policy.max_rationale_chars`, default 300) or not stored (`store_rationale: false`), then stored as score `reasoning` / `details`, tokenised like the rest of the score | **tokenised**, minimal |
+| Promptfoo config export | `promptfoo export` writes the dataset's inputs and references as they are | **raw**: keep the file with the dataset |
+| Draft cases, labelling sheets | `cases harvest` / `generate` tokenise on write; label sheets copy the (tokenised) result | tokenised |
 | Response cache | **off by default** when tokenisation is on, because it would store raw outputs. If you opt in per target (`options: {cache: true}`), the cache directory is created `0700` and files `0600`, and the run warns | raw, local disk only |
 | Online ingest | production samples go through the same tokenisation before grading by judges and before storage | tokenised |
 | Python / HTTP graders and targets | your code receives what the framework passes it (raw for targets, raw for deterministic custom graders) | see [security boundary](architecture.md#security-boundary) |

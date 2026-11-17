@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.4.0 (2026-11-17)
+
+Aligns the framework with OpenAI's [evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)
+(`docs/openai-best-practices.md` maps every section of the guide) and makes Promptfoo the primary interop story.
+
+### Promptfoo
+- `docs/promptfoo.md`: genai-evals as packs, adapters, gates and reporting around Promptfoo, three ways to combine
+  them, and exactly what survives each direction (pinned by `tests/test_promptfoo_roundtrip.py`).
+- `genai-evals promptfoo import --suite <suite.yaml>` evaluates a suite's gates, slices and critical cases on
+  Promptfoo results (a gates-only suite works too) and names gates whose graders are missing.
+- Imports read repeats (`testCase.metadata.repeat`, or row order per case and provider), tags, critical flags and
+  `vars.input`; the Promptfoo results export writes them, so a genai-evals → Promptfoo → genai-evals round trip keeps
+  every non-skipped score and gives identical gate outcomes.
+- Config export writes `evaluateOptions.repeat` and notes that gates aren't exported and that the file holds the
+  dataset's raw inputs.
+- The hosted-Evals migration moves to an optional appendix.
+
+### Judges
+- Every judge verdict starts with a short, checkable **rationale**: at most two sentences quoting the deciding
+  evidence (per-claim evidence: a quote of at most 20 words). Judges are told not to write out step-by-step thinking
+  or repeat personal details. Stored rationales are capped (`judge_policy.max_rationale_chars`, default 300) or
+  dropped (`store_rationale: false`), and are tokenised like outputs. Older `reasoning` keys are still read.
+- Rubric, relevance and pairwise prompts add a rule that length is not quality. The judge prompt hash recorded
+  with each result changes with this release, so compare judge-graded numbers only with runs made on 0.4.0
+  (re-run baselines).
+- `pairwise` records both answers' word counts, their ratio and whether the longer answer won; `max_length_ratio`
+  flags length-confounded comparisons. The run summary adds `length_bias` (longer-answer win rate, mean length
+  ratio, confounded count, position consistency), shown in the HTML report.
+
+### Human labels and the judge ladder
+- Labels files may have several reviewers (`reviewer`, `round`, `adjudicated` columns). They are combined by
+  majority, unanimous or adjudicated consensus; agreement between reviewers (raw, Fleiss' κ, per reviewer) is
+  reported, and the calibration warns when reviewers agree only moderately.
+- `genai-evals labels guide | sheet | agreement`: a labelling guide with examples at each level from the grader's
+  rubric and anchors; a stratified reviewer sheet that leaves out the judge's verdict; agreement, disputes and
+  consensus labels.
+- `genai-evals calibrate --compare-to <grader>`: approves a cheaper judge only if it is not meaningfully worse than
+  the stronger one (95% lower bound of the κ difference above −margin) on the same labelled items, with both judges'
+  cost.
+
+### Coverage and a growing eval set
+- Standard coverage tags from the guide's edge cases: difficulty (`typical`, `edge`, `adversarial`), input
+  (`multilingual`, `structured_input`, `image_input`, `noisy_input`), context (`multi_intent`, `typos`,
+  `very_short`, `long_conversation`, `ambiguous_tool_output`, `bad_tool_args`, `circular_handoff`, `no_answer`) and
+  safety (`jailbreak`, `system_conflict`, `format_request`), each tied to the workflows it applies to.
+- `genai-evals cases tags | coverage | generate | harvest | promote`. `generate` drafts cases for missing tags with a
+  strong model; `harvest` drafts tokenised cases from failing production samples; `promote` moves reviewed drafts
+  into the dataset. Cases with `review_status: draft` are left out of runs and gates (suite `include_draft_cases`).
+- `genai-evals doctor` adds an **edge-case coverage** check.
+- Fix: `doctor` read the calibration file in a different shape from the one `genai-evals calibrate` writes, so
+  calibrated judges were reported as not calibrated, and the offline-demo check crashed on hand-written files.
+  Both now use one loader that accepts either shape. The engagement guide's sample transcript is replaced with real
+  output.
+
+### Graders
+- `context_precision` (judge-labelled usefulness of each retrieved chunk, scored as average precision) and
+  `context_recall` (share of the reference answer's statements the context supports), for RAG suites without
+  relevance labels.
+- `no_handoff_loop`: fails on circular handoffs between agents or more than `max_handoffs`.
+
+### Packs
+- `tool-agent` 0.2.0: six new conversations (a "store manager" jailbreak that conflicts with the refund policy,
+  typos, multi-intent, Hinglish, JSON input, conflicting order numbers), standard coverage tags on every case,
+  `no_handoff_loop`, a single vs multi-agent experiment template (`experiment.multi-agent.example.yaml`).
+- `rag-knowledge-assistant` 0.2.0: three new cases (Hinglish, multi-intent, a format request), coverage tags,
+  `context_precision` and `context_recall` with a warning gate.
+- `structured-extraction` 0.1.1: coverage tags. Pack case schemas accept `review_status`.
+- The runbook covers coverage, generated and harvested drafts, several reviewers and the judge ladder.
+
+### Docs
+- New: Promptfoo guide, OpenAI best-practices mapping, human labels and the judge ladder, growing the eval set;
+  single vs multi-agent experiments. Voice / realtime moves to v0.5.
+
 ## 0.3.0 (2026-11-07)
 
 Makes the framework a repeatable asset: each engagement is easy to configure, run, validate and hand over, without

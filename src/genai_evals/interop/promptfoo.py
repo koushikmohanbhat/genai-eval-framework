@@ -1,7 +1,11 @@
-"""Promptfoo interop (OpenAI's named migration path off the hosted Evals platform).
+"""Promptfoo interop: the primary way genai-evals works with other eval tooling.
 
 export: suite -> promptfooconfig.yaml (prompts, providers, tests with mapped assertions)
-import: promptfoo results JSON -> Samples + Scores, so Promptfoo runs appear in the same reports and gates.
+import: Promptfoo results JSON -> Samples + Scores (+ case tags, critical flags and repeats when present), so Promptfoo
+        runs get the same statistics, gates and reports as native runs
+results export (`result export --format promptfoo`): a genai-evals result in Promptfoo's results shape.
+
+What survives each direction is documented in docs/promptfoo.md and pinned by tests/test_promptfoo_roundtrip.py.
 Promptfoo is an interop target, not a dependency.
 """
 from __future__ import annotations
@@ -132,6 +136,14 @@ def export_config(suite: SuiteSpec, providers: ProvidersConfig) -> tuple[dict[st
         default_test["assert"] = asserts
     cfg = {"description": f"Exported from genai-evals suite '{suite.name}'", "prompts": prompts, "providers": provs,
            "defaultTest": default_test, "tests": tests}
+    if suite.repeats and suite.repeats > 1:
+        cfg["evaluateOptions"] = {"repeat": suite.repeats}
+    if suite.gates:
+        notes.append(f"{len(suite.gates)} gate(s) are not exported (Promptfoo has per-assertion pass/fail only): import the "
+                     "results with `genai-evals promptfoo import results.json --suite <suite.yaml>` to evaluate them")
+    if suite.tokenize:
+        notes.append("test inputs and references are written as they are in the dataset (not tokenised): keep "
+                     "promptfooconfig.yaml with the dataset, not in a shared location")
     return cfg, notes
 
 
@@ -143,20 +155,45 @@ def write_config(suite: SuiteSpec, providers: ProvidersConfig, out: str | Path) 
 
 
 def import_results(path: str | Path) -> tuple[list[Sample], list[Score]]:
+    samples, scores, _ = import_results_with_cases(path)
+    return samples, scores
+
+
+def import_results_with_cases(path: str | Path) -> tuple[list[Sample], list[Score], dict[str, dict[str, Any]]]:
+    """Samples, scores and per-case info (tags, critical, input) from a Promptfoo results file.
+
+    Case id: testCase.description, else vars.id, else the row index. Repeats: testCase.metadata.repeat when present,
+    else the row's position among rows with the same case and provider (Promptfoo `repeat`). Grader name: the
+    assertion's `metric`, else its `type`. Tags and critical flags come from testCase.metadata (genai-evals exports
+    write them; add them to your own Promptfoo tests to get slices and critical-case gates)."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     rows = data.get("results", data)
     if isinstance(rows, dict):
         rows = rows.get("results", [])
     samples, scores = [], []
+    cases: dict[str, dict[str, Any]] = {}
+    seen: dict[tuple[str, str], int] = {}
     for i, r in enumerate(rows):
         tc = r.get("testCase") or {}
-        case_id = tc.get("description") or (r.get("vars") or {}).get("id") or f"pf-{i}"
+        vars_ = r.get("vars") or tc.get("vars") or {}
+        case_id = str(tc.get("description") or vars_.get("id") or f"pf-{i}")
         prov = r.get("provider") or {}
-        target = prov.get("label") or prov.get("id") or "promptfoo"
+        if isinstance(prov, str):
+            prov = {"id": prov}
+        target = str(prov.get("label") or prov.get("id") or "promptfoo")
+        meta = tc.get("metadata") or {}
+        n = seen.get((case_id, target), 0)
+        seen[(case_id, target)] = n + 1
+        repeat = int(meta.get("repeat", n)) if str(meta.get("repeat", n)).isdigit() else n
+        info = cases.setdefault(case_id, {"tags": [], "critical": False, "input": None})
+        info["tags"] = sorted(set(info["tags"]) | set(meta.get("tags") or []))
+        info["critical"] = info["critical"] or bool(meta.get("critical"))
+        inp = vars_.get("input") if isinstance(vars_, dict) else None
+        info["input"] = info["input"] or inp
         resp = r.get("response") or {}
         tu = resp.get("tokenUsage") or {}
         out = resp.get("output")
-        s = Sample(case_id=str(case_id), target=str(target), origin="import:promptfoo", input=r.get("vars") or tc.get("vars"),
+        s = Sample(case_id=case_id, target=target, repeat=repeat, origin="import:promptfoo", input=inp if inp is not None else vars_,
                    output=out if isinstance(out, str) or out is None else json.dumps(out), latency_ms=r.get("latencyMs"), cost_usd=r.get("cost"),
                    usage=Usage(input_tokens=tu.get("prompt", 0) or 0, output_tokens=tu.get("completion", 0) or 0, cached_tokens=tu.get("cached", 0) or 0),
                    error=r.get("error"))
@@ -166,6 +203,7 @@ def import_results(path: str | Path) -> tuple[list[Sample], list[Score]]:
         for j, cr in enumerate(comps):
             a = cr.get("assertion") or {}
             name = a.get("metric") or a.get("type") or f"assert_{j}"
-            scores.append(Score(grader=str(name), case_id=s.case_id, target=s.target, value=float(cr.get("score", 1.0 if cr.get("pass") else 0.0)),
+            scores.append(Score(grader=str(name), case_id=s.case_id, target=s.target, repeat=repeat,
+                                value=float(cr.get("score", 1.0 if cr.get("pass") else 0.0)),
                                 passed=bool(cr.get("pass")), reasoning=cr.get("reason"), details={"promptfoo_type": a.get("type")}))
-    return samples, scores
+    return samples, scores, cases

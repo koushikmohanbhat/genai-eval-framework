@@ -74,6 +74,26 @@ baseline, so reviewers see exactly what differs.
 baseline *run* (`delta()`, `significant()`) are left out, because the experiment comparison replaces them; the
 report names them.
 
+## Single agent vs multi-agent
+
+OpenAI's evaluation best practices advise adopting a multi-agent design only when evals justify the added
+complexity. Run it as an experiment: today's single agent as the baseline and the multi-agent version as a variant,
+on the same conversations and graders. The `tool-agent` pack ships a template,
+`experiment.multi-agent.example.yaml`, that points each side at an HTTP endpoint.
+
+Read the result on four things:
+
+- **Quality where it should help.** Look at task success and tool arguments overall and on the slices the split is
+  meant to fix (`multi_intent`, policy edges). An improvement only on the mean, with the hard slices flat, is not a
+  reason to split.
+- **Handoffs.** `handoff_to` for the expected specialist, `no_handoff_loop` for circular handoffs, and `steps`.
+  Multi-agent systems fail in new ways: bouncing between agents, or the wrong specialist.
+- **Reliability.** `pass^k` across repeats. Routing adds nondeterminism.
+- **Cost and latency.** These are per conversation, from the comparison table. Every handoff is another model call.
+
+Write the threshold into the hypothesis before running (for example "+5 points on multi-intent, at most 1.5x cost"),
+and keep the single agent if the experiment doesn't meet it.
+
 ## Running it
 
 ```bash

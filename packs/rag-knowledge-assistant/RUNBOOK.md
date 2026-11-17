@@ -1,6 +1,6 @@
 # Runbook: RAG knowledge assistant
 
-The path from a clean project to a customer-owned evaluation, for the `rag-knowledge-assistant` pack (0.1.0).
+The path from a clean project to a customer-owned evaluation, for the `rag-knowledge-assistant` pack (0.2.0).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -38,9 +38,15 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
+genai-evals cases coverage suite.yaml    # standard coverage tags: typical / edge / adversarial, multilingual, typos, jailbreak ...
+genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
 
-Done when the dataset has the agreed slices and critical cases, SMEs have reviewed it, and personal data is tokenised.
+Generated (and later, harvested) cases are drafts: they don't count until an SME writes the reference and
+`genai-evals cases promote` marks them reviewed ([growing the eval set](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md)).
+
+Done when the dataset has the agreed slices and critical cases, every applicable coverage tag has cases (or the gap
+is agreed), SMEs have reviewed it, and personal data is tokenised.
 
 ## 4. Connect the customer's system
 
@@ -74,7 +80,10 @@ Keep only the profiles and targets the customer uses.
 ## 5. Calibrate the judges
 
 Follow [`labels/README.md`](labels/README.md): at least 30 SME labels per judge-graded grader, then
-`genai-evals calibrate`. Done when every judge-graded gate is trusted (no *invalid* gates from calibration).
+`genai-evals calibrate`. With several reviewers: `genai-evals labels guide` and `labels sheet` to set up, `labels
+agreement` to settle disputes, then calibrate on the consensus. To move to a cheaper judge later, run `calibrate
+--compare-to` against the stronger one. Done when every judge-graded gate is trusted (no *invalid* gates from
+calibration).
 
 ## 6. Set the release gate and baseline
 
@@ -106,8 +115,9 @@ Keep the customer's source in `sources.yaml`, remove `fixture:`, and run:
 genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
 ```
 
-Add `--publish cloudwatch` or `--publish cloud_monitoring` to alarm on scores. Done when a scheduled run grades
-real sessions and an alert reaches the team that owns the system.
+Add `--publish cloudwatch` or `--publish cloud_monitoring` to alarm on scores. Each month, turn the failures into new
+cases: `genai-evals cases harvest out/online/result.json --out drafts.jsonl`, review, then `cases promote`. Done when a
+scheduled run grades real sessions and an alert reaches the team that owns the system.
 
 ## 8. Change things with experiments
 

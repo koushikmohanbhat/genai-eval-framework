@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -371,9 +372,26 @@ def cmd_prompts(args) -> int:
 
 
 def cmd_calibrate(args) -> int:
-    from .calibration import calibrate, read_labels
+    from .calibration import calibrate, compare_judges, consensus, read_reviews, reviewer_agreement
     from .runner import load_result
-    res = calibrate(load_result(args.result), args.grader, read_labels(args.labels))
+    reviews = read_reviews(args.labels)
+    labels, _ = consensus(reviews, args.rule)
+    human = reviewer_agreement(reviews, args.rule) if any(len(v) > 1 for v in reviews.values()) else None
+    result = load_result(args.result)
+    if args.compare_to:
+        strong = load_result(args.compare_result) if args.compare_result else result
+        cmp = compare_judges((result, args.grader), (strong, args.compare_to), labels, margin=args.margin,
+                             min_kappa=args.min_kappa, min_n=args.min_n)
+        if args.out:
+            Path(args.out).write_text(json.dumps(cmp, indent=1), encoding="utf-8")
+        if "kappa_cheap" in cmp:
+            lo, hi = cmp["kappa_diff_ci"]
+            print(f"{args.grader} vs {args.compare_to} on {cmp['n']} labelled items: kappa {cmp['kappa_cheap']:.2f} vs "
+                  f"{cmp['kappa_strong']:.2f} (difference {cmp['kappa_diff']:+.2f}, 95% CI {lo:+.2f} to {hi:+.2f}); "
+                  f"judge cost ${cmp['judge_cost_cheap']:.4f} vs ${cmp['judge_cost_strong']:.4f}")
+        print(("approved: " if cmp["approved"] else "not approved: ") + cmp["reason"])
+        return 0 if cmp["approved"] else 1
+    res = calibrate(result, args.grader, labels, human)
     out = Path(args.out or "calibration.json")
     existing = json.loads(out.read_text()) if out.exists() else {"graders": []}
     existing["graders"] = [g for g in existing.get("graders", []) if g["grader"] != args.grader] + [res]
@@ -382,6 +400,11 @@ def cmd_calibrate(args) -> int:
     ci_txt = f" (95% CI {ci[0]:.2f}–{ci[1]:.2f})" if ci else ""
     print(f"{args.grader}: n={res['n']} accuracy={res['accuracy'] if res['accuracy'] is None else round(res['accuracy'], 3)} "
           f"kappa={k if k is None else round(k, 3)}{ci_txt} -> {out}")
+    if human:
+        fk = human.get("fleiss_kappa")
+        print(f"  reviewers: {human['multi_reviewed']} items with 2+ reviewers, raw agreement "
+              f"{human['raw_agreement']:.0%}" + (f", Fleiss' kappa {fk:.2f}" if fk is not None else "") +
+              f"; {len(human['disputed'])} disputed")
     for w in res.get("warnings", []):
         print(f"  warning: {w}")
     if args.min_kappa is not None:
@@ -394,26 +417,144 @@ def cmd_calibrate(args) -> int:
     return 0
 
 
+def cmd_labels(args) -> int:
+    from . import labels as lb
+    from .calibration import consensus, read_reviews, reviewer_agreement
+    if args.action == "sheet":
+        from .runner import load_result
+        if not args.grader:
+            raise SystemExit("labels sheet needs --grader")
+        items = lb.sample_items(load_result(args.path), args.grader, n=args.n, seed=args.seed, stratify=not args.no_stratify)
+        reviewers = [r.strip() for r in (args.reviewers or "").split(",") if r.strip()]
+        out = lb.write_sheet(items, args.out or "labels-sheet.csv", reviewers)
+        print(f"wrote {out}: {len(items)} items x {max(1, len(reviewers))} reviewer(s). Judge verdicts are not included, "
+              "so labels stay independent.")
+        return 0
+    if args.action == "guide":
+        if not args.grader:
+            raise SystemExit("labels guide needs --grader")
+        suite = load_suite(args.path)
+        text = lb.labelling_guide(suite, args.grader)
+        out = Path(args.out or f"labelling-guide-{args.grader}.md")
+        out.write_text(text, encoding="utf-8")
+        print(f"wrote {out}: fill in an example at each level before reviewers start")
+        return 0
+    reviews = read_reviews(args.path)
+    ag = reviewer_agreement(reviews, args.rule)
+    labels, disputed = consensus(reviews, args.rule)
+    if args.out:
+        lb.write_consensus(labels, args.out)
+    fk, ra = ag["fleiss_kappa"], ag["raw_agreement"]
+    print(f"{ag['items']} items, {ag['multi_reviewed']} with 2+ reviewers; raw agreement "
+          f"{'n/a' if ra is None else f'{ra:.0%}'}; Fleiss' kappa {'n/a' if fk is None else f'{fk:.2f}'}; "
+          f"{ag['labelled']} labelled by {args.rule}, {len(disputed)} disputed")
+    for r, d in ag["reviewers"].items():
+        print(f"  {r}: {d['n']} items, {d['agreement_with_consensus']:.0%} agree with consensus")
+    for d in disputed[:20]:
+        print(f"  disputed: {d['case_id']} [{d['target']}] pass {d['pass']} / fail {d['fail']}")
+    for w in ag["warnings"]:
+        print(f"  warning: {w}")
+    if args.out:
+        print(f"wrote consensus labels to {args.out}")
+    return 1 if args.fail_on_dispute and disputed else 0
+
+
+def cmd_cases(args) -> int:
+    from . import cases as cs
+    from . import taxonomy as tx
+    from .config import load_cases
+    if args.action == "tags":
+        for d in tx.describe(args.workflow):
+            print(f"  {d['tag']:<22} {d['group']:<10} {d['description']}")
+        return 0
+    if args.action == "coverage":
+        suite = load_suite(args.path)
+        cov = tx.coverage(load_cases(suite), args.workflow or tx.workflow_of(suite))
+        if args.json:
+            print(json.dumps(cov, indent=1))
+        else:
+            print(f"{cov['cases']} cases ({cov['workflow']} workflow); {cov['hard_share']:.0%} edge or adversarial")
+            for g, d in cov["by_group"].items():
+                pres = ", ".join(f"{t} ({cov['present'][t]})" for t in d["present"]) or "-"
+                print(f"  {g:<10} covered: {pres}")
+                if d["missing"]:
+                    print(f"  {'':<10} missing: {', '.join(d['missing'])}")
+            for pr in cov["problems"]:
+                print(f"  to do: {pr}")
+        return 1 if (args.strict and cov["problems"]) else 0
+    if args.action == "harvest":
+        from .runner import load_result
+        tok = None if args.no_tokenize else cs.default_tokenizer()
+        rows = cs.harvest(load_result(args.path), graders=args.grader, below=args.below, limit=args.limit, tokenizer=tok)
+        out = cs.write_jsonl(rows, args.out or "drafts.jsonl", append=args.append)
+        print(f"wrote {len(rows)} draft case(s) to {out}" + ("" if tok else " (NOT tokenised)") +
+              ". Review each one, write its reference, then `genai-evals cases promote`.")
+        return 0
+    if args.action == "generate":
+        if not args.generator:
+            raise SystemExit("cases generate needs --generator <provider profile> (use a strong model)")
+        suite = load_suite(args.path)
+        existing = load_cases(suite)
+        tok = None if args.no_tokenize else cs.default_tokenizer()
+        rows = cs.generate(suite, load_providers(_providers_path(args, args.path)), args.generator, tags=args.tag,
+                           n=args.n, workflow=args.workflow or tx.workflow_of(suite), existing=existing, tokenizer=tok)
+        out = cs.write_jsonl(rows, args.out or "drafts.jsonl", append=args.append)
+        print(f"wrote {len(rows)} draft case(s) to {out} for: {', '.join(sorted({r['tags'][0] for r in rows})) or 'nothing'}. "
+              "Drafts don't count until an expert reviews them: write a reference, then `genai-evals cases promote`.")
+        return 0
+    if not args.into:
+        raise SystemExit("cases promote needs --into <dataset.jsonl>")
+    ids = [i.strip() for i in (args.ids or "").split(",") if i.strip()] or None
+    done, refused = cs.promote(args.path, args.into, ids=ids, reviewer=args.reviewer,
+                               allow_empty_reference=args.allow_empty_reference, schema=args.schema)
+    print(f"promoted {len(done)} case(s) into {args.into}" + (f": {', '.join(done)}" if done else ""))
+    for r in refused:
+        print(f"  not promoted: {r}")
+    return 0 if done or not refused else 1
+
+
 def cmd_promptfoo(args) -> int:
-    from .interop import import_results, write_config
+    from .interop import write_config
     if args.action == "export":
         suite = load_suite(args.suite)
         notes = write_config(suite, load_providers(_providers_path(args, args.suite)), args.out)
         print(f"wrote {args.out}" + "".join(f"\n  note: {n}" for n in notes))
         return 0
-    samples, scores = import_results(args.results)
-    from .config import GraderSpec, SuiteSpec
+    from .config import GraderSpec, SuiteSpec, load_cases
+    from .interop import import_results_with_cases
     from .models import Case
     from .runner import Runner
+    samples, scores, info = import_results_with_cases(args.results)
     names = sorted({s.grader for s in scores})
-    suite = SuiteSpec(name=args.name or "promptfoo-import", graders=[GraderSpec(name=n, type="imported") for n in names], tokenize=True)
+    graders = [GraderSpec(name=n, type="imported") for n in names]
+    known: dict[str, Case] = {}
+    if args.suite:
+        # gate and report Promptfoo results with a genai-evals suite: its gates, min_n, report template, and the tags /
+        # critical flags of its dataset for cases with the same id
+        base = load_suite(args.suite)
+        suite = base.model_copy(update={"graders": graders, "targets": [], "judges": [], "name": args.name or base.name})
+        try:
+            known = {c.id: c for c in load_cases(base)}
+        except Exception:  # noqa: BLE001
+            known = {}
+        missing = sorted({g for gt in base.gates for g in re.findall(r"\b([a-z_][a-z0-9_]*)\(([a-z_][a-z0-9_]*)\)", gt.rule)
+                          for g in [g[1]] if g not in names and g not in ("latency_ms", "cost_usd", "tokens", "steps")})
+        if missing:
+            print("note: gates refer to graders not in the Promptfoo results (they will be invalid): " + ", ".join(missing))
+    else:
+        suite = SuiteSpec(name=args.name or "promptfoo-import", graders=graders, tokenize=True)
     r = Runner.__new__(Runner)
     from .config import ProvidersConfig
     r.suite, r.telemetry, r.providers = suite, None, ProvidersConfig()
     from .dpdp import build_tokenizer
     r.tokenizer = build_tokenizer({})
     from .graders import GradeContext
-    cases = [Case(id=c, input="") for c in sorted({s.case_id for s in samples})]
+    cases = []
+    for cid in sorted({s.case_id for s in samples}):
+        k, i = known.get(cid), info.get(cid, {})
+        cases.append(Case(id=cid, input=(k.input if k else i.get("input") or ""),
+                          tags=sorted(set(k.tags if k else []) | set(i.get("tags") or [])),
+                          critical=bool((k.critical if k else False) or i.get("critical"))))
     targets = [{"name": t, "kind": "promptfoo", "profile": None, "family": None, "framework": None, "prompt": None} for t in sorted({s.target for s in samples})]
     result = r.finish(cases, targets, samples, scores, GradeContext(suite=suite), None, None, extra={"mode": "import:promptfoo"})
     return _finish(result, args)
@@ -598,7 +739,51 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out")
     p.add_argument("--min-kappa", type=float, help="trust the judge only if the kappa 95%% CI lower bound clears this")
     p.add_argument("--min-n", type=int, default=30, help="fewest human labels before the judge can be trusted (default 30)")
+    p.add_argument("--rule", choices=["majority", "unanimous"], default="majority",
+                   help="how several reviewers' labels are combined (adjudicated rows always win)")
+    p.add_argument("--compare-to", metavar="GRADER",
+                   help="judge ladder: approve --grader (cheaper judge) only if it agrees with humans about as well as GRADER")
+    p.add_argument("--compare-result", help="result.json holding --compare-to, if it is a different run on the same cases")
+    p.add_argument("--margin", type=float, default=0.05, help="largest acceptable drop in kappa for the cheaper judge (default 0.05)")
     p.set_defaults(fn=cmd_calibrate)
+
+    p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
+    p.add_argument("action", choices=["tags", "coverage", "generate", "harvest", "promote"],
+                   help="tags | coverage <suite.yaml> | generate <suite.yaml> | harvest <result.json> | promote <drafts.jsonl>")
+    p.add_argument("path", nargs="?", default="suite.yaml")
+    p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--strict", action="store_true", help="coverage: exit 1 if anything is missing")
+    p.add_argument("--generator", help="generate: provider profile that writes the drafts (a strong model)")
+    p.add_argument("--tag", action="append", help="generate: coverage tag(s) to write cases for (default: the missing ones)")
+    p.add_argument("--n", type=int, default=5, help="generate: drafts per tag (default 5)")
+    p.add_argument("--grader", action="append", help="harvest: only samples failing these graders (default: any)")
+    p.add_argument("--below", type=float, help="harvest: also samples scoring below this value")
+    p.add_argument("--limit", type=int, default=50)
+    p.add_argument("--no-tokenize", action="store_true", help="harvest / generate: don't tokenise personal data (not recommended)")
+    p.add_argument("--out", help="drafts file (default drafts.jsonl)")
+    p.add_argument("--append", action="store_true")
+    p.add_argument("--into", help="promote: dataset to add reviewed cases to")
+    p.add_argument("--ids", help="promote: comma list (default: every draft)")
+    p.add_argument("--reviewer", help="promote: who reviewed them")
+    p.add_argument("--schema", help="promote: check promoted rows against this case schema")
+    p.add_argument("--allow-empty-reference", action="store_true")
+    p.add_argument("--providers")
+    p.set_defaults(fn=cmd_cases)
+
+    p = sub.add_parser("labels", help="human labels: reviewer sheet, labelling guide, agreement and consensus")
+    p.add_argument("action", choices=["sheet", "guide", "agreement"],
+                   help="sheet <result.json> | guide <suite.yaml> | agreement <reviews.csv>")
+    p.add_argument("path")
+    p.add_argument("--grader")
+    p.add_argument("--n", type=int, default=50, help="sheet: items to sample (default 50)")
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--no-stratify", action="store_true", help="sheet: plain random sample instead of by tag and verdict")
+    p.add_argument("--reviewers", help="sheet: comma list; one row per item per reviewer")
+    p.add_argument("--rule", choices=["majority", "unanimous"], default="majority")
+    p.add_argument("--fail-on-dispute", action="store_true", help="agreement: exit 1 while any item is disputed")
+    p.add_argument("--out")
+    p.set_defaults(fn=cmd_labels)
 
     p = sub.add_parser("promptfoo", help="export a suite to promptfooconfig.yaml, or import Promptfoo results")
     p.add_argument("action", choices=["export", "import"])
@@ -606,6 +791,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--output", dest="pf_out", default="promptfooconfig.yaml")
     p.add_argument("--providers")
     p.add_argument("--name")
+    p.add_argument("--suite", help="import: evaluate this suite's gates (and use its dataset's tags / critical flags) on the results")
     outputs(p)
     p.set_defaults(fn=_promptfoo_dispatch)
 

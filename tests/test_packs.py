@@ -107,7 +107,13 @@ def test_doctor_tracks_the_repeatability_bar(tmp_path, monkeypatch):
     assert cli(["baseline", "promote", str(proj / "out/live/result.json"), "--out", str(proj / "baselines/main.json")]) == 0
     (proj / ".github/workflows").mkdir(parents=True)
     shutil.copy(proj / "ci/github-actions-evals.yml", proj / ".github/workflows/evals.yml")
-    cal = {g: {"kappa": 0.8, "kappa_ci": [0.6, 0.9], "n": 40} for g in ("faithfulness", "relevance", "safe_content")}
+    cal = {g: {"kappa": 0.8, "kappa_ci": [0.6, 0.9], "n": 40}
+           for g in ("faithfulness", "relevance", "safe_content", "context_precision", "context_recall")}
+    # the starter set leaves some coverage tags for the customer's own cases; stand in for them here
+    data = proj / "data/starter.jsonl"
+    rows = [json.loads(x) for x in data.read_text().splitlines() if x.strip()]
+    rows[0]["tags"] += ["structured_input", "image_input", "typos", "very_short"]
+    data.write_text("".join(json.dumps(r) + "\n" for r in rows))
     (proj / "calibration.json").write_text(json.dumps(cal))
     suite = proj / "suite.yaml"
     suite.write_text(suite.read_text().replace("# calibration: calibration.json", "calibration: calibration.json"))

@@ -133,6 +133,11 @@ def _scores_table(result: dict) -> str:
                 extra.append(f"{d['errors']} errors")
             if d.get("mean_disagreement"):
                 extra.append(f"judge spread {d['mean_disagreement']:.2f}")
+            lb = d.get("length_bias") or {}
+            if lb.get("longer_win_rate") is not None:
+                extra.append(f"longer answer won {lb['longer_win_rate']:.0%} of {lb['decided']}")
+            if lb.get("position_consistency") is not None and lb["position_consistency"] < 1:
+                extra.append(f"order-consistent {lb['position_consistency']:.0%}")
             cells.append(f"<td class='num'><span class='k'>{d['mean']:.2f}</span> <span class='mut'>[{d['ci_low']:.2f}, {d['ci_high']:.2f}]</span>"
                          f"{_ci_bar(d)}<div class='mut' style='font-size:12px'>{escape(' · '.join(extra))}</div></td>")
         rows.append(f"<tr><td>{escape(g)}</td>{''.join(cells)}</tr>")

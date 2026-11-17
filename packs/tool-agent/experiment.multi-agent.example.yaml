@@ -1,0 +1,32 @@
+# Template: is a multi-agent design worth its complexity? (docs: experiments.md#single-agent-vs-multi-agent)
+# OpenAI's evaluation best practices: adopt a multi-agent system only when evals show it is better.
+# Not run by `pack validate`: copy it, point the two variants at your systems, then
+#   genai-evals experiment run experiment.multi-agent.example.yaml --out out/multi-agent
+# Both variants run the same conversations with the same graders, so quality, handoffs, cost and latency compare
+# directly. Keep repeats >= 3: multi-agent systems add nondeterminism (who handles what).
+name: single-vs-multi-agent
+hypothesis: >-
+  Splitting support into a triage agent with refund and address specialists raises task success on multi-intent and
+  policy-edge conversations by at least 5 points, without loops between agents, at no more than 1.5x the cost per
+  conversation.
+suite: suite.yaml
+target: agent
+baseline:
+  name: single-agent
+  description: one agent with every tool (today's design)
+  overrides:
+    kind: http
+    options: {url: "${SINGLE_AGENT_URL}", headers_env: {Authorization: SYSTEM_TOKEN},
+              body: {message: "{{ input }}", session_id: "eval-{{ case_id }}", test_mode: true},
+              map: {output: reply, trajectory: tool_calls, final_state: state}}
+variants:
+  - name: multi-agent
+    description: triage agent handing off to refund and address specialists
+    overrides:
+      kind: http
+      options: {url: "${MULTI_AGENT_URL}", headers_env: {Authorization: SYSTEM_TOKEN},
+                body: {message: "{{ input }}", session_id: "eval-{{ case_id }}", test_mode: true},
+                # the trajectory must include handoffs ({kind: handoff, args: {to: <agent>}}) for handoff graders
+                map: {output: reply, trajectory: tool_calls, final_state: state}}
+graders: [task_success, correct_calls, lookup_first, escalated, steps, no_handoff_loop, no_promises]
+repeats: 3

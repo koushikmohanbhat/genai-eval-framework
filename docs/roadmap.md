@@ -9,7 +9,7 @@ next engagement comes before more connectors.
 - **More packs:** contact-centre QA (transcripts), summarisation, classification / routing; agent pack overlays
   (insurance claims, banking service requests).
 
-- **v0.4 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
+- **v0.5 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
   p50 / p95, barge-in, silence / overlap, ASR word error rate, recorded fixtures plus live mode
 - **Live integration tests** on AWS and GCP sandbox accounts for every connector and target
 - **Industry eval packs (catalog 4.2):** BFSI document extraction, insurance claims, contact-centre QA, medical summary

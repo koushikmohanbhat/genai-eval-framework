@@ -1,4 +1,4 @@
-# Limitations (v0.3.0)
+# Limitations (v0.4.0)
 
 Read this before using the framework in production.
 
@@ -26,7 +26,18 @@ please open an issue with what you find.
 
 ## Known gaps
 
-- **Voice / realtime** evaluation is not included yet (planned for v0.4).
+- **Length bias is measured, not corrected.** Judges are told not to reward length and `pairwise` reports how often
+  the longer answer won, but no score is adjusted for length. Read `length_bias` and act on it (shorter answers in
+  the dataset's references, a stricter rubric, another judge).
+- **Generated and harvested cases are only drafts.** `cases generate` is as good as the generator model and the
+  examples it sees; `cases harvest` re-tokenises with regex detectors, which miss names and addresses. Neither
+  counts until a person has reviewed it.
+- **The judge ladder needs labels.** Non-inferiority on κ with a 0.05 margin usually needs 150–200 labelled items;
+  with fewer the cheaper judge is (correctly) not approved.
+- The mock judge's heuristics for the context graders and case generation exist so packs run offline; they say
+  nothing about how a real judge or generator would score.
+
+- **Voice / realtime** evaluation is not included yet (planned for v0.5).
 - The mock judge is a heuristic for demos and CI (for policy graders it only flags the example phrases quoted in the
   policy). It is **not** a substitute for real judges.
 - Bootstrap CIs assume cases are exchangeable. Clustered datasets (many cases per customer) need cluster-aware

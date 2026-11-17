@@ -43,7 +43,7 @@ sessions without reference answers.
 ## Files
 
 `suite.yaml` graders, gates and report template · `schema/case.schema.json` dataset contract ·
-`data/starter.jsonl` 20 synthetic cases · `targets/` how to reach the system · `providers.yaml` offline judges ·
+`data/starter.jsonl` 23 synthetic cases · `targets/` how to reach the system · `providers.yaml` offline judges ·
 `providers.live.yaml` live profiles · `sources.yaml` + `online_checks.yaml` monitoring · `experiment.yaml` change
 comparison · `prompts/` versioned prompt for model-backed targets · `labels/` judge calibration ·
 `RUNBOOK.md` engagement steps · `HANDOVER.md` what the customer owns · `validation.yaml` live / customer validation

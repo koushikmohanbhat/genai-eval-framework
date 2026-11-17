@@ -2,7 +2,7 @@
 # Offline it runs a simulated agent (sim_system.py) on mock tools (tools.py): `genai-evals run suite.yaml`.
 # To evaluate your agent, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: tool-agent
-pack: tool-agent@0.1.0
+pack: tool-agent@0.2.0
 description: Task success, correct tool use, policy adherence, escalation, reliability across repeats and privacy
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -23,6 +23,7 @@ graders:
   - {name: no_address_change_after_ship, type: tool_not_called, tool: update_address, tags: [shipped]}
   - {name: escalated, type: tool_called, tool: escalate_to_human, tags: [escalation]}
   - {name: steps, type: step_budget, max_steps: 6, max_duplicate_calls: 1}
+  - {name: no_handoff_loop, type: no_handoff_loop, max_handoffs: 4}           # multi-agent targets; skipped when there are no handoffs
   - name: no_promises
     type: policy
     policy: 'Never promise a delivery date or an outcome the business can''t guarantee, for example "will definitely", "guaranteed" or "by tomorrow".'
@@ -48,5 +49,6 @@ report:
     policy violation: [no_refund_over_limit, no_refund_undelivered, no_address_change_after_ship, no_promises]
     missing escalation: [escalated]
     inefficient: [steps]
+    handoff loop: [no_handoff_loop]
     privacy: [no_pii]
     too slow: [latency]

@@ -11,10 +11,34 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.3.0"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.0"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
+
+## Works with Promptfoo
+
+If your team runs evals in [Promptfoo](https://github.com/promptfoo/promptfoo), keep doing so. genai-evals is the
+layer around it. It adds:
+
+- **Reusable workflow packs.**
+- **Adapters** for agent platforms and native telemetry.
+- **Statistics and release gates.**
+- **The reports a customer signs off on.**
+
+```bash
+genai-evals promptfoo export suite.yaml -o promptfooconfig.yaml                 # suite -> Promptfoo tests and assertions
+promptfoo eval -c promptfooconfig.yaml -o results.json
+genai-evals promptfoo import results.json --suite suite.yaml --out out/pf       # gates, slices, critical cases, reports
+genai-evals result export out/run/result.json --format promptfoo                # genai-evals runs in Promptfoo's shape
+```
+
+Exactly what survives each direction, and what doesn't (trajectories, judge panels, prompt versions), is documented
+in [Working with Promptfoo](docs/promptfoo.md).
+
+The design follows OpenAI's
+[evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices) section by
+section ([mapping](docs/openai-best-practices.md)).
 
 ## See it in action
 
@@ -104,14 +128,16 @@ production. On top of that:
 | **System-level targets** | prompt + model, RAG (Bedrock Knowledge Bases, Vertex RAG, any retriever), tool-calling agents (built-in provider-neutral loop, OpenAI Agents SDK, AgentCore Runtime, Bedrock Agents, Vertex Agent Engine), HTTP endpoints, Python callables |
 | **Native telemetry sources** | AWS: AgentCore Observability spans (`aws/spans`), X-Ray, Bedrock invocation logs, AgentCore Memory, CloudWatch metrics, AgentCore Evaluations results. Google Cloud: Cloud Trace (Telemetry API / OTLP), Cloud Logging, Vertex request-response logs in BigQuery, Agent Engine Sessions, Cloud Monitoring, Gen AI evaluation results. Also OpenAI Agents SDK traces, OpenAI / Anthropic usage APIs, OTLP files, Langfuse |
 | **OpenTelemetry-native** | Every source is normalised to the OTel GenAI semantic conventions. Eval runs are emitted as OTel spans and metrics linked to the original traces |
-| **37 graders** | deterministic (JSON schema, field match with Indian normalisers, regex), trajectory (tool calls, args, order, final state, handoffs, step budget), RAG (recall@k, MRR, nDCG, claim-level faithfulness, citations, correct refusal), judges (rubric, reference match, policy, pairwise with position swap), ops (latency, cost, tokens), safety (PII leak with Verhoeff-checked Aadhaar, guardrail), custom (Python, HTTP, AgentCore evaluator, Vertex metric) |
-| **Judges you can trust** | no default judge (you must name them); multi-provider judge panels with disagreement reporting; "judge must be a different family than the target"; calibration against human labels (Cohen's κ with a confidence interval and a minimum label count) that invalidates gates when a judge is unreliable; judge prompt hashes and reported model ids recorded with every result |
+| **40 graders** | deterministic (JSON schema, field match with Indian normalisers, regex), trajectory (tool calls, args, order, final state, handoffs, handoff loops, step budget), RAG (recall@k, MRR, nDCG, judge-labelled context precision and recall, claim-level faithfulness, citations, correct refusal), judges (rubric, reference match, policy, pairwise with position swap and length-bias tracking), ops (latency, cost, tokens), safety (PII leak with Verhoeff-checked Aadhaar, guardrail), custom (Python, HTTP, AgentCore evaluator, Vertex metric) |
+| **Judges you can trust** | no default judge (you must name them); multi-provider judge panels with disagreement reporting; a short, checkable rationale (quoted evidence, capped and tokenised) before every verdict and an explicit "length is not quality" rule; "judge must be a different family than the target"; calibration against human labels (Cohen's κ with a confidence interval and a minimum label count) that invalidates gates when a judge is unreliable; a judge ladder that approves a cheaper judge only if it agrees with humans as well as the strong one; judge prompt hashes and reported model ids recorded with every result |
+| **Human labels** | labelling guides with examples per level, reviewer sheets that hide the judge's verdict, several reviewers and rounds, Fleiss' κ, majority / unanimous / adjudicated consensus ([human labels](docs/human-labels.md)) |
+| **A growing eval set** | standard coverage tags (typical / edge / adversarial, multilingual, typos, multi-intent, jailbreak, system-prompt conflicts ...) checked by `doctor`; draft cases generated for missing tags or harvested from production failures, counted only after expert review ([growing the eval set](docs/growing-the-eval-set.md)) |
 | **Honest statistics** | repeats, bootstrap 95% CIs, `pass@k` and `pass^k`, paired comparisons (bootstrap + McNemar), slices by tag, critical cases, errors counted as failures, a minimum *n* per gate and slice, a warning when the dataset is too small to detect the difference ([assumptions](docs/gates.md#statistical-assumptions)) |
 | **Experiments** | a baseline and candidate changes (prompt, model, retriever, settings) on the same cases, compared side by side: quality with corrected significance, cost, latency, critical cases, the slices and failure types that moved, the cases that flipped; a manifest of hashes so the experiment can be re-run and checked ([experiments](docs/experiments.md)) |
 | **Release gates** | a small sandboxed DSL: `mean(faithfulness) >= 0.9 and ci_low(faithfulness) >= 0.85`, `delta(task_success) > -0.03 or not significant(task_success)`, `critical_pass()`, `p95(latency_ms) <= 3000`. Gates are pass, fail or **invalid** (no baseline, too few cases, untrusted judge) and invalid blocks. Exit code 0/1/2, GitHub Action, PR comment |
 | **Prompts as code** | immutable version folders, content hashes, `prompts.lock` stages (dev / staging / prod), gated promotion, `prompt.version` on every span, optional sync to Bedrock Prompt Management / Vertex / Langfuse, DPDP data-element change detection |
 | **Reports** | engineer HTML report (per-case drill-down, judge reasoning, trace deep links), one-page exec scorecard, Markdown, JUnit, JSON; CloudWatch EMF / PutMetricData, Cloud Monitoring, OTLP |
-| **Interop** | Promptfoo export / import, AgentCore Evaluations (import results, package graders as code-based evaluators), Vertex Gen AI evaluation service import |
+| **Interop** | **Promptfoo first**: suite → `promptfooconfig.yaml`, Promptfoo results → gated genai-evals results, genai-evals results → Promptfoo's shape, with the round-trip semantics documented and tested ([Promptfoo](docs/promptfoo.md)); also AgentCore Evaluations (import results, package graders as code-based evaluators) and the Vertex Gen AI evaluation service |
 | **DPDP-safe** | structured identifiers (Aadhaar, PAN, UPI, phone, email, card) in inputs, outputs, errors and judge reasoning are tokenised before they reach a judge or the results store ([exact data flow](docs/dpdp.md#data-flow)); optional integration with the [DPDP Data Rights Framework](https://github.com/koushikmohanbhat/dpdp-data-rights-framework) so an erasure request also deletes eval rows |
 
 ## 60-second tour
@@ -145,8 +171,9 @@ genai-evals prompts promote claims_agent 1.4.0 --stage prod     # blocked: new d
 # grade yesterday's production sessions from AgentCore (AWS) and Agent Engine (GCP)
 genai-evals online --sources sources.yaml --suite online_checks.yaml --publish cloudwatch,cloud_monitoring
 
-# hand the suite to Promptfoo
+# hand the suite to Promptfoo, then gate Promptfoo's results with the same suite
 genai-evals promptfoo export claims_extraction.live.yaml --providers providers.live.yaml
+genai-evals promptfoo import results.json --suite claims_extraction.live.yaml
 ```
 
 The demo's claims-agent scenario shows why gates beat averages. Prompt 1.4.0 fixes injury escalation but stops
@@ -208,18 +235,18 @@ sources:
 - **See it:** [Sample reports](https://koushikmohanbhat.github.io/genai-eval-framework/demo/) · [5-minute walkthrough](docs/demo-walkthrough.md)
 - **Set up:** [Getting started](docs/getting-started.md) · [Eval packs](docs/packs.md) · [Engagement guide](docs/engagement.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Concepts:** [Architecture](docs/architecture.md) · [Adapters: contracts, plugins, conformance](docs/plugins.md) · [Adapter status](docs/adapters.md) · [Results format](docs/results.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
-- [Graders and judges](docs/graders.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
+- [Working with Promptfoo](docs/promptfoo.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
 - [DPDP-safe eval data](docs/dpdp.md) · [Partner packaging](docs/partner-playbook.md) · [Limitations](docs/limitations.md) · [Roadmap](docs/roadmap.md)
 
 ## Project status
 
-v0.3.0. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.4.0. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run
 offline in CI, including scaffold, offline run and monitoring on recorded telemetry.
 
-Read [limitations](docs/limitations.md) before production use. Voice / realtime evaluation is planned for v0.4.
+Read [limitations](docs/limitations.md) before production use. Voice / realtime evaluation is planned for v0.5.
 
 Apache-2.0. Part of a catalog of partner accelerators. Sibling project:
 [DPDP Data Rights Framework for AI Agents](https://github.com/koushikmohanbhat/dpdp-data-rights-framework).

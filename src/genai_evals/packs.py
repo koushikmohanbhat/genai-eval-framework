@@ -288,6 +288,16 @@ def _results(project: Path) -> list[tuple[Path, dict[str, Any]]]:
     return sorted(found, key=lambda x: x[1].get("created_at", ""), reverse=True)
 
 
+def _raw_rows(suite) -> list[dict[str, Any]]:
+    from .config import _read_rows
+    if isinstance(suite.dataset, list):
+        return list(suite.dataset)
+    rows = _read_rows(suite.path(suite.dataset)) if suite.dataset else []
+    for extra in suite.extra_datasets:
+        rows += _read_rows(suite.path(extra))
+    return rows
+
+
 def doctor(project: str | Path, run: bool = True) -> list[Check]:
     """Check one project against the definition of repeatable: offline demo, one provider and one telemetry source
     connected, an understandable report, a meaningful release gate, and a handover with a maintenance path."""
@@ -361,13 +371,28 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
         probs.append("no CI workflow running genai-evals")
     checks.append(Check("release gate", not probs, "; ".join(probs) or f"{len(quality_gates)} blocking quality gates, baseline {baselines[0].name}, CI {ci[0].name}",
                         "RUNBOOK step 6" if probs else ""))
+    # 4b. edge-case coverage (standard tags from OpenAI's evaluation best practices)
+    from . import taxonomy
+    from .config import load_cases
+    try:
+        cases = load_cases(suite)
+        cov = taxonomy.coverage(cases, taxonomy.workflow_of(suite))
+        drafts = sum(1 for c in _raw_rows(suite) if c.get("review_status") == "draft")
+        detail = (f"{len(cases)} cases, {cov['hard_share']:.0%} edge or adversarial; "
+                  + ("; ".join(cov["problems"]) if cov["problems"] else "every applicable coverage tag has a case")
+                  + (f"; {drafts} draft case(s) awaiting review" if drafts else ""))
+        checks.append(Check("edge-case coverage", not cov["problems"], detail,
+                            "" if not cov["problems"] else "genai-evals cases coverage suite.yaml; add cases (or `cases generate`)"))
+    except Exception as e:  # noqa: BLE001
+        checks.append(Check("edge-case coverage", False, f"{type(e).__name__}: {e}", "fix the dataset"))
     judged = [g.name for g in suite.graders if g.type in JUDGE_GRADER_TYPES or g.type == "policy"]
     if judged:
         cal = suite.path(suite.calibration) if suite.calibration else None
         if not cal or not cal.exists():
             checks.append(Check("judges calibrated", False, f"judge-graded: {', '.join(judged)}; no calibration file", "RUNBOOK step 5"))
         else:
-            data = json.loads(cal.read_text(encoding="utf-8"))
+            from .calibration import load_calibration
+            data = load_calibration(cal)
             bad = untrusted_graders(data, suite.min_judge_kappa or 0.0, suite.min_calibration_n)
             uncal = [g for g in judged if g not in data]
             checks.append(Check("judges calibrated", not bad and not uncal,

@@ -1,7 +1,7 @@
 {
  "experiment": "fnol-injury-escalation",
- "created_at": "2026-11-07T03:16:33.114341+00:00",
- "run_id": "run_71310e98a288",
+ "created_at": "2026-11-17T18:12:58.293351+00:00",
+ "run_id": "run_b14cad272384",
  "experiment_path": "examples/insurance/fnol_experiment.yaml",
  "files": {
   "experiment": {
@@ -129,7 +129,7 @@
    "judge-b"
   ],
   "provenance": {
-   "prompt_templates": "sha256:241b67f9030cef2c",
+   "prompt_templates": "sha256:d4385bb5915be4c8",
    "temperature": 0.0,
    "response_format": "json",
    "policy": {},
@@ -187,7 +187,7 @@
     "name": "no_payout_promise",
     "type": "policy",
     "config_hash": "sha256:19f0ca602f108fcb",
-    "judge_prompt_hash": "sha256:241b67f9030cef2c"
+    "judge_prompt_hash": "sha256:d4385bb5915be4c8"
    },
    {
     "name": "steps",
@@ -214,9 +214,9 @@
   ]
  },
  "environment": {
-  "framework": "0.3.0",
-  "python": "3.13.18",
-  "git_sha": "2b3dd18dc08fe6b747c386c82c404796df37f439",
+  "framework": "0.4.0",
+  "python": "3.11.18",
+  "git_sha": "83dfd7982addbf366cf9fa528966d94e41e60f80",
   "git_dirty": true
  },
  "not_captured": [

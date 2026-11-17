@@ -1,7 +1,10 @@
 """LLM-as-judge graders, always run through an explicitly configured judge panel (one or more provider profiles).
 
-Hygiene enforced here: temperature 0, structured JSON verdicts, optional "judge must be a different model family
-than the target", position swap for pairwise, per-judge results and disagreement recorded on every score.
+Hygiene enforced here (see OpenAI's evaluation best practices): temperature 0; structured JSON verdicts in which a
+short, checkable rationale (the evidence that decides it, quoted briefly) comes before the verdict, rather than a
+free-form chain of thought; an instruction to judge substance rather than length; optional "judge must be a
+different model family than the target"; position swap for pairwise, with the length of both answers recorded so
+length bias can be measured; per-judge results and disagreement recorded on every score.
 """
 from __future__ import annotations
 
@@ -12,6 +15,16 @@ from typing import Any
 from ..models import Case, ContextChunk, Message, Sample, Score
 from ..targets.base import parse_json
 from .base import Grader, dig, register
+
+JUDGE_RULES = """<rules>
+- Put "rationale" BEFORE the verdict: at most two short sentences naming the evidence that decides it, quoting the
+  deciding words from the output, reference or context briefly. Do not write out your step-by-step thinking; the
+  rationale is stored and shown to reviewers, who must be able to check it against the texts.
+- Do not repeat personal details (names, numbers, addresses) in the rationale; refer to them ("the phone number").
+- Judge substance, not length or style: a longer answer is not better because it is longer. Do not reward padding,
+  repetition or restating the question; an answer that is complete and concise beats one that is long and complete.
+- Use only the information given here. If something cannot be judged from it, say so in the rationale.
+</rules>"""
 
 RUBRIC_PROMPT = """<task>{task}</task>
 You are a strict, impartial evaluator. Grade the OUTPUT against the RUBRIC{ref_hint}.
@@ -25,6 +38,7 @@ You are a strict, impartial evaluator. Grade the OUTPUT against the RUBRIC{ref_h
 {reference_block}<output>
 {output}
 </output>
+{rules}
 Respond with JSON only: {schema}"""
 
 FAITH_PROMPT = """<task>faithfulness</task>
@@ -37,7 +51,8 @@ verdict: "supported" (stated or directly implied by the context), "contradicted"
 <output>
 {output}
 </output>
-Respond with JSON only: {{"claims": [{{"claim": "...", "verdict": "supported|contradicted|unsupported", "evidence": "..."}}]}}"""
+For each claim, give the evidence before the verdict: a short quote from the CONTEXT (at most 20 words), or "none".
+Respond with JSON only: {{"claims": [{{"claim": "...", "evidence": "...", "verdict": "supported|contradicted|unsupported"}}]}}"""
 
 RELEVANCE_PROMPT = """<task>answer_relevance</task>
 Rate how directly and completely the OUTPUT answers the QUESTION (1 = irrelevant, 5 = fully answers it). Do not judge correctness.
@@ -47,7 +62,8 @@ Rate how directly and completely the OUTPUT answers the QUESTION (1 = irrelevant
 <output>
 {output}
 </output>
-Respond with JSON only: {{"score": <1-5>, "reasoning": "..."}}"""
+{rules}
+Respond with JSON only: {{"rationale": "...", "score": <1-5>}}"""
 
 PAIRWISE_PROMPT = """<task>pairwise</task>
 Compare two responses to the same request using the CRITERIA. Pick the better one, or "tie".
@@ -63,23 +79,52 @@ Compare two responses to the same request using the CRITERIA. Pick the better on
 <output_b>
 {b}
 </output_b>
-Respond with JSON only: {{"winner": "A|B|tie", "reasoning": "..."}}"""
+{rules}
+Respond with JSON only: {{"rationale": "...", "winner": "A|B|tie"}}"""
+
+CONTEXT_PRECISION_PROMPT = """<task>context_precision</task>
+For each retrieved CHUNK, decide whether it is useful for answering the QUESTION{ref_hint}. A chunk is useful if it
+contains information needed for a correct answer; topical but unhelpful chunks are not useful.
+<question>
+{question}
+</question>
+{reference_block}<chunks>
+{chunks}
+</chunks>
+For each chunk, give a short reason before the verdict (at most one sentence, quoting the deciding words).
+Respond with JSON only: {{"chunks": [{{"id": "...", "reason": "...", "useful": true|false}}]}}"""
+
+CONTEXT_RECALL_PROMPT = """<task>context_recall</task>
+Split the REFERENCE answer into its distinct factual statements. For each, decide whether the retrieved CONTEXT
+contains the information needed to make that statement (it need not be worded the same way).
+<question>
+{question}
+</question>
+<reference>
+{reference}
+</reference>
+<context>
+{context}
+</context>
+For each statement, give the evidence before the verdict: a short quote from the CONTEXT (at most 20 words), or "none".
+Respond with JSON only: {{"statements": [{{"statement": "...", "evidence": "...", "attributed": true|false}}]}}"""
 
 REFUSAL_PROMPT = """<task>refusal</task>
 Did the OUTPUT decline to answer or say the information is not available (rather than answering)?
 <output>
 {output}
 </output>
-Respond with JSON only: {{"refused": true|false, "reasoning": "..."}}"""
+Respond with JSON only: {{"rationale": "...", "refused": true|false}}"""
 
 
-JUDGE_GRADER_TYPES = {"rubric", "reference_match", "policy", "faithfulness", "answer_relevance", "pairwise"}
+JUDGE_GRADER_TYPES = {"rubric", "reference_match", "policy", "faithfulness", "answer_relevance", "pairwise",
+                      "context_precision", "context_recall"}
 
 
 def judge_prompts_hash() -> str:
     """Fingerprint of the judge prompt templates, recorded with every run so judge changes are visible over time."""
     import hashlib
-    blob = "\0".join(v for k, v in sorted(globals().items()) if k.endswith("_PROMPT") and isinstance(v, str))
+    blob = "\0".join(v for k, v in sorted(globals().items()) if k.endswith(("_PROMPT", "_RULES")) and isinstance(v, str))
     return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
@@ -115,13 +160,31 @@ class JudgePanel:
         return await asyncio.gather(*[one(n) for n in self.names])
 
 
-def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reasoning_key: str = "reasoning", extra=None) -> Score:
+DEFAULT_MAX_RATIONALE = 300
+
+
+def _rationale(data: dict, policy: dict) -> str | None:
+    """The judge's short rationale, capped (judge_policy.max_rationale_chars, default 300) or dropped
+    (judge_policy.store_rationale: false). Stored rationales go through the run's tokeniser like any other text."""
+    if policy.get("store_rationale", True) is False:
+        return None
+    text = data.get("rationale") or data.get("reasoning")
+    if not text:
+        return None
+    text = " ".join(str(text).split())
+    cap = int(policy.get("max_rationale_chars", DEFAULT_MAX_RATIONALE))
+    return text if len(text) <= cap else text[: max(0, cap - 1)].rstrip() + "…"
+
+
+def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reasoning_key: str = "rationale", extra=None) -> Score:
     ok = [r for r in results if "data" in r]
+    policy = grader.ctx.suite.judge_policy or {}
     per = []
     for r in results:
         if "data" in r:
             v = to_value(r["data"])
-            per.append({"judge": r["judge"], "model": r.get("model"), "value": v, "reasoning": r["data"].get(reasoning_key)})
+            d = r["data"] if reasoning_key in ("rationale", "reasoning") else {"rationale": r["data"].get(reasoning_key)}
+            per.append({"judge": r["judge"], "model": r.get("model"), "value": v, "reasoning": _rationale(d, policy)})
         else:
             per.append({"judge": r["judge"], "error": r["error"]})
     cost = sum(r.get("cost", 0.0) for r in results)
@@ -183,9 +246,10 @@ class Rubric(Grader):
         tok = self.ctx.tokenize
         scale = "pass_fail" if self.task in ("reference_match", "policy") else self.p.get("scale", "1-5")
         ref = self.reference_value(case) if self.p.get("use_reference", self.task == "reference_match") else None
-        schema = '{"pass": true|false, "reasoning": "..."}' if scale == "pass_fail" else '{"score": <1-5>, "reasoning": "..."}'
+        schema = '{"rationale": "...", "pass": true|false}' if scale == "pass_fail" else '{"rationale": "...", "score": <1-5>}'
         prompt = RUBRIC_PROMPT.format(
             task=self.task, scale=scale, rubric=self.rubric_text(), question=tok(case.input_text()), output=tok(sample.output),
+            rules=JUDGE_RULES,
             ref_hint=" and the REFERENCE answer" if ref else "", schema=schema,
             reference_block=f"<reference>\n{tok(str(ref))}\n</reference>\n" if ref else "")
         return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, scale))
@@ -260,14 +324,96 @@ class AnswerRelevance(Grader):
         if not sample.output:
             return self.score(sample, 0.0, reasoning="empty output")
         tok = self.ctx.tokenize
-        prompt = RELEVANCE_PROMPT.format(question=tok(case.input_text()), output=tok(sample.output))
+        prompt = RELEVANCE_PROMPT.format(question=tok(case.input_text()), output=tok(sample.output), rules=JUDGE_RULES)
         return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, "1-5"))
+
+
+def _retrieved(sample: Sample) -> list[ContextChunk]:
+    return list(sample.context or [])
+
+
+def _truthy(v: Any) -> bool:
+    return v in (True, "true", "yes", 1, "1")
+
+
+@register("context_precision")
+class ContextPrecision(Grader):
+    """Are the retrieved chunks useful, and are the useful ones ranked first? Judge-labelled usefulness per chunk,
+    scored as average precision (mean of precision@k at each useful chunk), so useful chunks ranked low cost more.
+    Uses the reference answer when the case has one (use_reference: false to turn off). No document relevance labels
+    needed (compare retrieval_recall_at_k / ndcg, which need them)."""
+    uses_model = True
+
+    def default_threshold(self) -> float:
+        return 0.7
+
+    async def grade(self, sample: Sample, case: Case) -> Score:
+        chunks = _retrieved(sample)[: int(self.p.get("k", 10))]
+        if not chunks:
+            return self.skip(sample, "no retrieved context on the sample (RAG graders need context)")
+        tok = self.ctx.tokenize
+        ref = self.reference_value(case) if self.p.get("use_reference", True) else None
+        prompt = CONTEXT_PRECISION_PROMPT.format(
+            question=tok(case.input_text()), ref_hint=" (the REFERENCE shows what a correct answer contains)" if ref else "",
+            reference_block=f"<reference>\n{tok(str(ref))}\n</reference>\n" if ref else "",
+            chunks="\n\n".join(f"<chunk id=\"{c.id}\">\n{tok(c.text)}\n</chunk>" for c in chunks))
+        order = [c.id for c in chunks]
+
+        def value(d):
+            verdict = {str(c.get("id")): _truthy(c.get("useful")) for c in d.get("chunks") or []}
+            flags = [verdict.get(str(i), False) for i in order]
+            hits, ap = 0, 0.0
+            for k, f in enumerate(flags, 1):
+                if f:
+                    hits += 1
+                    ap += hits / k
+            return ap / hits if hits else 0.0
+
+        def extra(ok):
+            first = ok[0]["data"].get("chunks", []) if ok else []
+            return {"useful": [c.get("id") for c in first if _truthy(c.get("useful"))], "k": len(order)}
+        return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), value, extra=extra)
+
+
+@register("context_recall")
+class ContextRecall(Grader):
+    """Did retrieval bring back everything a correct answer needs? Share of the reference answer's statements that
+    the retrieved context supports. Needs a reference answer (reference_key, default `answer`)."""
+    uses_model = True
+
+    def default_threshold(self) -> float:
+        return 0.85
+
+    async def grade(self, sample: Sample, case: Case) -> Score:
+        ref = self.reference_value(case)
+        if not ref:
+            return self.skip(sample, "context_recall needs a reference answer")
+        chunks = _retrieved(sample)
+        if not chunks:
+            return self.score(sample, 0.0, reasoning="nothing retrieved")
+        tok = self.ctx.tokenize
+        prompt = CONTEXT_RECALL_PROMPT.format(question=tok(case.input_text()), reference=tok(str(ref)),
+                                              context="\n\n".join(f"[{c.id}] {tok(c.text)}" for c in chunks))
+
+        def value(d):
+            st = d.get("statements") or []
+            return (sum(_truthy(x.get("attributed")) for x in st) / len(st)) if st else 0.0
+
+        def extra(ok):
+            first = ok[0]["data"].get("statements", []) if ok else []
+            return {"missing": [x.get("statement") for x in first if not _truthy(x.get("attributed"))][:10]}
+        return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), value, extra=extra)
 
 
 @register("pairwise")
 class Pairwise(Grader):
     """Compare this target's output with another target's output on the same case (against: <target>).
-    Runs both orders (position swap); value 1 = win, 0.5 = tie, 0 = loss."""
+    Runs both orders (position swap); value 1 = win, 0.5 = tie, 0 = loss.
+
+    Length bias: every score records both answers' word counts, their ratio and whether the longer answer won, and the
+    run summary reports `longer_win_rate` (share of decided comparisons won by the longer answer). A rate far above
+    50% when answers differ a lot in length is a sign the judge rewards length. `max_length_ratio` (optional) marks
+    comparisons where one answer is more than that many times longer as `length_confounded`."""
     uses_model = True
 
     def default_threshold(self) -> float:
@@ -287,26 +433,39 @@ class Pairwise(Grader):
         q = tok(case.input_text())
         mine, theirs = tok(sample.output or ""), tok(other.output or "")
         panel = JudgePanel(self, sample)
-        r1, r2 = await asyncio.gather(panel.ask(PAIRWISE_PROMPT.format(criteria=crit, question=q, reference_block=rb, a=mine, b=theirs)),
-                                      panel.ask(PAIRWISE_PROMPT.format(criteria=crit, question=q, reference_block=rb, a=theirs, b=mine)))
+        r1, r2 = await asyncio.gather(
+            panel.ask(PAIRWISE_PROMPT.format(criteria=crit, question=q, reference_block=rb, a=mine, b=theirs, rules=JUDGE_RULES)),
+            panel.ask(PAIRWISE_PROMPT.format(criteria=crit, question=q, reference_block=rb, a=theirs, b=mine, rules=JUDGE_RULES)))
         merged = []
         for a, b in zip(r1, r2):
             if "data" in a and "data" in b:
                 wa = {"A": 1.0, "B": 0.0}.get(str(a["data"].get("winner")).upper(), 0.5)
                 wb = {"A": 0.0, "B": 1.0}.get(str(b["data"].get("winner")).upper(), 0.5)
-                merged.append({"judge": a["judge"], "data": {"v": (wa + wb) / 2, "reasoning": a["data"].get("reasoning"),
+                merged.append({"judge": a["judge"], "data": {"v": (wa + wb) / 2,
+                                                             "rationale": a["data"].get("rationale") or a["data"].get("reasoning"),
                                                              "position_consistent": wa == wb},
                                "cost": a.get("cost", 0) + b.get("cost", 0)})
             else:
                 merged.append({"judge": a["judge"], "error": a.get("error") or b.get("error")})
-        return _combine(self, sample, merged, lambda d: d["v"], extra=lambda ok: {
-            "against": other_name, "position_consistent": all(r["data"]["position_consistent"] for r in ok)})
+        lm, lt = len((sample.output or "").split()), len((other.output or "").split())
+        ratio = (max(lm, lt) / max(1, min(lm, lt))) if (lm or lt) else 1.0
+        max_ratio = self.p.get("max_length_ratio")
+
+        def extra(ok):
+            vals = [r["data"]["v"] for r in ok]
+            v = statistics.fmean(vals) if vals else 0.5
+            decided = v != 0.5 and lm != lt
+            return {"against": other_name, "position_consistent": all(r["data"]["position_consistent"] for r in ok),
+                    "length_words": [lm, lt], "length_ratio": round(ratio, 3),
+                    "longer_won": ((v > 0.5) == (lm > lt)) if decided else None,
+                    "length_confounded": bool(max_ratio and ratio > float(max_ratio))}
+        return _combine(self, sample, merged, lambda d: d["v"], extra=extra)
 
 
 async def judge_refusal(grader: Grader, sample: Sample) -> Score:
-    prompt = REFUSAL_PROMPT.format(output=grader.ctx.tokenize(sample.output or ""))
+    prompt = REFUSAL_PROMPT.format(output=grader.ctx.tokenize(sample.output or ""))  # no length rule: refusal is binary
     res = await JudgePanel(grader, sample).ask(prompt)
     return _combine(grader, sample, res, lambda d: 1.0 if d.get("refused") in (True, "true", 1) else 0.0)
 
 
-__all__ = ["JudgePanel", "judge_refusal"]
+__all__ = ["JUDGE_RULES", "JudgePanel", "judge_refusal"]

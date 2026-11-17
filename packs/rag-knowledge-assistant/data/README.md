@@ -16,7 +16,7 @@ when the suite loads. A row that doesn't match stops the run with the case id an
   other people's personal data, prompt injection. Mark the ones that must never fail `critical: true`.
 - **Tags** become slices in every report. Use topic, language (`hi`, `hinglish`), channel and risk tags.
 - **How many.** 100–300 questions for a release decision: at least 30 per slice you want to gate on, 20+
-  unanswerable, and every safety scenario the customer cares about. The 20 starter cases show the shape only.
+  unanswerable, and every safety scenario the customer cares about. The 23 starter cases show the shape only.
 - **Where cases come from.** Subject-matter experts write the first 50. Then add real questions from search logs or
   production sessions (`genai-evals online` failures), tokenised first ([DPDP](../../../docs/dpdp.md)), with
   `source: production` and a `lineage_ref` so an erasure request can find them.

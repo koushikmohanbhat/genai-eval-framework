@@ -66,6 +66,7 @@ class Case(BaseModel):
     tags: list[str] = Field(default_factory=list)
     critical: bool = False
     source: str = "sme"                          # synthetic | production | sme
+    review_status: str | None = None             # draft (generated or harvested, not yet reviewed) | reviewed
     lineage_ref: str | None = None               # DPDP framework artifact id for this row
     turns: list[str] | None = None               # scripted user turns for multi-turn cases
     goal: str | None = None                      # goal card for the user simulator

@@ -1,19 +1,19 @@
 # Eval pack manifest. `genai-evals pack info rag-knowledge-assistant` shows it with live adapter statuses;
 # `genai-evals pack validate <dir>` checks it.
 name: rag-knowledge-assistant
-version: 0.1.0
+version: 0.2.0
 title: RAG knowledge assistant
 workflow: rag
 summary: >-
   An assistant that answers questions from a document collection with citations. Measures retrieval and answer
   quality separately, checks citations and refusals, and runs privacy and prompt-injection safety cases.
 contract_version: "1"
-framework: ">=0.3.0"
+framework: ">=0.4.0"
 
 inputs:
   dataset:
     schema: schema/case.schema.json
-    starter: data/starter.jsonl          # 20 synthetic cases: 14 answerable, 3 out of scope, 3 safety
+    starter: data/starter.jsonl          # 23 synthetic cases: 17 answerable, 3 out of scope, 3 safety; standard coverage tags
     guidance: data/README.md
   corpus: data/corpus.jsonl              # only for the offline simulator; your system uses its own index
   system: "one of targets/ (set EVAL_TARGETS in .env)"
@@ -26,7 +26,7 @@ targets:                                 # how to point the pack at the customer
   - {file: targets/bedrock-kb.yaml, system: Amazon Bedrock Knowledge Bases + a model, adapters: ["provider:bedrock"]}
   - {file: targets/vertex-rag.yaml, system: Vertex AI RAG Engine + a model, adapters: ["provider:vertex"]}
 
-graders: [recall_at_4, mrr, faithfulness, relevance, citations, refusal, no_pii, safe_content, latency]
+graders: [recall_at_4, mrr, context_precision, context_recall, faithfulness, relevance, citations, refusal, no_pii, safe_content, latency]
 failure_categories:                      # defined in suite.yaml `report:`; shown in every report
   retrieval miss: "the right passage was not retrieved (recall_at_4, mrr)"
   unsupported claim: "the answer says something the passages don't (faithfulness)"

@@ -130,3 +130,30 @@ class HandoffTo(Grader):
         if agent in ("none", "", False):
             hit = not hands
         return self.score(sample, 1.0 if hit else 0.0, details={"handoffs": [c.args.get("to") or c.name for c in hands]})
+
+
+@register("no_handoff_loop")
+class NoHandoffLoop(Grader):
+    """Multi-agent: no circular handoffs. Fails when the conversation is handed back to an agent it already left
+    (A -> B -> A), unless allow_return is true, or when there are more than max_handoffs handoffs (default 4).
+    Skips samples with no handoffs, so single-agent targets are not counted."""
+
+    async def grade(self, sample: Sample, case: Case) -> Score:
+        hands = [c for c in sample.trajectory if c.kind == "handoff"]
+        if not hands:
+            return self.skip(sample, "no handoffs in the trajectory")
+        start = self.p.get("start_agent") or (sample.metadata or {}).get("start_agent") or "_start"
+        path = [start] + [str(c.args.get("to") or c.name) for c in hands]
+        max_h = int(self.p.get("max_handoffs", 4))
+        loops = []
+        if not self.p.get("allow_return", False):
+            seen = {path[0]}
+            for prev, nxt in zip(path, path[1:]):
+                if nxt in seen and nxt != prev:
+                    loops.append(f"{prev} -> {nxt}")
+                seen.add(nxt)
+        too_many = len(hands) > max_h
+        ok = not loops and not too_many
+        why = "; ".join(([f"returned to an earlier agent: {', '.join(loops)}"] if loops else []) +
+                        ([f"{len(hands)} handoffs (max {max_h})"] if too_many else [])) or "no loop"
+        return self.score(sample, 1.0 if ok else 0.0, reasoning=why, details={"path": path, "handoffs": len(hands)})

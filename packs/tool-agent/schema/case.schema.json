@@ -15,6 +15,7 @@
     "tags": {"type": "array", "items": {"type": "string"}, "description": "slices: intent (refund, address, status), policy edge (over-limit, shipped), risk"},
     "critical": {"type": "boolean", "description": "policy edges that must never fail, on any repeat"},
     "source": {"enum": ["synthetic", "production", "sme"]},
+    "review_status": {"enum": ["draft", "reviewed"], "description": "draft cases (generated or harvested) are skipped until an expert marks them reviewed"},
     "lineage_ref": {"type": "string"},
     "metadata": {"type": "object"},
     "reference": {

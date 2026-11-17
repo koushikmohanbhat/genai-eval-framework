@@ -1,4 +1,13 @@
-"""Judge calibration: agreement between a model grader and human labels (accuracy, Cohen's kappa, confusion matrix)."""
+"""Judge calibration: agreement between a model grader and human labels (accuracy, Cohen's kappa, confusion matrix).
+
+Human labels can come from one reviewer or several. With several (a `reviewer` column), the labels are first combined
+into a consensus (majority, unanimous, or an adjudicator's call on disputed items), and agreement *between the
+reviewers* is reported alongside: a judge cannot be expected to agree with humans more than they agree with each other.
+
+`compare_judges` supports the judge ladder from OpenAI's evaluation best practices: start with a strong judge, check it
+against human labels, and move to a cheaper judge only when it agrees with the humans about as well (non-inferiority on
+kappa, on the same labelled items).
+"""
 from __future__ import annotations
 
 import csv
@@ -8,20 +17,109 @@ from pathlib import Path
 from typing import Any
 
 
-def read_labels(path: str | Path) -> dict[tuple[str, str], bool]:
-    """CSV columns: case_id, target (optional, '*' = any), label (pass/fail, 1/0, true/false, or a 0..1 score)."""
-    out: dict[tuple[str, str], bool] = {}
+def parse_label(raw: Any) -> bool | None:
+    raw = str(raw).strip().lower()
+    if raw in {"pass", "true", "yes", "1", "good"}:
+        return True
+    if raw in {"fail", "false", "no", "0", "bad"}:
+        return False
+    if raw in {"", "skip", "unsure", "n/a", "na"}:
+        return None
+    return float(raw) >= 0.5
+
+
+def read_reviews(path: str | Path) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    """CSV columns: case_id, target (optional, '*' = any), label, and optionally reviewer, round and adjudicated
+    (true on the row that settles a disputed item). Blank / 'unsure' labels are ignored. Several rows per item are
+    kept; a later round from the same reviewer replaces their earlier one."""
+    out: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
     with open(path, encoding="utf-8", newline="") as f:
-        for r in csv.DictReader(f):
-            raw = str(r["label"]).strip().lower()
-            if raw in {"pass", "true", "yes", "1", "good"}:
-                lab = True
-            elif raw in {"fail", "false", "no", "0", "bad"}:
-                lab = False
+        for i, r in enumerate(csv.DictReader(f)):
+            lab = parse_label(r.get("label", ""))
+            if lab is None:
+                continue
+            key = (r["case_id"], r.get("target") or "*")
+            who = (r.get("reviewer") or "").strip() or f"_row{i}"
+            rnd = int(r.get("round") or 1)
+            adj = str(r.get("adjudicated") or "").strip().lower() in {"true", "yes", "1"}
+            prev = out.setdefault(key, {}).get(who)
+            if prev is None or rnd >= prev["round"]:
+                out[key][who] = {"reviewer": who, "label": lab, "round": rnd, "adjudicated": adj}
+    return {k: list(v.values()) for k, v in out.items()}
+
+
+def consensus(reviews: dict[tuple[str, str], list[dict[str, Any]]], rule: str = "majority"
+              ) -> tuple[dict[tuple[str, str], bool], list[dict[str, Any]]]:
+    """Combine reviews into one label per item. rule: majority (ties are disputed), unanimous (any disagreement is
+    disputed). An adjudicated row always decides. Returns (labels, disputed items)."""
+    labels, disputed = {}, []
+    for key, rows in reviews.items():
+        adj = [r for r in rows if r["adjudicated"]]
+        if adj:
+            labels[key] = adj[-1]["label"]
+            continue
+        votes = [r["label"] for r in rows]
+        yes = sum(votes)
+        if rule == "unanimous":
+            if yes in (0, len(votes)):
+                labels[key] = bool(yes)
             else:
-                lab = float(raw) >= 0.5
-            out[(r["case_id"], r.get("target") or "*")] = lab
-    return out
+                disputed.append({"case_id": key[0], "target": key[1], "pass": yes, "fail": len(votes) - yes})
+        elif yes * 2 == len(votes):
+            disputed.append({"case_id": key[0], "target": key[1], "pass": yes, "fail": len(votes) - yes})
+        else:
+            labels[key] = yes * 2 > len(votes)
+    return labels, disputed
+
+
+def fleiss_kappa(items: list[list[bool]]) -> float | None:
+    """Fleiss' kappa for binary labels; items with fewer than two ratings are skipped."""
+    items = [it for it in items if len(it) >= 2]
+    if not items:
+        return None
+    p_bar, tot_yes, tot = 0.0, 0, 0
+    for it in items:
+        n, y = len(it), sum(it)
+        p_bar += (y * (y - 1) + (n - y) * (n - y - 1)) / (n * (n - 1))
+        tot_yes, tot = tot_yes + y, tot + n
+    p_bar /= len(items)
+    p = tot_yes / tot
+    pe = p * p + (1 - p) * (1 - p)
+    return 1.0 if pe == 1 else (p_bar - pe) / (1 - pe)
+
+
+def reviewer_agreement(reviews: dict[tuple[str, str], list[dict[str, Any]]], rule: str = "majority") -> dict[str, Any]:
+    """Agreement between human reviewers: raw agreement on multiply-reviewed items, Fleiss' kappa, and each reviewer's
+    agreement with the consensus (excluding their own vote would need 3+ reviewers, so it is included)."""
+    multi = {k: v for k, v in reviews.items() if len([r for r in v if not r["adjudicated"]]) >= 2}
+    labels, disputed = consensus(reviews, rule)
+    per: dict[str, list[bool]] = {}
+    for k, rows in reviews.items():
+        if k not in labels:
+            continue
+        for r in rows:
+            if not r["adjudicated"] and not r["reviewer"].startswith("_row"):
+                per.setdefault(r["reviewer"], []).append(r["label"] == labels[k])
+    votes = [[r["label"] for r in v if not r["adjudicated"]] for v in multi.values()]
+    raw = [len(set(v)) == 1 for v in votes]
+    fk = fleiss_kappa(votes)
+    warnings = []
+    if not multi:
+        warnings.append("no item has two or more reviewers: agreement between reviewers cannot be measured")
+    elif fk is not None and fk < 0.6:
+        warnings.append(f"reviewers agree only moderately (Fleiss' kappa {fk:.2f}): tighten the labelling guide "
+                        "(examples at each level) before trusting any judge against these labels")
+    if disputed:
+        warnings.append(f"{len(disputed)} items are disputed and left out until adjudicated")
+    return {"items": len(reviews), "multi_reviewed": len(multi), "raw_agreement": (sum(raw) / len(raw)) if raw else None,
+            "fleiss_kappa": fk, "reviewers": {r: {"n": len(v), "agreement_with_consensus": sum(v) / len(v)}
+                                              for r, v in sorted(per.items())},
+            "rule": rule, "disputed": disputed[:100], "labelled": len(labels), "warnings": warnings}
+
+
+def read_labels(path: str | Path, rule: str = "majority") -> dict[tuple[str, str], bool]:
+    """Labels per (case_id, target). With several reviewers per item, returns their consensus (see `consensus`)."""
+    return consensus(read_reviews(path), rule)[0]
 
 
 def cohen_kappa(pairs: list[tuple[bool, bool]]) -> float:
@@ -49,7 +147,62 @@ def kappa_ci(pairs: list[tuple[bool, bool]], seed: int = 7, b: int = 2000, alpha
 MIN_LABELS = 30
 
 
-def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool]) -> dict[str, Any]:
+def _pairs(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool]) -> dict[tuple[str, str, int], tuple[bool, bool]]:
+    out = {}
+    for s in result["scores"]:
+        if s["grader"] != grader or s.get("skipped") or s.get("passed") is None:
+            continue
+        lab = labels.get((s["case_id"], s["target"]), labels.get((s["case_id"], "*")))
+        if lab is not None:
+            out[(s["case_id"], s["target"], int(s.get("repeat") or 0))] = (bool(s["passed"]), lab)
+    return out
+
+
+def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, Any], str],
+                   labels: dict[tuple[str, str], bool], margin: float = 0.05, min_kappa: float | None = None,
+                   min_n: int = MIN_LABELS, seed: int = 7, b: int = 2000) -> dict[str, Any]:
+    """Can a cheaper judge replace a stronger one? Both are scored against the same human labels on the items both
+    graded. The cheaper judge is approved when (a) the 95% lower bound of kappa(cheap) - kappa(strong) is above
+    -margin (it is not meaningfully worse), (b) at least min_n items are shared, and (c) if min_kappa is given, its own
+    kappa lower bound clears it."""
+    import random
+    pc, ps = _pairs(cheap[0], cheap[1], labels), _pairs(strong[0], strong[1], labels)
+    common = sorted(set(pc) & set(ps))
+    a = [pc[k] for k in common]
+    s_ = [ps[k] for k in common]
+    n = len(common)
+    out: dict[str, Any] = {"cheap": cheap[1], "strong": strong[1], "n": n, "margin": margin}
+    if n < 2:
+        return out | {"approved": False, "reason": f"only {n} items graded by both judges and labelled"}
+    kc, ks = cohen_kappa(a), cohen_kappa(s_)
+    rng = random.Random(seed)
+    diffs = []
+    for _ in range(b):
+        idx = [rng.randrange(n) for _ in range(n)]
+        diffs.append(cohen_kappa([a[i] for i in idx]) - cohen_kappa([s_[i] for i in idx]))
+    diffs = sorted(d for d in diffs if d == d)
+    lo, hi = diffs[int(0.025 * len(diffs))], diffs[min(len(diffs) - 1, int(0.975 * len(diffs)))]
+    cci = kappa_ci(a, seed)
+    reasons = []
+    if n < min_n:
+        reasons.append(f"only {n} shared labelled items (min {min_n})")
+    if lo < -margin:
+        reasons.append(f"cheaper judge may be worse: kappa difference 95% CI [{lo:.2f}, {hi:.2f}] goes below -{margin}")
+    if min_kappa is not None and cci and cci[0] < min_kappa:
+        reasons.append(f"cheaper judge's kappa lower bound {cci[0]:.2f} < {min_kappa}")
+    return out | {"kappa_cheap": kc, "kappa_strong": ks, "kappa_cheap_ci": list(cci) if cci else None,
+                  "kappa_diff": kc - ks, "kappa_diff_ci": [lo, hi],
+                  "accuracy_cheap": sum(j == h for j, h in a) / n, "accuracy_strong": sum(j == h for j, h in s_) / n,
+                  "judge_cost_cheap": _judge_cost(cheap[0], cheap[1]), "judge_cost_strong": _judge_cost(strong[0], strong[1]),
+                  "approved": not reasons, "reason": "; ".join(reasons) or "not meaningfully worse than the stronger judge"}
+
+
+def _judge_cost(result: dict[str, Any], grader: str) -> float:
+    return sum(s.get("cost_usd") or 0.0 for s in result["scores"] if s["grader"] == grader)
+
+
+def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool],
+              human: dict[str, Any] | None = None) -> dict[str, Any]:
     """Agreement between a model grader and human labels.
 
     Reports accuracy, Cohen's kappa with a bootstrap CI, per-class agreement (kappa alone is unstable when one class is
@@ -57,15 +210,10 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     stratified sample across tags), not hand-picked ones, so agreement generalises to the whole suite.
     """
     pairs, mismatches = [], []
-    for s in result["scores"]:
-        if s["grader"] != grader or s.get("skipped") or s.get("passed") is None:
-            continue
-        lab = labels.get((s["case_id"], s["target"]), labels.get((s["case_id"], "*")))
-        if lab is None:
-            continue
-        pairs.append((bool(s["passed"]), lab))
-        if bool(s["passed"]) != lab:
-            mismatches.append({"case_id": s["case_id"], "target": s["target"], "judge": s["passed"], "human": lab})
+    for (cid, tgt, _r), (j, lab) in _pairs(result, grader, labels).items():
+        pairs.append((j, lab))
+        if j != lab:
+            mismatches.append({"case_id": cid, "target": tgt, "judge": j, "human": lab})
     tp = sum(1 for j, h in pairs if j and h)
     tn = sum(1 for j, h in pairs if not j and not h)
     fp = sum(1 for j, h in pairs if j and not h)
@@ -79,6 +227,13 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     if prevalence is not None and (prevalence < 0.1 or prevalence > 0.9):
         warnings.append(f"human pass rate is {prevalence:.0%}: with one class this rare, kappa is unstable; "
                         "label more of the minority class")
+    if human:
+        warnings += [w for w in human.get("warnings", []) if "no item has two" not in w]
+        hk = human.get("fleiss_kappa")
+        jk = cohen_kappa(pairs) if n else None
+        if hk is not None and jk is not None and jk > hk + 0.1:
+            warnings.append(f"judge agrees with the consensus (kappa {jk:.2f}) more than reviewers agree with each other "
+                            f"({hk:.2f}): check the labels are independent")
     return {"grader": grader, "n": n, "accuracy": (tp + tn) / n if n else None, "kappa": cohen_kappa(pairs) if n else None,
             "kappa_ci": list(ci) if ci else None,
             "human_pass_rate": prevalence,
@@ -87,14 +242,28 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
             "balanced_accuracy": ((tp / (tp + fn) if tp + fn else 0) + (tn / (tn + fp) if tn + fp else 0)) / 2 if n else None,
             "warnings": warnings,
             "confusion": {"judge_pass_human_pass": tp, "judge_fail_human_fail": tn, "judge_pass_human_fail": fp, "judge_fail_human_pass": fn},
-            "mismatches": mismatches[:50], "calibrated_at": datetime.now(timezone.utc).isoformat()}
+            "mismatches": mismatches[:50], "human_agreement": human,
+            "calibrated_at": datetime.now(timezone.utc).isoformat()}
 
 
 def load_calibration(path: str | Path | None) -> dict[str, Any]:
+    """Calibrations keyed by grader. Accepts what `genai-evals calibrate` writes ({"graders": [...]}), a list of
+    entries, one entry, or a mapping of grader name to entry."""
     if not path or not Path(path).exists():
         return {}
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return {d["grader"]: d for d in (data if isinstance(data, list) else data.get("graders", [data]))}
+    return normalise_calibration(json.loads(Path(path).read_text(encoding="utf-8")))
+
+
+def normalise_calibration(data: Any) -> dict[str, Any]:
+    if isinstance(data, list):
+        return {d["grader"]: d for d in data}
+    if isinstance(data, dict) and "graders" in data:
+        return {d["grader"]: d for d in data["graders"]}
+    if isinstance(data, dict) and "grader" in data:
+        return {data["grader"]: data}
+    if isinstance(data, dict):
+        return {g: {"grader": g, **d} for g, d in data.items() if isinstance(d, dict)}
+    return {}
 
 
 def untrusted_graders(calibration: dict[str, Any], min_kappa: float | None, min_n: int = MIN_LABELS) -> dict[str, str]:

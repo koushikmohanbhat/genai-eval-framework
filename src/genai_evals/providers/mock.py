@@ -97,6 +97,23 @@ class MockProvider(Provider):
             banned = [p.lower() for p in re.findall(r'"([^"]+)"', pol)]
             hits = [p for p in banned if p in out.lower()]
             return {"pass": not hits, "score": 0 if hits else 1, "reasoning": f"found {hits}" if hits else "no violations found"}
+        if task == "context_precision":
+            basis = f"{tag(prompt, 'question') or ''} {ref or ''}"
+            chunks = re.findall(r'<chunk id="([^"]*)">\s*(.*?)\s*</chunk>', prompt, re.S)
+            return {"chunks": [{"id": cid, "reason": f"{overlap(txt, basis):.0%} overlap",
+                                "useful": overlap(txt, basis) >= 0.3 * k} for cid, txt in chunks]}
+        if task == "context_recall":
+            q = tag(prompt, "question") or ""
+            sts = sentences(ref or "") or ([ref] if ref else [])
+            return {"statements": [{"statement": st, "evidence": f"{overlap(ctx, st if words(st) else q):.0%} of terms in context",
+                                    "attributed": overlap(ctx, st if words(st) else q) >= 0.6 * k} for st in sts]}
+        if task == "generate_cases":
+            n = int(re.search(r"Write (\d+) new", prompt).group(1)) if re.search(r"Write (\d+) new", prompt) else 3
+            ctag = re.search(r'<category tag="([^"]+)">', prompt)
+            t = ctag.group(1) if ctag else "case"
+            exs = [ln[2:].strip() for ln in (tag(prompt, "examples") or "").splitlines() if ln.startswith("- ")] or ["a request"]
+            return {"cases": [{"why": f"offline stand-in for a {t} case", "input": f"{exs[i % len(exs)]} ({t} variant {i + 1})",
+                               "expected": "handle it as the policy requires"} for i in range(n)]}
         if task == "refusal":
             refused = bool(REFUSAL.search(out))
             return {"refused": refused, "reasoning": "refusal language present" if refused else "answered"}

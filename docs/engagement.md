@@ -18,23 +18,28 @@ That is the completion bar for the framework, ahead of adding more integrations.
 a project:
 
 ```text
-$ genai-evals doctor
-Engagement readiness for acme-kb-eval: 5/8
-  [todo] handover: 6 unticked item(s), 2 owner(s) not named
-  [todo] adapters validated: not yet recorded as live tested: provider bedrockline demo: runs offline (20 cases, all blocking gates pass)
-  [todo] handover: 6 unticked item(s), 2 owner(s) not named
-  [todo] adapters validated: not yet recorded as live tested: provider bedrockvider connected: bedrock in out/live-1/result.json
+$ genai-evals doctor acme-kb-eval
+Engagement readiness for acme-kb-eval: 4/9
+  [pass] offline demo: runs offline (23 cases, all blocking gates pass)
+  [pass] provider connected: bedrock in out/live-1/result.json
   [todo] telemetry connected: no online run on live telemetry yet (fixture runs don't count)
          next: keep your source in sources.yaml, remove `fixture:`, `genai-evals online ... --out out/online`
-  [todo] handover: 6 unticked item(s), 2 owner(s) not named
-  [todo] adapters validated: not yet recorded as live tested: provider bedrockort: engineer report and scorecard with failure categories
+  [pass] report: engineer report and scorecard with failure categories
   [todo] release gate: no CI workflow running genai-evals
          next: RUNBOOK step 6
-  [todo] handover: 6 unticked item(s), 2 owner(s) not named
-  [todo] adapters validated: not yet recorded as live tested: provider bedrockges calibrated: all judges trusted
-  [todo] handover: 6 unticked item(s), 2 owner(s) not named
+  [todo] edge-case coverage: 23 cases, 35% edge or adversarial; no cases for: structured_input, image_input, typos, very_short
+         next: genai-evals cases coverage suite.yaml; add cases (or `cases generate`)
+  [pass] judges calibrated: all judges trusted
+  [todo] handover: 19 unticked item(s), 6 owner(s) not named
+         next: walk through HANDOVER.md with the customer
   [todo] adapters validated: not yet recorded as live tested: provider bedrock
+         next: genai-evals adapters record --kind <kind> --name <name> --status live_tested ...
 ```
+
+This is a real transcript, from a `rag-knowledge-assistant` project midway through an engagement. It has had one
+live run on Bedrock, a baseline and calibrated judges, but no telemetry, CI or handover yet. The score counts the
+checks that pass out of those that apply. `doctor` exits 1 until every check passes, so it can gate a "ready for
+handover" step in CI.
 
 | Doctor check | Passes when |
 |---|---|
@@ -43,6 +48,7 @@ Engagement readiness for acme-kb-eval: 5/8
 | telemetry connected | an online result exists that read live telemetry (not a fixture) |
 | report | that live run has an engineer report and scorecard, and the suite has a report template with failure categories |
 | release gate | a blocking gate on a quality grader, a baseline in `baselines/`, and a CI workflow that runs genai-evals |
+| edge-case coverage | every case has a difficulty tag, at least 20% are edge or adversarial, and every standard coverage tag that applies to the workflow has a case ([growing the eval set](growing-the-eval-set.md)) |
 | judges calibrated | every judge-graded grader has a trusted calibration (or the pack has no judges) |
 | handover | `HANDOVER.md` has no unticked items and every owner is named |
 | adapters validated | every adapter the live runs used is recorded as live tested or better in `validation.yaml` |

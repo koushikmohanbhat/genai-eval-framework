@@ -107,6 +107,14 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
             "mean_disagreement": (statistics.fmean([s.details["disagreement"] for s in lst if "disagreement" in s.details])
                                   if any("disagreement" in s.details for s in lst) else None),
         }
+        lw = [s.details["longer_won"] for s in lst if s.details.get("longer_won") is not None]
+        if any("length_ratio" in s.details for s in lst):
+            pc = [s.details["position_consistent"] for s in lst if "position_consistent" in s.details]
+            graders[g]["length_bias"] = {
+                "longer_win_rate": (sum(lw) / len(lw)) if lw else None, "decided": len(lw),
+                "mean_length_ratio": statistics.fmean([s.details["length_ratio"] for s in lst if "length_ratio" in s.details]),
+                "length_confounded": sum(1 for s in lst if s.details.get("length_confounded")),
+                "position_consistency": (sum(pc) / len(pc)) if pc else None}
     mine = [s for s in samples if s.target == target]
     lat = [s.latency_ms for s in mine if s.latency_ms is not None]
     ttft = [s.ttft_ms for s in mine if s.ttft_ms is not None]
