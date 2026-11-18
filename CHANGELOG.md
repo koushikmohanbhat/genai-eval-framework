@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.2 (2026-11-18)
+
+Review fixes for seeding and the security overlays.
+
+### Seeding
+- **Documents are untrusted input to the generator.** The prompt marks passages as untrusted data and tells the
+  generator never to follow instructions inside them; text that could close or open the prompt's tags is
+  neutralised; drafts from passages with model-directed text are flagged `source_contains_instructions`.
+- **No silent source guessing.** A draft whose generator named a missing passage is kept but flagged
+  `source_unverified`, with the generator's id and the overlap-assigned passage in `source_check` (shown on the
+  review sheet). Drafts whose answer isn't found in their passage are flagged `answer_not_found_in_passage`.
+- **Review is mandatory.** `cases promote` refuses seeded drafts without a reviewer, and flagged ones unless they
+  were decided on the review sheet.
+- **Match the deployed retriever:** `--chunks` seeds from the index's own chunks (ids and fields kept);
+  `--chunker module:function` plugs in the customer's splitting. Passages record their location (file, section
+  path from headings, PDF page), carried to drafts (`source_location`) and the review sheet.
+
+### Security overlays
+- New `no_prompt_paraphrase` judge (a policy grader, `warn` gate until calibrated) for leaks the exact checks miss.
+- Docs: what a pass does and doesn't show, how marker checks are paired with final-state, tool-trace and
+  faithfulness checks, and the steps before a sign-off. README wording now calls the overlays a starter set.
+
 ## 0.6.1 (2026-11-18)
 
 Review feedback: seeding real knowledge bases, and visual proof.

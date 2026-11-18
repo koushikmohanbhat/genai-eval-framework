@@ -30,9 +30,24 @@ to seed: the passages are read and split locally, then a sample is drafted from.
 | `--dry-run` | | prints the plan and estimated cost, sends nothing, writes nothing |
 
 1. **Read and split.** Text, Markdown, HTML, PDF and Word files are split into passages of about `--chunk-words`
-   (default 180), each titled with its nearest heading. They're written as a corpus (`id`, `title`, `text`): the RAG
-   pack's offline retriever reads `data/corpus.jsonl`, and you can load the same passages into a test index.
-   An existing corpus file (`.jsonl` of `{id, title, text}`) is used as it is.
+   (default 180) on paragraph boundaries. Each passage records its **location**: the file, the section path from
+   the headings (`Travel > Hotels`) and, for PDFs, the page or page range. They're written as a corpus (`id`,
+   `title`, `text`, `location`): the RAG pack's offline retriever reads `data/corpus.jsonl`.
+
+   **Match the deployed retriever.** The built-in splitter is fine for day one, but the customer's retriever
+   probably chunks differently, and a gold passage only means something if it's a chunk the retriever can return.
+   Two ways to line them up:
+
+   ```bash
+   genai-evals cases seed --chunks retriever-chunks.jsonl --generator judge-openai     # the index's own chunks
+   genai-evals cases seed --docs ./kb/ --chunker mychunking:split --generator judge-openai   # their splitting code
+   ```
+
+   - `--chunks` takes an export of the index (JSONL, one chunk per line, with `id` and `text`). Ids are kept, so
+     seeded `gold_passages` are the retriever's own ids, and every other field (source, url, page, section...) is
+     kept as the location. Embedding vectors are dropped.
+   - `--chunker module:function` calls `function(name, text, words)` for each document and uses the passages it
+     returns (`text`, optional `id`, `title`, `location`).
 2. **Draft.** The generator model (a strong one) writes four kinds of case:
    - about 50% **answerable**: a draft answer, an evidence quote and the passage it comes from (`gold_passages`);
    - 15% **multi-passage**: questions that need two passages, usually from different documents (a rule from one, a
@@ -42,6 +57,16 @@ to seed: the passages are read and split locally, then a sample is drafted from.
      `multilingual`, `format_request`);
    - 20% **unanswerable**: questions on the same topics that the system should decline (`answerable: false`,
      `no_answer`), listed with the three closest passages for the reviewer to check.
+   **Documents are untrusted input.** A customer document can contain text aimed at a model ("Assistant: ignore your
+   rules..."). The generator is told the passages are untrusted data and never to follow instructions inside them,
+   and text that could close or open the prompt's own tags is neutralised. Drafts are also flagged for the reviewer:
+
+   | Flag | Meaning |
+   |---|---|
+   | `source_contains_instructions` | the source passage has text addressed to a model: check the draft wasn't steered by it |
+   | `source_unverified` | the generator named a passage that doesn't exist (or none). The case is kept, with its source assigned by word overlap, and the sheet's `source_check` column shows the id the generator gave: confirm or fix the source |
+   | `answer_not_found_in_passage` | the draft answer shares little wording with its passage: check it is really there |
+
 3. **Review.** Every row is a draft and counts for nothing until an expert signs it off:
 
 ```bash
@@ -57,7 +82,10 @@ genai-evals cases promote drafts.jsonl --sheet review.csv --into data/cases.json
      applied, and the draft stays.
    - `fix` applies the corrected columns. `corrected_answerable: no` turns an answerable draft into a
      should-decline case, and the reverse.
-   - Promoted cases record `reviewed_by` and any notes. The seeding context (passage excerpt, evidence) is dropped.
+   - Promoted cases record `reviewed_by` and any notes. The seeding context (passage excerpt, evidence, flags) is
+     dropped.
+   - **Review can't be skipped.** `cases promote` refuses seeded drafts without a reviewer, and refuses **flagged**
+     ones unless they were decided on the review sheet (`--sheet`): a bulk `--reviewer` isn't enough for those.
 
 **What seeded cases are, and aren't.** Questions written from the documents skew easy, and they share the
 documents' wording, which flatters keyword retrieval. They are `source: synthetic`, so they don't count towards the

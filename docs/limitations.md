@@ -1,4 +1,4 @@
-# Limitations (v0.6.1)
+# Limitations (v0.6.2)
 
 Read this before using the framework in production.
 
@@ -51,6 +51,11 @@ please open an issue with what you find.
 - **Security overlays are starter sets.** 3 cases per threat show the shape; a sign-off needs more, on the
   customer's own documents and records, plus a broad red-team scan (Promptfoo) and an application security review.
   Indirect-injection cases only test a live system if it can read planted test data ([security](security.md)).
+- **Security graders are exact, and narrow.** Canary and copied-text checks miss paraphrased leaks (the overlays add
+  a `warn` judge for those), and marker checks miss injections that act differently; pair them with final-state,
+  tool-trace and faithfulness checks ([security](security.md#what-a-pass-shows-and-what-it-doesnt)).
+- **Seeding flags are heuristics.** `source_contains_instructions` and `answer_not_found_in_passage` use keyword
+  rules; a reviewer still reads every draft.
 - **Seeded cases are synthetic.** `cases seed` questions come from the documents, so they skew easy and share their
   wording; they don't count as the representative set. PDF tables and scans are read as plain text only.
 - **Sample-size numbers are planning estimates.** `genai-evals power` uses the normal approximation for pass/fail

@@ -616,13 +616,14 @@ def cmd_cases(args) -> int:
         return 0
     if args.action == "seed":
         from .seed import chunk, read_docs, seed
-        if not args.docs:
-            raise SystemExit("cases seed needs --docs <folder or file>")
+        if not (args.docs or args.chunks):
+            raise SystemExit("cases seed needs --docs <folder or file>, or --chunks <the retriever's chunks.jsonl>")
         if not args.generator:
             raise SystemExit("cases seed needs --generator <provider profile> (a strong model; in-region for customer data)")
-        from .seed import plan, sample_passages
+        from .seed import load_chunks, plan, sample_passages
         n = args.max_cases or args.n_seed
-        passages = chunk(read_docs(args.docs), words=args.chunk_words)
+        passages = (load_chunks(args.chunks) if args.chunks
+                    else chunk(read_docs(args.docs), words=args.chunk_words, chunker=args.chunker))
         docs = len({p.get("source") for p in passages})
         groups = len({(p.get("folder"), p.get("type")) for p in passages})
         use = sample_passages(passages, args.max_passages, args.sample_strategy, args.seed)
@@ -639,7 +640,8 @@ def cmd_cases(args) -> int:
             return 0
         corpus = Path(args.corpus_out or "corpus.jsonl")
         corpus.parent.mkdir(parents=True, exist_ok=True)
-        cs.write_jsonl([{k: p[k] for k in ("id", "title", "text")} for p in passages], corpus, append=False)
+        cs.write_jsonl([{k: p[k] for k in ("id", "title", "text", "location") if k in p} for p in passages], corpus,
+                       append=False)
         tok = None if args.no_tokenize else cs.default_tokenizer()
         rep: dict = {}
         try:
@@ -1135,6 +1137,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--docs", help="seed: folder or file of the customer's documents (txt, md, html; pdf, docx with the docs extra)")
     p.add_argument("--corpus-out", help="seed: where to write the passages (default corpus.jsonl; the RAG pack reads data/corpus.jsonl)")
     p.add_argument("--chunk-words", type=int, default=180, help="seed: passage size in words (default 180)")
+    p.add_argument("--chunker", help="seed: module:function that splits a document (name, text, words) -> passages, "
+                                     "to match the customer's chunking")
+    p.add_argument("--chunks", help="seed: the deployed retriever's own chunks (JSONL with id and text); ids are kept")
     p.add_argument("--n-seed", type=int, default=40, help=argparse.SUPPRESS)
     p.add_argument("--max-cases", type=int, help="seed: draft cases to write (default 40: ~50%% answerable, 15%% multi-passage, "
                                                  "15%% edge, 20%% unanswerable); generator calls scale with this, not the repository")

@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.1"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.2"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -47,9 +47,10 @@ per-trial isolation, and both-sides behaviour coverage.
 **Day 1 and security sign-off.** No eval set yet? `genai-evals cases seed --docs ./kb/` drafts answerable, edge and
 unanswerable questions from the customer's documents, with source passages, for an expert to sign off on a review
 sheet ([day 1](docs/growing-the-eval-set.md#day-1-no-dataset-yet)). Security review? Each pack's
-**security-guardrails** overlay tests indirect prompt injection (through retrieved documents and tool results),
-system prompt leakage and actions beyond the user's permissions, mapped to the OWASP LLM Top 10
-([security](docs/security.md)).
+**security-guardrails** overlay is a starter set of curated cases for indirect prompt injection (through retrieved
+documents and tool results), system prompt leakage and actions beyond the user's permissions, mapped to the OWASP LLM
+Top 10. It is a regression check to extend with the customer's own variants, not a security certification
+([security](docs/security.md), including what a pass does and doesn't show).
 
 ## See it in action
 
@@ -264,7 +265,7 @@ sources:
 
 ## Project status
 
-v0.6.1. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.6.2. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

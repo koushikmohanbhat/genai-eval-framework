@@ -277,14 +277,25 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
             refused.append(f"{d['id']}: no reference yet (write one, or pass --allow-empty-reference)")
             keep.append(d)
             continue
+        rv = (reviewers or {}).get(d["id"]) or reviewer
+        meta0 = d.get("metadata") or {}
+        if "seeded" in (d.get("tags") or []):
+            # seeded cases were written by a model from untrusted documents: a person must sign each one off
+            if not rv:
+                refused.append(f"{d['id']}: seeded drafts need a reviewer (--sheet, or --reviewer after reviewing them)")
+                keep.append(d)
+                continue
+            if meta0.get("flags") and d["id"] not in (reviewers or {}):
+                refused.append(f"{d['id']}: flagged ({', '.join(meta0['flags'])}): decide it on the review sheet (--sheet)")
+                keep.append(d)
+                continue
         if not {"typical", "edge", "adversarial"} & set(d.get("tags") or []) and d.get("split") != "representative":
             d["tags"] = list(d.get("tags") or []) + ["edge"]
         d["review_status"] = "reviewed"
         meta = dict(d.get("metadata") or {})
         meta.pop("output", None)                       # the failing output was review context, not test data
-        for k in ("evidence", "passage_excerpt", "closest_passages"):   # seeding context, not test data
+        for k in ("evidence", "passage_excerpt", "closest_passages", "flags", "source_check"):   # review context
             meta.pop(k, None)
-        rv = (reviewers or {}).get(d["id"]) or reviewer
         if rv:
             meta["reviewed_by"] = rv
         d["metadata"] = meta
@@ -301,8 +312,8 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
 
 # ---- review sheet for drafts --------------------------------------------------------------------------------------
 
-REVIEW_COLUMNS = ["id", "kind", "tags", "input", "draft_answer", "answerable", "gold_passages", "evidence",
-                  "passage_excerpt", "closest_passages", "decision", "corrected_input", "corrected_answer",
+REVIEW_COLUMNS = ["id", "kind", "flags", "tags", "input", "draft_answer", "answerable", "gold_passages", "source_location",
+                  "evidence", "passage_excerpt", "closest_passages", "source_check", "decision", "corrected_input", "corrected_answer",
                   "corrected_answerable", "reviewer", "notes"]
 
 
@@ -318,7 +329,16 @@ def write_review_sheet(drafts_path: str | Path, out: str | Path) -> int:
         for d in rows:
             ref, meta = d.get("reference") or {}, d.get("metadata") or {}
             ans = ref.get("answerable")
-            w.writerow({"id": d["id"], "kind": meta.get("kind", ""), "tags": ";".join(d.get("tags") or []),
+            loc = meta.get("source_location")
+            locs = loc if isinstance(loc, list) else ([loc] if loc else [])
+            sc = meta.get("source_check") or {}
+            w.writerow({"id": d["id"], "kind": meta.get("kind", ""), "flags": ";".join(meta.get("flags") or []),
+                        "source_location": " | ".join(", ".join(f"{k} {v}" for k, v in x.items() if v not in (None, ""))
+                                                      for x in locs if x),
+                        "source_check": (f"generator gave passage '{sc.get('generator_passage_id') or '(none)'}', which "
+                                         f"doesn't exist; {sc.get('assigned')} was assigned by word overlap: check it")
+                                        if sc else "",
+                        "tags": ";".join(d.get("tags") or []),
                         "input": d.get("input") if isinstance(d.get("input"), str) else json.dumps(d.get("input")),
                         "draft_answer": ref.get("answer", ""), "answerable": "" if ans is None else ("yes" if ans else "no"),
                         "gold_passages": ";".join(ref.get("gold_passages") or []), "evidence": meta.get("evidence", ""),

@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `tool-agent`
 
-Run `run_cf70dbe13c27` · 35 cases × 1 targets × 3 repeats
+Run `run_be0cba59200f` · 35 cases × 1 targets × 3 repeats
 
 ### Gates
 
@@ -17,13 +17,14 @@ Run `run_cf70dbe13c27` · 35 cases × 1 targets × 3 repeats
 | no-injection-followed | agent | ✅ pass | `mean(injection_resisted)`=100.0% |
 | no-unauthorised-actions | agent | ✅ pass | `mean(no_unauthorised_refund)`=100.0%, `mean(no_unauthorised_address_change)`=100.0% |
 | no-prompt-leak | agent | ✅ pass | `mean(no_prompt_leak)`=100.0% |
+| no-prompt-paraphrase | agent | ✅ pass | `mean(no_prompt_paraphrase)`=100.0% |
 | security-critical | agent | ✅ pass | `critical_pass()`=yes |
 
 ### Scores (mean, 95% CI; representative and stress splits reported separately)
 
-| Target | task_success | correct_calls | lookup_first | no_refund_over_limit | no_refund_undelivered | no_address_change_after_ship | escalated | steps | no_handoff_loop | no_promises | no_pii | latency | injection_resisted | no_unauthorised_refund | no_unauthorised_address_change | no_prompt_leak | p95 latency | cost / case |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| agent | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=7) · stress 1.00 (n=17) | 1.00 [1.00, 1.00] · rep 1.00 (n=4) · stress 1.00 (n=6) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] · rep 1.00 (n=1) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | – | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2145 ms | $0.0019 |
+| Target | task_success | correct_calls | lookup_first | no_refund_over_limit | no_refund_undelivered | no_address_change_after_ship | escalated | steps | no_handoff_loop | no_promises | no_pii | latency | injection_resisted | no_unauthorised_refund | no_unauthorised_address_change | no_prompt_leak | no_prompt_paraphrase | p95 latency | cost / case |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| agent | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=7) · stress 1.00 (n=17) | 1.00 [1.00, 1.00] · rep 1.00 (n=4) · stress 1.00 (n=6) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] · rep 1.00 (n=1) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | – | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2145 ms | $0.0019 |
 
 ### Notes
 
