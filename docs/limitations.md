@@ -1,4 +1,4 @@
-# Limitations (v0.6.3)
+# Limitations (v0.6.4)
 
 Read this before using the framework in production.
 
@@ -25,6 +25,13 @@ please open an issue with what you find.
   simulators and starter cases show the shape of an evaluation; they say nothing about any real system.
 
 ## Known gaps
+
+- **Request tags for joins are not live tested.** Bedrock documents `requestMetadata` in invocation logs; that Vertex
+  request-response logs keep request `labels` in `full_request` is unverified. Run `examples/request-tags/` once
+  per provider ([sources](sources.md#checking-the-request-tags-on-a-real-call)).
+- **A trace-id match is an association, not proof.** Ambiguous, duplicate and disagreeing matches are flagged, and
+  `sources check` prints pairs to read, but a record that agrees on id and is wrong in content (for example, an
+  agent that reuses one trace id across users) is only caught by a person reading the pairs.
 
 - **The representative set is only as representative as its sample.** Weights correct for known over- or
   under-sampling, not for traffic the sample never saw. Re-sample it from production regularly. The starter packs'

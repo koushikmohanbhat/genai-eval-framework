@@ -290,6 +290,15 @@ def _notes(result: dict[str, Any]) -> str:
 def _online_banner(result: dict[str, Any]) -> str:
     if result.get("mode") != "online":
         return ""
+    tq = result.get("telemetry_quality") or {}
+    warn = ""
+    if tq.get("problems"):
+        items = "".join(f"<li>{escape(t)}: {escape(p)}</li>" for t, ps in tq["problems"].items() for p in ps)
+        head = ("Incomplete: telemetry joins are unreliable, so the affected gates are invalid. Scores below may pair "
+                "traces with the wrong prompts or completions." if tq.get("status") == "unreliable" else
+                "Telemetry joins look questionable (policy: warn). Treat the scores below with caution.")
+        warn = (f"<div class='verdict' style='background:#fdecea;color:#7a1c12'><b>{escape(head)}</b><ul>{items}</ul>"
+                "Run <code>genai-evals sources check sources.yaml</code>.</div>")
     rows = []
     for s in result.get("sources", []):
         if "samples" not in s:
@@ -302,7 +311,7 @@ def _online_banner(result: dict[str, Any]) -> str:
              + "".join(rows) + "</table>") if rows else ""
     return ("<div class='verdict' style='background:#eef4ff;color:#1f3b73'>Production monitoring: reference-free checks on "
             "sampled traffic. These scores are signals for alerting and investigation, not ground-truth quality claims: "
-            "there are no reference answers, and sampled sessions only represent traffic the telemetry captured.</div>" + table)
+            "there are no reference answers, and sampled sessions only represent traffic the telemetry captured.</div>" + warn + table)
 
 
 def failure_categories(result: dict[str, Any]) -> dict[str, dict[str, list[str]]]:
@@ -402,7 +411,7 @@ def render_scorecard(result: dict[str, Any]) -> str:
         lat = s["ops"]["latency_ms"]["p95"]
         cards.append(f"<div class='card'><div class='k'>{escape(t)}</div><div class='big'>{_pct(d.get('mean'))}</div>"
                      f"<div class='mut'>{escape(pg or '')} · {label}95% CI {_pct(d.get('ci_low'))}–{_pct(d.get('ci_high'))}{stress_txt}</div>"
-                     f"<div style='margin-top:8px'>{_pill('fail' if blocked else 'pass', ('alert' if blocked else 'ok') if result.get('mode') == 'online' else ('not ready' if blocked else 'ready'))} "
+                     f"<div style='margin-top:8px'>{_pill('fail', 'incomplete') if t in ((result.get('telemetry_quality') or {}).get('problems') or {}) else _pill('fail' if blocked else 'pass', ('alert' if blocked else 'ok') if result.get('mode') == 'online' else ('not ready' if blocked else 'ready'))} "
                      f"<span class='mut'>{len(gates) - len(blocked)}/{len(gates)} gates</span></div>"
                      f"<div class='mut' style='margin-top:6px'>{('$%.4f / case' % cost) if cost is not None else 'cost n/a'} · "
                      f"{('%.0f ms p95' % lat) if lat is not None else 'latency n/a'} · critical {s['critical']['passed']}/{s['critical']['total']}</div></div>")

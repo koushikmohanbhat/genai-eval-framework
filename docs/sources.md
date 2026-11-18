@@ -48,15 +48,59 @@ genai-evals sources check sources.yaml          # reads the window, grades nothi
 
 ```
 claims-agent-aws (aws_agentcore_observability): 8 samples, 8 with prompt, 8 with completion
-  + aws_bedrock_invocation_logs: 8 records (8 with trace id); matched trace_id=8 session_id=0 timestamp=0 none=0
+  + aws_bedrock_invocation_logs: 8 records (8 with trace id); matched trace_id=8 session_id=0 timestamp=0 none=0; ambiguous=0 disagreeing=0 duplicates dropped=0
+    trace_id    trace e2cbbb93d9814559 -> 1 record(s), last req-66ee8f4ecb4f
+      prompt:     Hi, car hit near Indiranagar today, policy MOT-2026-004512.
+      completion: I've registered claim CLM-0001 for the collision. A surveyor will contact you within 24 hours.
+      span says:  I've registered claim CLM-0001 for the collision. A surveyor will contact you within 24 hours.
   ok
 ```
+
+**Read the pairs.** A match says a record was *associated* with a span, not that it is the right prompt and
+completion for it. The check prints a few matched pairs (`--pairs N`, identifiers tokenised, text truncated) for a
+person to read, and also flags pairings that can't all be right:
+
+- **ambiguous:** one payload record matched by more than one span (overlapping time windows, or reused ids);
+- **disagreeing:** the span captured its own completion and the joined record's completion is different;
+- **duplicates dropped:** the same request id read twice (for example, overlapping windows), kept once so usage
+  isn't double-counted;
+- **session matches outside the window:** a session has many turns, so a session-id match only counts when the
+  record falls in the span's own time window and doesn't name a different trace.
 
 Each span is matched to a payload record by **trace id**, then **session id**, then **timestamp** (within 2 s, same
 model). Timestamp matches are fuzzy: with overlapping sessions they can pair the wrong prompt with a trace, so the
 check fails when more than 10% of spans match that way (`--max-time-share`) or fewer than 90% match by an id
 (`--min-id-share`). `genai-evals doctor` runs the same diagnosis on the latest live online result
 (**telemetry joins**), and every online result records it per source under `join:<type>` and `content`.
+
+**Online runs enforce it.** By default a run whose joins fail the check is marked **unreliable**: every gate on the
+affected target is *invalid* (so the run exits 1), the scorecard shows *incomplete* for that target, and the report
+lists the problems. A run with questionable joins is never presented as a normal scorecard. Set the thresholds, or
+report without blocking, in `sources.yaml`:
+
+```yaml
+join_policy: {on_problem: invalid, min_id_share: 0.9, max_time_share: 0.1, min_content_share: 0.9}   # or on_problem: warn
+```
+
+The result records `telemetry_quality: {status: ok | unreliable | questionable, problems}`.
+
+### Checking the request tags on a real call
+
+Passing ids in request tags is an instrumentation change in the agent, so check it once per provider before relying
+on it. [`examples/request-tags/`](../examples/request-tags) makes one tagged call and prints its trace id:
+
+```bash
+python examples/request-tags/bedrock_converse.py        # or vertex_generate.py
+genai-evals sources check sources.yaml --trace <trace id>
+```
+
+`--trace` says whether that trace was *matched by trace_id*, whether the payload log carries it but no sampled span
+does (the script's own span isn't exported), or whether it is in neither.
+
+| Provider | Where the ids go | Status |
+|---|---|---|
+| Bedrock (Converse / ConverseStream) | `requestMetadata` map in the request body; InvokeModel uses the `X-Amzn-Bedrock-Request-Metadata` header | Documented by AWS: recorded under the invocation log's top-level `requestMetadata` when invocation logging is on in that Region. Up to 16 entries, 256 characters each. Not yet run live by us |
+| Vertex (generateContent / streamGenerateContent) | request `labels` (keys start with a lowercase letter; lowercase letters, digits, `_`, `-`, up to 63 characters) | Labels are a documented request field for billing. **Unverified:** that the request-response log keeps them in `full_request`. If not, map trace and session columns with `columns:` on the source |
 
 | Problem | Fix |
 |---|---|

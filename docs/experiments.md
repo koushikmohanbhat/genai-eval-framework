@@ -183,7 +183,7 @@ Commit `manifest.json` and `comparison.md` with the change they justify, or atta
 
 ```yaml
 - run: genai-evals experiment run evals/model-upgrade.yaml --out out/exp --fail-on-regression
-- uses: actions/upload-artifact@v4
+- uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
   with: {name: experiment, path: out/exp}
 - run: gh pr comment "$PR" --body-file out/exp/comparison.md
 ```

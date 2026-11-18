@@ -113,6 +113,46 @@ async def run_online_async(suite: SuiteSpec, providers: ProvidersConfig, sources
     result = runner.finish(cases, infos, samples, scores, gctx, baseline, None,
                            extra={"mode": "online", "operational": operational, "sources": log})
     result["graders"] = [{"name": g.name, "type": g.type} for g in graders]
+    apply_join_policy(result, sources, runner.tokenizer)
+    return result
+
+
+def apply_join_policy(result: dict[str, Any], sources: SourcesConfig, tokenizer: Any = None) -> dict[str, Any]:
+    """Diagnose each source's joins; under `on_problem: invalid` make the affected targets' gates invalid and mark the
+    run unreliable, so a scorecard built on mismatched payloads isn't read as a normal one."""
+    from .sources.normalize import diagnose_source
+    pol = sources.join_policy
+    label = {s.name: (s.target or s.name) for s in sources.sources}
+    problems: dict[str, list[str]] = {}
+    for e in result.get("sources", []):
+        if "samples" not in e:
+            continue
+        for k, st in e.items():         # sample pairs are for inspection: tokenise them like the rest of the result
+            if k.startswith("join:") and isinstance(st, dict):
+                st.pop("by_trace", None)
+                st.pop("record_trace_ids", None)
+            if k.startswith("join:") and isinstance(st, dict) and tokenizer:
+                for p in st.get("pairs", []):
+                    for f in ("span_output", "record_input", "record_output"):
+                        if p.get(f):
+                            p[f] = tokenizer.tokenize(p[f])
+        pr = diagnose_source(e, pol.min_id_share, pol.max_time_share, pol.min_content_share)
+        if pr:
+            problems.setdefault(label.get(e["source"], e["source"]), []).extend(pr)
+    status = "ok" if not problems else ("unreliable" if pol.on_problem == "invalid" else "questionable")
+    result["telemetry_quality"] = {"status": status, "policy": pol.model_dump(), "problems": problems}
+    if status == "unreliable":
+        for g in result.get("gates", []):
+            if g.get("target") in problems:
+                g.update(status="invalid", passed=False,
+                         message=("telemetry joins unreliable, so these scores may not belong to the traces they were read "
+                                  "from: " + problems[g["target"]][0] + (f" (+{len(problems[g['target']]) - 1} more)"
+                                                                         if len(problems[g["target"]]) > 1 else "")))
+        result["passed"] = not any(g["severity"] == "block" and not g["passed"] for g in result.get("gates", []))
+    if problems:
+        result.setdefault("warnings", []).insert(
+            0, f"telemetry joins {status} for {', '.join(sorted(problems))}: run `genai-evals sources check` "
+               "(docs/sources.md, Troubleshooting telemetry joins)")
     return result
 
 

@@ -463,23 +463,62 @@ def join_stats(samples: list[Sample], records: list[dict[str, Any]], window_ms: 
     that can pair the wrong records under concurrency), or not at all. Each sample records `join_match`."""
     filled = 0
     how = {"trace_id": 0, "session_id": 0, "time_window": 0, "none": 0}
+    # the same invocation delivered twice (CloudWatch and S3, or overlapping windows) would double usage and pick an
+    # arbitrary copy: keep one record per request id
+    seen_req: set[str] = set()
+    uniq, dups = [], 0
+    for r in records:
+        rid = r.get("request_id")
+        if rid is not None and str(rid) in seen_req:
+            dups += 1
+            continue
+        if rid is not None:
+            seen_req.add(str(rid))
+        uniq.append(r)
+    records = uniq
     rec_traces = sum(1 for r in records if r.get("trace_id"))
-    for s in samples:
+    claims: dict[int, list[int]] = {}           # record -> samples that matched it
+    matched: list[tuple[Sample, str | None, list[dict[str, Any]]]] = []
+    disagree = session_outside = 0
+
+    def _window(s: Sample) -> tuple[float, float] | None:
+        if not s.metadata.get("start_ns"):
+            return None
+        return (s.metadata["start_ns"] - window_ms * 1e6,
+                (s.metadata.get("end_ns") or s.metadata["start_ns"]) + window_ms * 1e6)
+
+    for i, s in enumerate(samples):
+        win = _window(s)
         cands = [r for r in records if r.get("trace_id") and r["trace_id"] == s.trace_id]
         kind = "trace_id" if cands else None
-        if not cands:
-            cands = [r for r in records if r.get("session_id") and r["session_id"] == s.session_id]
+        if not cands and s.session_id:
+            # a session spans many turns (traces): a session-id match is only this trace's record when it falls in the
+            # trace's time window, and never a record that names a different trace
+            sess = [r for r in records if r.get("session_id") == s.session_id
+                    and (not r.get("trace_id") or not s.trace_id or r["trace_id"] == s.trace_id)]
+            inwin = [r for r in sess if win is None or (r.get("time_ns") and win[0] <= r["time_ns"] <= win[1])]
+            if sess and not inwin:
+                session_outside += 1
+            cands = inwin
             kind = "session_id" if cands else None
-        if not cands and s.metadata.get("start_ns"):
-            lo, hi = s.metadata["start_ns"] - window_ms * 1e6, (s.metadata.get("end_ns") or s.metadata["start_ns"]) + window_ms * 1e6
-            cands = [r for r in records if r.get("time_ns") and lo <= r["time_ns"] <= hi and (not s.model or not r.get("model") or r["model"] in s.model or s.model in r["model"])]
+        if not cands and win:
+            cands = [r for r in records if r.get("time_ns") and win[0] <= r["time_ns"] <= win[1]
+                     and not (r.get("trace_id") and s.trace_id and r["trace_id"] != s.trace_id)
+                     and (not s.model or not r.get("model") or r["model"] in s.model or s.model in r["model"])]
             kind = "time_window" if cands else None
         how[kind or "none"] += 1
         s.metadata.setdefault("join_match", {})[str(records[0].get("source", "logs")) if records else "logs"] = kind or "none"
+        for r in cands:
+            claims.setdefault(id(r), []).append(i)
+        matched.append((s, kind, cands))
         if not cands:
             continue
         cands.sort(key=lambda r: r.get("time_ns") or 0)
         first, last = cands[0], cands[-1]
+        # when the span captured its own completion, the record must agree with it
+        if s.output and last.get("output_text") and not _same_text(str(s.output), str(last["output_text"])):
+            disagree += 1
+            s.metadata.setdefault("join_disagrees", []).append(first.get("source", "logs"))
         changed = False
         if not s.input:
             um = [m for m in first.get("input_messages", []) if m.get("role") == "user"]
@@ -504,9 +543,43 @@ def join_stats(samples: list[Sample], records: list[dict[str, Any]], window_ms: 
             s.metadata.setdefault("enriched_from", []).append(first.get("source", "logs"))
             filled += 1
     n = len(samples) or 1
+    shared = {k for k, v in claims.items() if len(v) > 1}
+    ambiguous = {i for k in shared for i in claims[k]}
+    pairs = []
+    for s, kind, cands in matched[:5]:
+        last = cands[-1] if cands else {}
+        pairs.append({"trace_id": s.trace_id, "session_id": s.session_id, "match": kind or "none",
+                      "records": len(cands), "request_id": last.get("request_id"),
+                      "span_output": _snip(s.output), "record_input": _snip(next(
+                          (m.get("content") for m in (cands[0].get("input_messages") if cands else []) or []
+                           if m.get("role") == "user"), None)),
+                      "record_output": _snip(last.get("output_text"))})
     return {"samples": len(samples), "records": len(records), "records_with_trace_id": rec_traces, "matched": how,
             "matched_by_id_share": (how["trace_id"] + how["session_id"]) / n, "time_window_share": how["time_window"] / n,
-            "unmatched_share": how["none"] / n, "filled": filled}
+            "unmatched_share": how["none"] / n, "filled": filled,
+            # a record matched by more than one span means at least one of those pairings is wrong
+            "ambiguous": len(ambiguous), "ambiguous_share": len(ambiguous) / n, "shared_records": len(shared),
+            "duplicate_request_ids": dups, "disagreements": disagree, "session_outside_window": session_outside,
+            "pairs": pairs,
+            # per-trace outcome, for `sources check --trace` (dropped from online results to keep them small)
+            "by_trace": {s.trace_id: {"match": kind or "none", "records": len(c)} for s, kind, c in matched if s.trace_id},
+            "record_trace_ids": sorted({str(r["trace_id"]) for r in records if r.get("trace_id")})}
+
+
+def _norm_text(t: str) -> str:
+    return " ".join(str(t).split()).lower()
+
+
+def _same_text(a: str, b: str) -> bool:
+    a, b = _norm_text(a), _norm_text(b)
+    return a == b or (bool(a) and bool(b) and (a in b or b in a))
+
+
+def _snip(t: Any, n: int = 100) -> str | None:
+    if t is None:
+        return None
+    t = " ".join(str(t).split())
+    return t if len(t) <= n else t[: n - 1] + "…"
 
 
 #: why payloads are missing, per source type: the defaults that most often break a join
@@ -549,6 +622,16 @@ def diagnose_source(entry: dict[str, Any], min_id_share: float = 0.9, max_time_s
         if st["matched_by_id_share"] < min_id_share:
             probs.append(f"{entry['source']} + {jt}: only {st['matched_by_id_share']:.0%} of {st['samples']} spans matched a "
                          f"payload record by trace or session id ({st['matched']['none']} unmatched). {hint}".strip())
+        if st.get("ambiguous"):
+            probs.append(f"{entry['source']} + {jt}: {st['ambiguous']} span(s) share a payload record with another span "
+                         f"({st['shared_records']} record(s) matched more than once), so some prompts or completions are "
+                         "attributed to the wrong trace")
+        if st.get("disagreements"):
+            probs.append(f"{entry['source']} + {jt}: for {st['disagreements']} span(s) the joined record's completion differs "
+                         "from the completion captured on the span: the join picked the wrong record")
+        if st.get("session_outside_window"):
+            probs.append(f"{entry['source']} + {jt}: {st['session_outside_window']} span(s) had records for their session only "
+                         "outside the span's time window (other turns), so they weren't joined: pass the trace id too")
         if st["time_window_share"] > max_time_share:
             probs.append(f"{entry['source']} + {jt}: {st['time_window_share']:.0%} matched by timestamp only, which can pair "
                          "the wrong records when sessions overlap")

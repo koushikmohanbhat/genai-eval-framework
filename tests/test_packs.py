@@ -1,6 +1,7 @@
 """Eval packs: each validates and runs offline, init scaffolds a runnable project, doctor tracks the repeatability bar."""
 import json
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -143,3 +144,16 @@ def test_pack_cli(capsys):
     assert cli(["pack", "info", "structured-extraction"]) == 0
     out = capsys.readouterr().out
     assert "Failure categories" in out and "[fixture_tested]" in out and "india-gst" in out
+
+
+def test_ci_templates_pin_actions_and_current_release():
+    import re
+    from genai_evals import __version__
+    root = Path(__file__).resolve().parents[1]
+    files = list((root / ".github/workflows").glob("*.yml")) + [root / "action.yml", root / "packs/_common/ci/github-actions-evals.yml"]
+    for f in files:
+        for ref in re.findall(r"uses:\s*([\w./-]+)@(\S+)", f.read_text()):
+            if ref[0].startswith("koushikmohanbhat/"):
+                continue
+            assert re.fullmatch(r"[0-9a-f]{40}", ref[1]), f"{f.name}: {ref[0]}@{ref[1]} is not pinned to a commit SHA"
+    assert f"genai-eval-framework@v{__version__}" in (root / "packs/_common/ci/github-actions-evals.yml").read_text()

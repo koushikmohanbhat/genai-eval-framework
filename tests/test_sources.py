@@ -183,3 +183,72 @@ def test_diagnose_source_flags_missing_payloads_and_content():
     assert any("no payload records" in p and "off by default" in p for p in probs)
     assert any("2 of 10 samples have a completion" in p for p in probs)
     assert diagnose_source({"source": "s", "samples": 3, "content": {"of": 3, "with_input": 3, "with_output": 3}}) == []
+
+
+def _s(i, start_s, out=None, session=None, trace=None):
+    from genai_evals.models import Sample
+    return Sample(case_id=f"c{i}", target="t", trace_id=trace, session_id=session, output=out,
+                  metadata={"start_ns": int(start_s * 1e9), "end_ns": int((start_s + 1) * 1e9)})
+
+
+def _r(rid, t_s, text, session=None, trace=None):
+    return {"source": "logs", "request_id": rid, "time_ns": int(t_s * 1e9), "output_text": text,
+            "input_messages": [{"role": "user", "content": "q"}], "session_id": session, "trace_id": trace}
+
+
+def test_join_flags_shared_records_duplicates_and_disagreement():
+    from genai_evals.sources.normalize import diagnose_source, join_stats
+    # two overlapping spans, one payload record in both windows: one of the two pairings is wrong
+    st = join_stats([_s(1, 100), _s(2, 100.5)], [_r("a", 101, "x"), _r("a", 101, "x")])
+    assert st["duplicate_request_ids"] == 1 and st["records"] == 1
+    assert st["ambiguous"] == 2 and st["shared_records"] == 1
+    probs = diagnose_source({"source": "s", "samples": 2, "join:aws_bedrock_invocation_logs": st})
+    assert any("share a payload record" in p for p in probs)
+    # the span captured its own completion and the joined record says something else
+    st = join_stats([_s(1, 100, out="Claim registered", trace="T1")], [_r("b", 100.2, "Policy lapsed", trace="T1")])
+    assert st["disagreements"] == 1 and st["pairs"][0]["span_output"] == "Claim registered"
+    assert any("differs from the completion captured" in p
+               for p in diagnose_source({"source": "s", "samples": 1, "join:x": st}))
+
+
+def test_session_join_never_takes_another_turns_record():
+    from genai_evals.sources.normalize import join_stats
+    s = _s(1, 100, session="S")
+    st = join_stats([s], [_r("later-turn", 160, "answer to turn 2", session="S")])
+    assert st["matched"]["session_id"] == 0 and st["session_outside_window"] == 1 and s.output is None
+    s = _s(1, 100, session="S")
+    join_stats([s], [_r("this-turn", 100.3, "answer to turn 1", session="S"), _r("later", 160, "turn 2", session="S")])
+    assert s.output == "answer to turn 1"
+
+
+def test_unreliable_joins_make_online_gates_invalid(tmp_path, ex_dir):
+    import yaml
+    from genai_evals.report.html import render_scorecard
+    sy = _join_copy(tmp_path, strip_ids=True)
+    r = run_online(load_suite(ex_dir / "online_checks.yaml"), load_providers(ex_dir / "providers.yaml"), load_sources(sy))
+    tq = r["telemetry_quality"]
+    assert tq["status"] == "unreliable" and list(tq["problems"]) == ["claims-agent-aws"]
+    aws = [g for g in r["gates"] if g["target"] == "claims-agent-aws"]
+    assert aws and all(g["status"] == "invalid" and "telemetry joins" in g["message"] for g in aws)
+    assert all(g["status"] != "invalid" or "telemetry" not in g["message"] for g in r["gates"] if g["target"] != "claims-agent-aws")
+    assert r["passed"] is False and "incomplete" in render_scorecard(r)
+
+    cfg = yaml.safe_load(sy.read_text())
+    cfg["join_policy"] = {"on_problem": "warn"}
+    sy.write_text(yaml.safe_dump(cfg))
+    r = run_online(load_suite(ex_dir / "online_checks.yaml"), load_providers(ex_dir / "providers.yaml"), load_sources(sy))
+    assert r["telemetry_quality"]["status"] == "questionable"
+    assert not any("telemetry joins" in g["message"] for g in r["gates"])
+    clean = run_online(load_suite(ex_dir / "online_checks.yaml"), load_providers(ex_dir / "providers.yaml"),
+                       load_sources(ex_dir / "sources.yaml"))
+    assert clean["telemetry_quality"]["status"] == "ok"
+
+
+def test_sources_check_trace_flag(tmp_path, capsys):
+    from genai_evals.cli import main as cli
+    sy = _join_copy(tmp_path, strip_ids=False)
+    rec = json.loads((sy.parent / "fixtures/aws/bedrock_invocation_logs.jsonl").read_text().splitlines()[0])
+    assert cli(["sources", "check", str(sy), "--pairs", "0", "--trace", rec["requestMetadata"]["trace_id"]]) == 0
+    assert "matched by trace_id" in capsys.readouterr().out
+    assert cli(["sources", "check", str(sy), "--pairs", "0", "--trace", "0" * 32]) == 1
+    assert "in neither" in capsys.readouterr().out

@@ -132,14 +132,26 @@ def cmd_online(args) -> int:
 def cmd_sources_check(args) -> int:
     """Read the configured telemetry window without grading and report, per source, how many traces had their payload
     records (prompts and completions) and how they were matched."""
+    from .dpdp import build_tokenizer
     from .online import collect
     from .sources.normalize import diagnose_source
-    log = collect(load_sources(args.sources))[3]
+    cfg = load_sources(args.sources)
+    pol = cfg.join_policy
+    min_id = args.min_id_share if args.min_id_share is not None else pol.min_id_share
+    max_time = args.max_time_share if args.max_time_share is not None else pol.max_time_share
+    tok = None if args.no_tokenize else build_tokenizer(None)
+    log = collect(cfg)[3]
     report, bad = [], 0
     for e in log:
         if "samples" not in e:
             continue
-        probs = diagnose_source(e, min_id_share=args.min_id_share, max_time_share=args.max_time_share)
+        probs = diagnose_source(e, min_id_share=min_id, max_time_share=max_time, min_content_share=pol.min_content_share)
+        for k, st in e.items():
+            if k.startswith("join:") and tok:
+                for p in st.get("pairs", []):
+                    for f in ("span_output", "record_input", "record_output"):
+                        if p.get(f):
+                            p[f] = tok.tokenize(p[f])
         bad += bool(probs)
         joins = {k.split(":", 1)[1]: v for k, v in e.items() if k.startswith("join:")}
         report.append({"source": e["source"], "type": e["type"], "samples": e["samples"], "fixture": e.get("fixture", False),
@@ -154,11 +166,39 @@ def cmd_sources_check(args) -> int:
             for jt, st in x["joins"].items():
                 m = st["matched"]
                 print(f"  + {jt}: {st['records']} records ({st['records_with_trace_id']} with trace id); matched "
-                      f"trace_id={m['trace_id']} session_id={m['session_id']} timestamp={m['time_window']} none={m['none']}")
+                      f"trace_id={m['trace_id']} session_id={m['session_id']} timestamp={m['time_window']} none={m['none']}; "
+                      f"ambiguous={st.get('ambiguous', 0)} disagreeing={st.get('disagreements', 0)} "
+                      f"duplicates dropped={st.get('duplicate_request_ids', 0)}")
+                for p in st.get("pairs", [])[:args.pairs]:
+                    print(f"    {p['match']:<11} trace {str(p['trace_id'])[:16]} -> {p['records']} record(s), last "
+                          f"{p['request_id']}\n      prompt:     {p['record_input']}\n      completion: {p['record_output']}"
+                          + (f"\n      span says:  {p['span_output']}" if p.get("span_output") else ""))
             for pr in x["problems"]:
                 print(f"  ! {pr}")
             if not x["problems"]:
                 print("  ok")
+    if args.trace:
+        # did one tagged call (examples/request-tags) make it into both the traces and the payload logs?
+        want = args.trace.lower().replace("-", "")
+        found = [(x["source"], jt, m) for x in report for jt, st in x["joins"].items()
+                 for tid, m in st.get("by_trace", {}).items() if str(tid).lower().replace("-", "") == want]
+        if not found:
+            in_logs = [f"{x['source']} + {jt}" for x in report for jt, st in x["joins"].items()
+                       if want in {t.lower().replace("-", "") for t in st.get("record_trace_ids", [])}]
+            if in_logs:
+                print(f"trace {args.trace}: the payload log carries it ({', '.join(in_logs)}), but no sampled span "
+                      "has it: export the call's span to the traces source to test the join end to end")
+                return 0
+            print(f"trace {args.trace}: in neither the sampled spans nor the payload records (check that logging is "
+                  "on, the window, the filter and the sampling)")
+            return 1
+        ok = True
+        for src, jt, m in found:
+            print(f"trace {args.trace}: {src} + {jt}: matched by {m['match']} ({m['records']} record(s))")
+            ok &= m["match"] == "trace_id"
+        if not ok:
+            print("  the payload record doesn't carry this trace id: check the request tags reached the log")
+            return 1
     return 1 if bad else 0
 
 
@@ -995,8 +1035,11 @@ def build_parser() -> argparse.ArgumentParser:
     ssub = p.add_subparsers(dest="sources_cmd", required=True)
     q = ssub.add_parser("check", help="read the window and report how traces joined to payload records (trace id, session id, timestamp, none)")
     q.add_argument("sources")
-    q.add_argument("--min-id-share", type=float, default=0.9, help="fail when fewer spans than this matched by trace or session id")
-    q.add_argument("--max-time-share", type=float, default=0.1, help="fail when more spans than this matched by timestamp only")
+    q.add_argument("--min-id-share", type=float, help="fail when fewer spans than this matched by trace or session id (default: join_policy, 0.9)")
+    q.add_argument("--max-time-share", type=float, help="fail when more spans than this matched by timestamp only (default: join_policy, 0.1)")
+    q.add_argument("--pairs", type=int, default=3, help="matched pairs to print per join, for a human to check (tokenised, truncated)")
+    q.add_argument("--no-tokenize", action="store_true", help="print pairs without tokenising identifiers")
+    q.add_argument("--trace", help="check that this trace id was matched to its payload record by trace id")
     q.add_argument("--json", action="store_true")
     q.set_defaults(fn=cmd_sources_check)
 

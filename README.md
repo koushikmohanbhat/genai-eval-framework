@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.3"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.4"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -269,7 +269,7 @@ sources:
 
 ## Project status
 
-v0.6.3. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.6.4. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

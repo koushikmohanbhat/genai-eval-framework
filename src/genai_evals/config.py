@@ -388,14 +388,26 @@ class SourceSpec(BaseModel):
     target: str | None = None                        # label used in reports (defaults to source name)
 
 
+class JoinPolicy(BaseModel):
+    """What an online run does when telemetry joins look wrong (docs/sources.md, Troubleshooting telemetry joins)."""
+    model_config = ConfigDict(extra="forbid")
+    #: invalid: the affected targets' gates are invalid and the run is marked unreliable (exit 1); warn: report only
+    on_problem: Literal["invalid", "warn"] = "invalid"
+    min_id_share: float = 0.9          # spans matched to their payload record by trace or session id
+    max_time_share: float = 0.1        # spans matched by timestamp only
+    min_content_share: float = 0.9     # samples with a completion to grade
+
+
 class SourcesConfig(BaseModel):
     sources: list[SourceSpec]
     base_dir: str = "."
+    join_policy: JoinPolicy = Field(default_factory=JoinPolicy)
 
 
 def load_sources(path: str | Path) -> SourcesConfig:
     data = _load_yaml(path)
-    return SourcesConfig(sources=data.get("sources", []), base_dir=str(Path(path).parent))
+    return SourcesConfig(sources=data.get("sources", []), base_dir=str(Path(path).parent),
+                         join_policy=data.get("join_policy") or {})
 
 
 MODEL_GRADERS = {"rubric", "pairwise", "reference_match", "policy", "faithfulness", "answer_relevance"}

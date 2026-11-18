@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.4 (2026-11-18)
+
+### Telemetry joins, enforced
+- **Online runs with unreliable joins are marked so.** `join_policy` in `sources.yaml` (default `on_problem:
+  invalid`): the affected targets' gates become invalid (exit 1), the scorecard shows *incomplete*, and the report
+  lists the problems. `on_problem: warn` reports without blocking. Results record `telemetry_quality`.
+- **What a match proves.** Joins now flag records matched by more than one span (ambiguous), records whose completion
+  disagrees with the one captured on the span, and duplicate request ids (dropped, so usage isn't double-counted).
+  `sources check --pairs N` prints matched pairs, tokenised and truncated, for a person to read.
+- **Session matches stay inside the turn.** A session-id match only uses records in the span's time window that
+  don't name a different trace, so a turn no longer picks up another turn's completion.
+- **`sources check --trace <id>`** and `examples/request-tags/` (one tagged Bedrock Converse call, one labelled Vertex
+  call) to check that the ids reach the logs. Docs say which part is documented by the provider and which is unverified.
+
+### Supply chain
+- Every action in the workflows, the composite action and the pack CI template is pinned to a full commit SHA
+  (Dependabot updates them). The pack CI template pinned this framework at v0.3.0; it now follows the release, and a
+  test keeps both true.
+
 ## 0.6.3 (2026-11-18)
 
 ### Telemetry joins
