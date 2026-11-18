@@ -17,7 +17,8 @@ framework 0.7).
   day 2.
 - **Least-privilege Terraform for security review.** The GCP module replaces `roles/aiplatform.user` with a custom
   role holding only `aiplatform.endpoints.predict` for judges. New `docs/permissions.md` lists every permission on both
-  clouds, why it's needed and what it can't do. CI now runs `terraform validate` on both modules.
+  clouds, why it's needed and what it can't do. CI now runs `terraform validate` on both modules, which found that
+  both failed `terraform init` before this release (`${VAR}` in a variable description; now escaped).
 
 ### Orchestrate instead of rebuild
 - **`run --engine promptfoo`** (opt-in): exports the suite, runs `promptfoo eval`, then applies the suite's gates,

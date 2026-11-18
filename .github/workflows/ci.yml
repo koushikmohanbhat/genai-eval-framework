@@ -62,6 +62,7 @@ jobs:
     # the IaC modules a customer's security team reviews: format, init without a backend, validate
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix: {module: [aws, gcp]}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

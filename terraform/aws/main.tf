@@ -46,7 +46,7 @@ variable "judge_model_arns" {
 variable "environment" {
   type        = map(string)
   default     = {}
-  description = "Extra environment variables for the eval container (the ${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, BEDROCK_INVOCATION_LOG_GROUP. No secrets: use secret refs in providers.yaml."
+  description = "Extra environment variables for the eval container (the $${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, BEDROCK_INVOCATION_LOG_GROUP. No secrets: use secret refs in providers.yaml."
 }
 variable "subnet_ids" {
   type = list(string)

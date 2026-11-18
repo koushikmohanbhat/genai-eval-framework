@@ -38,8 +38,9 @@ customer's security review).
 5. **Verify** the first run (ECS task logs / Cloud Run job execution), then the published scores, then add alarms
    for your gates.
 
-The modules are syntax-checked in development but have not been applied to a live account by this project yet:
-review the plan before applying.
+CI runs `terraform init -backend=false` and `terraform validate` on both modules (that check found, in v0.7.0, that
+earlier versions failed `terraform init` on a `${VAR}` in a variable description). They have not been applied to a
+live account by this project yet: review the plan before applying.
 
 ## Variables
 

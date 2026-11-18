@@ -32,7 +32,7 @@ variable "request_response_dataset" {
 variable "environment" {
   type        = map(string)
   default     = {}
-  description = "Extra environment variables for the eval container (the ${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, VERTEX_REQUEST_RESPONSE_TABLE. No secrets: use secret refs in providers.yaml."
+  description = "Extra environment variables for the eval container (the $${VAR} values your sources.yaml / providers.yaml read), e.g. AGENT_SERVICE_NAME, VERTEX_REQUEST_RESPONSE_TABLE. No secrets: use secret refs in providers.yaml."
 }
 variable "use_vertex_judges" {
   type = bool
