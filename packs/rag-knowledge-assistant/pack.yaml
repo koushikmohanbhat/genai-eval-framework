@@ -1,14 +1,14 @@
 # Eval pack manifest. `genai-evals pack info rag-knowledge-assistant` shows it with live adapter statuses;
 # `genai-evals pack validate <dir>` checks it.
 name: rag-knowledge-assistant
-version: 0.4.0
+version: 0.5.0
 title: RAG knowledge assistant
 workflow: rag
 summary: >-
   An assistant that answers questions from a document collection with citations. Measures retrieval and answer
   quality separately, checks citations and refusals, and runs privacy and prompt-injection safety cases.
 contract_version: "1"
-framework: ">=0.6.0"
+framework: ">=0.7.0"
 
 inputs:
   dataset:
@@ -59,6 +59,7 @@ validation:                              # the pack itself; adapter statuses com
 overlays:
   - {name: insurance-policy, description: "motor insurance policy wording questions, a no-payout-promise policy and a stricter gate on that slice"}
   - {name: security-guardrails, description: "OWASP LLM01 / LLM07: instructions planted in retrieved documents, system prompt leakage, and over-refusal pairs"}
+  - {name: financial-services, description: "retail investment products: mandatory risk disclaimer, no personal investment advice, no guaranteed-return claims, IBAN / card / folio numbers as personal data"}
 
 handover:                                # pack-specific items added to HANDOVER.md
   - "The document index (and its refresh schedule) is owned by the customer; re-run the suite after every re-index."

@@ -1,8 +1,9 @@
 """DPDP-safe eval data.
 
 Two tokenisers:
-  builtin     - offline regex detectors for Indian identifiers (Aadhaar with Verhoeff check, PAN, UPI, +91 phones,
-                email, card numbers with Luhn) replaced by keyed, deterministic tokens like <AADHAAR_3f9a1c0b7d2e>.
+  builtin     - offline detectors for structured identifiers (genai_evals.pii: the suite's detector sets, by default
+                email, Indian identifiers and payment cards) replaced by keyed, deterministic tokens like
+                <AADHAAR_3f9a1c0b7d2e>.
   dpdp_rights - the DPDP Data Rights Framework (catalog 5.5): per-person vault tokens, consent checks and lineage
                 registration, so an erasure request also deletes eval rows built from that person's data.
 """
@@ -13,80 +14,12 @@ import hmac
 import os
 import re
 import secrets
-from dataclasses import dataclass
 from typing import Any, Protocol
 
-_VERHOEFF_D = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 0, 6, 7, 8, 9, 5], [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
-               [3, 4, 0, 1, 2, 8, 9, 5, 6, 7], [4, 0, 1, 2, 3, 9, 5, 6, 7, 8], [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
-               [6, 5, 9, 8, 7, 1, 0, 4, 3, 2], [7, 6, 5, 9, 8, 2, 1, 0, 4, 3], [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
-               [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]]
-_VERHOEFF_P = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 5, 7, 6, 2, 8, 3, 0, 9, 4], [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
-               [8, 9, 1, 6, 0, 4, 3, 5, 2, 7], [9, 4, 5, 3, 1, 2, 6, 8, 7, 0], [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
-               [2, 7, 9, 3, 8, 0, 6, 4, 1, 5], [7, 0, 4, 6, 9, 1, 3, 2, 5, 8]]
-_VERHOEFF_INV = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9]
+from .pii import Finding, detect, luhn_valid, verhoeff_check_digit, verhoeff_valid  # noqa: F401  (re-exported)
+from .pii import active_names as _active_names
 
-
-def verhoeff_valid(number: str) -> bool:
-    c = 0
-    for i, ch in enumerate(reversed(number)):
-        c = _VERHOEFF_D[c][_VERHOEFF_P[i % 8][int(ch)]]
-    return c == 0
-
-
-def verhoeff_check_digit(number: str) -> str:
-    c = 0
-    for i, ch in enumerate(reversed(number)):
-        c = _VERHOEFF_D[c][_VERHOEFF_P[(i + 1) % 8][int(ch)]]
-    return str(_VERHOEFF_INV[c])
-
-
-def luhn_valid(number: str) -> bool:
-    total, alt = 0, False
-    for ch in reversed(number):
-        d = int(ch)
-        if alt:
-            d = d * 2 - 9 if d > 4 else d * 2
-        total += d
-        alt = not alt
-    return total % 10 == 0
-
-
-PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("EMAIL", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+\b")),
-    ("UPI_ID", re.compile(r"\b[A-Za-z0-9.\-_]{2,256}@(?:ok)?[a-zA-Z]{2,64}\b(?!\.)")),
-    ("AADHAAR", re.compile(r"(?<!\d)[2-9]\d{3}[ \-]?\d{4}[ \-]?\d{4}(?!\d)")),
-    ("CARD_NUMBER", re.compile(r"(?<!\d)(?:\d[ \-]?){13,19}(?!\d)")),
-    ("PAN", re.compile(r"\b[A-Z]{3}[ABCFGHLJPT][A-Z]\d{4}[A-Z]\b")),
-    ("PHONE_IN", re.compile(r"(?<![\d+])(?:\+91[\-\s]?|0)?[6-9]\d{4}[\-\s]?\d{5}(?!\d)")),
-]
-TOKEN_RE = re.compile(r"<([A-Z_]+)_[0-9a-f]{12}>")
-
-
-@dataclass
-class Finding:
-    type: str
-    start: int
-    end: int
-    text: str
-
-
-def detect(text: str, types: set[str] | None = None) -> list[Finding]:
-    out: list[Finding] = []
-    taken: list[tuple[int, int]] = []
-    for etype, pat in PATTERNS:
-        if types and etype not in types:
-            continue
-        for m in pat.finditer(text or ""):
-            digits = re.sub(r"\D", "", m.group(0))
-            if etype == "AADHAAR" and not verhoeff_valid(digits):
-                continue
-            if etype == "CARD_NUMBER" and not (13 <= len(digits) <= 19 and luhn_valid(digits)):
-                continue
-            if any(s < m.end() and m.start() < e for s, e in taken):
-                continue
-            taken.append((m.start(), m.end()))
-            out.append(Finding(etype, m.start(), m.end(), m.group(0)))
-    return sorted(out, key=lambda f: f.start)
+TOKEN_RE = re.compile(r"<([A-Z_][A-Z0-9_]*)_[0-9a-f]{12}>")
 
 
 _WARNED: set[str] = set()
@@ -117,8 +50,7 @@ class BuiltinTokenizer:
         self.key = key.encode() if isinstance(key, str) else key
 
     def describe(self) -> dict[str, Any]:
-        return {"type": "builtin", "stable_key": self.stable, "types": [t for t, _ in PATTERNS],
-                "reversible": False}
+        return {"type": "builtin", "stable_key": self.stable, "types": _active_names(), "reversible": False}
 
     def token(self, etype: str, value: str) -> str:
         norm = re.sub(r"[\s\-]", "", value).lower()

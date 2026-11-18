@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1          # only if targets / judges use Bedrock
         with: {role-to-assume: "${{ vars.EVAL_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}"}
-      - uses: koushikmohanbhat/genai-eval-framework@v0.6.4   # pin a release tag (or commit SHA)
+      - uses: koushikmohanbhat/genai-eval-framework@v0.7.0   # pin a release tag (or commit SHA)
         with:
           suite: evals/fnol_agent.yaml
           providers: evals/providers.yaml
@@ -34,6 +34,27 @@ The action installs the framework, checks prompts, runs the suite, uploads the r
 Markdown summary as a PR comment, and fails the job on a blocking gate that fails or is *invalid*
 ([gate outcomes](gates.md#gate-outcomes)). Until a baseline exists, leave `baseline:` out and set
 `allow-missing-baseline: "true"` if the suite has `delta()` gates.
+
+## Two tiers: `pr-check` and `release-gate`
+
+Pack suites define two [profiles](configuration.md#suiteyaml) and the pack's CI template uses both:
+
+| | `pr-check` (every pull request) | `release-gate` (release tag or manual run) |
+|---|---|---|
+| Judges | the best-calibrated one | the full panel |
+| Repeats | 1 | 3 |
+| Cases | up to 60, every critical case | all, representative and stress |
+| Gates | the suite's; any it can't evaluate are listed as skipped | the suite's |
+
+```yaml
+      - uses: koushikmohanbhat/genai-eval-framework@<release or SHA>
+        with:
+          suite: evals/suite.yaml
+          profile: ${{ github.event_name == 'pull_request' && 'pr-check' || 'release-gate' }}
+```
+
+A `pr-check` pass is a fast signal, not sign-off: one judge and one repeat can't show judge disagreement or
+`pass^k` reliability. Sign-off is the `release-gate` run.
 
 ## Baselines
 

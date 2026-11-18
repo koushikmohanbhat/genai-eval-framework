@@ -11,10 +11,14 @@
 
 ## Sprint plan
 
-1. **Days 1–2:** use cases, success criteria and risk list. Pick graders and draft gates.
+1. **Days 1–2:** use cases, success criteria and risk list. Pick graders and draft gates. With no eval set yet,
+   `genai-evals cases day0` drafts 50–100 cases from the knowledge base (and production, if traced) and a review
+   sheet for the SME by day 2. Hand the customer's security team [docs/permissions.md](permissions.md) on day 1 so
+   the Terraform is approved by the time it's needed.
 2. **Days 3–5:** golden set from tokenised production samples plus SME-written edge cases. Mark critical cases and tags (language, channel, risk).
 3. **Days 6–7:** targets for the current system and 2–3 candidates (`providers.yaml`); first runs; calibrate judges on 50–100 human labels.
-4. **Days 8–9:** fix flaky cases, tune thresholds with the business, set baselines, wire CI.
+4. **Days 8–9:** fix flaky cases, tune thresholds with the business, set baselines, wire CI in two tiers
+   (`pr-check` on pull requests, `release-gate` for sign-off).
 5. **Day 10:** readout with the scorecard; hand over the runbook.
 
 ## Why it helps the OpenAI go-to-market

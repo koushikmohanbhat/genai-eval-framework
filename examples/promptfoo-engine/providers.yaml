@@ -1,0 +1,2 @@
+profiles:
+  echo: {provider: mock, model: echo}       # exported to Promptfoo as its `echo` provider

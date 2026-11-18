@@ -1,6 +1,6 @@
 # Runbook: Structured extraction
 
-The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.4).
+The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.2.0).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -37,7 +37,7 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 genai-evals validate suite.yaml          # schema errors name the case id and the field
 genai-evals cases coverage suite.yaml    # the representative set (size, provenance) and the stress suite (cases per tag)
 genai-evals cases check-refs suite.yaml  # every reference must pass the graders: a rejected one is a broken task or grader
-genai-evals cases seed --docs <customer documents> --generator <strong model profile>   # day 1, no dataset: drafts to review
+genai-evals cases day0 --docs <customer documents> --generator <strong model profile> --out-dir day0   # day 1, no dataset: ~80 drafts + review sheet for the SME
 genai-evals cases sample out/online/result.json --n 200 --by-tag --out rep.jsonl   # representative set from production
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
@@ -94,6 +94,10 @@ genai-evals baseline promote out/main/result.json --out baselines/main.json
 
 Copy `ci/github-actions-evals.yml` into the customer's repository (or port the two commands to their CI: the exit code
 is the gate). Done when a pull request runs the suite against `baselines/main.json` and a deliberate regression fails it.
+
+Two tiers, same suite and gates: `--profile pr-check` on every pull request (one calibrated judge, one repeat, a
+capped sample with every critical case) and `--profile release-gate` before production sign-off (the judge panel,
+three repeats, every case). The CI template does both; gates a profile can't evaluate are listed as skipped.
 
 Recommended gates for this pack:
 

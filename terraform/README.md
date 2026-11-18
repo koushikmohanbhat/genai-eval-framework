@@ -8,10 +8,13 @@ region, project, image and log group is a variable you set in your own `terrafor
 |---|---|---|
 | Identity | ECS task role | service account |
 | Reads | CloudWatch Logs (spans, Bedrock invocation logs, extra groups), X-Ray, CloudWatch metrics, AgentCore Memory (optional) | Cloud Trace, Cloud Logging, Cloud Monitoring, BigQuery request-response dataset |
-| Judges | optional `bedrock:InvokeModel` on listed model ARNs | optional `roles/aiplatform.user` |
+| Judges | optional `bedrock:InvokeModel` on listed model ARNs | optional custom role with only `aiplatform.endpoints.predict` |
 | Writes | `cloudwatch:PutMetricData` limited to namespace `GenAIEvals` | `roles/monitoring.metricWriter` |
 | Schedule | EventBridge → ECS Fargate task | Cloud Scheduler → Cloud Run job |
 | Alarm | example CloudWatch alarm on the PII grader | add an alerting policy on `custom.googleapis.com/genai_eval/score` |
+
+Every permission, why it's needed and what it can't do: [docs/permissions.md](../docs/permissions.md) (hand it to the
+customer's security review).
 
 ## Steps
 

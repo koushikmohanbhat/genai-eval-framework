@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.4"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.0"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -35,6 +35,7 @@ genai-evals promptfoo export suite.yaml -o promptfooconfig.yaml                 
 promptfoo eval -c promptfooconfig.yaml -o results.json
 genai-evals promptfoo import results.json --suite suite.yaml --out out/pf       # gates, slices, critical cases, reports
 genai-evals result export out/run/result.json --format promptfoo                # genai-evals runs in Promptfoo's shape
+genai-evals run suite.yaml --engine promptfoo                                    # or all of it in one command (opt-in)
 ```
 
 Exactly what survives each direction, and what doesn't (trajectories, judge panels, prompt versions), is documented
@@ -148,8 +149,8 @@ production. On top of that:
 
 | | |
 |---|---|
-| **Eval packs** | `rag-knowledge-assistant`, `tool-agent`, `structured-extraction`: a dataset schema with synthetic starter cases, graders, failure categories, recommended gates with reasons, target files for each stack (HTTP, Bedrock, Vertex, AgentCore, Agent Engine, Agents SDK, Python), monitoring config with recorded telemetry, a report template, a runbook and a handover checklist; industry cases as optional overlays ([packs](docs/packs.md)) |
-| **Repeatable engagements** | `genai-evals init --pack` runs offline and writes a sample report; `genai-evals doctor` checks the bar: offline demo, a live provider and telemetry source, an understandable report, a meaningful gate, a complete handover ([engagement guide](docs/engagement.md)) |
+| **Eval packs** | `rag-knowledge-assistant`, `tool-agent`, `structured-extraction`: a dataset schema with synthetic starter cases, graders, failure categories, recommended gates with reasons, target files for each stack (HTTP, Bedrock, Vertex, AgentCore, Agent Engine, Agents SDK, Python), monitoring config with recorded telemetry, a report template, a runbook and a handover checklist; domain overlays (financial services, insurance, GST, security) add cases, policies and identifier detectors without touching the core ([packs](docs/packs.md)) |
+| **Repeatable engagements** | `genai-evals cases day0` turns the customer's knowledge base (and production traces) into 50–100 draft cases and an SME review sheet on day 1; two CI tiers (`--profile pr-check` on pull requests, `release-gate` for sign-off) from one suite; least-privilege Terraform with a [permissions page](docs/permissions.md) for the security review; `genai-evals init --pack` runs offline and writes a sample report; `genai-evals doctor` checks the bar: offline demo, a live provider and telemetry source, an understandable report, a meaningful gate, a complete handover ([engagement guide](docs/engagement.md)) |
 | **Stable adapter contracts** | providers, sources, targets, graders, stores and report writers are plugins with versioned contracts, registered through entry points; a conformance kit checks formats, normalisation, determinism, missing fields, timestamps, pagination and retries; every report says whether each adapter is fixture tested, live tested or customer validated ([plugins](docs/plugins.md), [status](docs/adapters.md)) |
 | **Portable results** | a versioned result schema (JSON Schema shipped), old results upgraded on read, exports to CSV / JSONL / Promptfoo, stored in a folder, SQLite or any Postgres ([results](docs/results.md)) |
 | **Evals as code** | `suite.yaml` (dataset, targets, graders, gates), reviewed in pull requests |
@@ -164,10 +165,10 @@ production. On top of that:
 | **Honest statistics** | repeats, bootstrap 95% CIs, `pass@k` and `pass^k`, paired comparisons (bootstrap + McNemar), slices by tag, critical cases, errors counted as failures, a minimum *n* per gate and slice, a warning when the dataset is too small to detect the difference ([assumptions](docs/gates.md#statistical-assumptions)) |
 | **Experiments** | a baseline and candidate changes (prompt, model, retriever, settings) on the same cases, compared side by side: quality with corrected significance, cost, latency, critical cases, the slices and failure types that moved, the cases that flipped; a manifest of hashes so the experiment can be re-run and checked ([experiments](docs/experiments.md)) |
 | **Release gates** | a small sandboxed DSL: `mean(faithfulness) >= 0.9 and ci_low(faithfulness) >= 0.85`, `delta(task_success) > -0.03 or not significant(task_success)`, `critical_pass()`, `p95(latency_ms) <= 3000`. Gates are pass, fail or **invalid** (no baseline, too few cases, untrusted judge) and invalid blocks. Exit code 0/1/2, GitHub Action, PR comment |
-| **Prompts as code** | immutable version folders, content hashes, `prompts.lock` stages (dev / staging / prod), gated promotion, `prompt.version` on every span, optional sync to Bedrock Prompt Management / Vertex / Langfuse, DPDP data-element change detection |
+| **Prompts as code, or not** | prompts managed in Langfuse, Bedrock or Vertex are recorded by version (`prompt_version: langfuse:claims@7`) with no `prompts.lock`; or, in the repo: immutable version folders, content hashes, `prompts.lock` stages (dev / staging / prod), gated promotion, `prompt.version` on every span, optional sync to Bedrock Prompt Management / Vertex / Langfuse, DPDP data-element change detection |
 | **Reports** | engineer HTML report (per-case drill-down, judge reasoning, trace deep links), one-page exec scorecard, Markdown, JUnit, JSON; CloudWatch EMF / PutMetricData, Cloud Monitoring, OTLP |
 | **Interop** | **Promptfoo first**: suite → `promptfooconfig.yaml`, Promptfoo results → gated genai-evals results, genai-evals results → Promptfoo's shape, with the round-trip semantics documented and tested ([Promptfoo](docs/promptfoo.md)); also AgentCore Evaluations (import results, package graders as code-based evaluators) and the Vertex Gen AI evaluation service |
-| **DPDP-safe** | structured identifiers (Aadhaar, PAN, UPI, phone, email, card) in inputs, outputs, errors and judge reasoning are tokenised before they reach a judge or the results store ([exact data flow](docs/dpdp.md#data-flow)); optional integration with the [DPDP Data Rights Framework](https://github.com/koushikmohanbhat/dpdp-data-rights-framework) so an erasure request also deletes eval rows |
+| **DPDP-safe** | structured identifiers (by default Aadhaar, PAN, UPI, phone, email, card; detector sets for HIPAA, UK, IBAN and your own patterns) in inputs, outputs, errors and judge reasoning are tokenised before they reach a judge or the results store ([exact data flow](docs/dpdp.md#data-flow)); optional integration with the [DPDP Data Rights Framework](https://github.com/koushikmohanbhat/dpdp-data-rights-framework) so an erasure request also deletes eval rows |
 
 ## 60-second tour
 
@@ -262,14 +263,14 @@ sources:
 ## Documentation
 
 - **See it:** [Sample reports](https://koushikmohanbhat.github.io/genai-eval-framework/demo/) · [5-minute walkthrough](docs/demo-walkthrough.md)
-- **Set up:** [Getting started](docs/getting-started.md) · [Eval packs](docs/packs.md) · [Engagement guide](docs/engagement.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Troubleshooting](docs/troubleshooting.md)
+- **Set up:** [Getting started](docs/getting-started.md) · [Eval packs](docs/packs.md) · [Engagement guide](docs/engagement.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Permissions for security review](docs/permissions.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Concepts:** [Architecture](docs/architecture.md) · [Adapters: contracts, plugins, conformance](docs/plugins.md) · [Adapter status](docs/adapters.md) · [Results format](docs/results.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
 - [Working with Promptfoo](docs/promptfoo.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Agent and safety evals (Anthropic) mapping](docs/agent-evals.md) · [Security guardrails](docs/security.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
 - [DPDP-safe eval data](docs/dpdp.md) · [Partner packaging](docs/partner-playbook.md) · [Limitations](docs/limitations.md) · [Roadmap](docs/roadmap.md)
 
 ## Project status
 
-v0.6.4. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.7.0. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

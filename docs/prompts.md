@@ -65,3 +65,23 @@ The repo stays the source of truth, and the registry is a mirror.
 `prompt: claims_agent` uses the version the target's `prompt_stage` (default `prod`) points at, while
 `prompt: claims_agent@1.4.0` pins a version. `genai-evals run --prompt claims_agent=1.4.0` overrides it for one run.
 Prompt hashes are part of the cache key.
+
+## Prompts managed elsewhere
+
+`prompts/` and `prompts.lock` are optional. If the customer's prompts live in Langfuse, Bedrock Prompt Management or
+Vertex, keep them there and tell the suite which version a run used:
+
+```yaml
+targets:
+  - {name: assistant, kind: http, url: "${AGENT_URL}", prompt_version: "langfuse:claims_agent@7"}
+```
+
+```bash
+genai-evals run suite.yaml --prompt-version assistant=langfuse:claims_agent@8   # a candidate version, e.g. in CI
+```
+
+The version is recorded on every sample and in the result's `prompt_versions`, so reports, comparisons, experiments
+(vary `prompt_version` as a target override) and online scores (spans that carry `prompt.id` / `prompt.version`) are
+tied to it. The system under test fetches its own prompt; genai-evals only records which one. What you give up
+compared with `prompts/`: content hashes, immutable version folders, stage promotion and the DPDP data-element check
+(`prompts check`), which need the prompt text in the repo.

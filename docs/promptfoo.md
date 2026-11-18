@@ -11,9 +11,12 @@ one OpenAI points customers to. genai-evals is built to sit **around** it, not t
 | | **trajectory and RAG graders** Promptfoo has no assertion for (final state, tool arguments, handoff loops, context precision / recall) |
 | | **reporting**: engineer report, exec scorecard, failure categories, adapter validation status |
 
-Three ways to combine them:
+Four ways to combine them:
 
 ```bash
+# 0. Let genai-evals drive Promptfoo: export, `promptfoo eval`, then gate and report, in one command
+genai-evals run suite.yaml --engine promptfoo --out out/pf             # model, prompt and RAG targets only
+
 # 1. Author in genai-evals, run in Promptfoo, gate and report in genai-evals
 genai-evals promptfoo export suite.yaml -o promptfooconfig.yaml      # notes list anything not exported
 promptfoo eval -c promptfooconfig.yaml -o results.json
@@ -25,6 +28,14 @@ genai-evals promptfoo import results.json --suite gates.yaml --out out/pf
 # 3. Run in genai-evals (e.g. agents on AgentCore), view or share the results in Promptfoo's shape
 genai-evals result export out/run/result.json --format promptfoo --out out/export   # -> promptfoo-results.json
 ```
+
+`--engine promptfoo` is opt-in. Promptfoo then runs the targets and the assertions it has; genai-evals applies the
+suite's gates, statistics, slices, critical cases, profiles and reports, and records `engine` in the result. It
+calls `promptfoo` on PATH, else `npx -y promptfoo@latest` (`--promptfoo-cmd` or `GENAI_EVALS_PROMPTFOO` to pin a
+version; CI pins one). A suite with only agent, HTTP or Python targets is refused, and those targets are listed as
+not run otherwise: tool trajectories, final state, per-turn grading, trial resets and telemetry need the native
+engine, which stays the default. CI runs [`examples/promptfoo-engine`](../examples/promptfoo-engine) through a real,
+pinned Promptfoo on a keyless `echo` target.
 
 `--suite` on import takes the suite's `gates`, `min_n`, `report` template and its dataset's tags and critical flags
 (matched by case id). Gates that name a grader missing from the results are reported as **invalid**, and the import
@@ -48,6 +59,7 @@ Pinned by `tests/test_promptfoo_roundtrip.py`. If you change the interop code, u
 | Kept | How |
 |---|---|
 | Cases | one test per case: `description` = case id, `vars.input`, `vars.reference_answer`, `vars.context` (from `reference.context`), `metadata.tags`, `metadata.critical` |
+| Which cases a grader applies to | graders with `tags`, or that read a reference key other than `answer` (e.g. `contains` reads `reference.contains`), are written as per-test assertions on the cases they apply to, with the value filled in; cases without that reference get no assertion, as genai-evals skips them. Graders that apply to every case stay in `defaultTest` |
 | Repeats | `evaluateOptions.repeat` |
 | Model, prompt and RAG targets with a provider profile | one prompt (the **rendered** version the target pins) and one provider each, mapped to Promptfoo provider ids (OpenAI Responses, Anthropic, Bedrock, Vertex, OpenAI-compatible) |
 | Graders with an equivalent | `exact`→`equals`, `contains`→`icontains*` / `not-*`, `regex`→`regex`, `json_schema`→`is-json`, `rubric` / `policy` / `reference_match`→`llm-rubric`, `faithfulness`→`context-faithfulness`, `answer_relevance`→`answer-relevance`, `rouge`→`rouge-n`, `bleu`→`bleu`, `embedding_similarity`→`similar`, `latency`, `cost`, `python`; each with `metric` = the grader name, so results map back |

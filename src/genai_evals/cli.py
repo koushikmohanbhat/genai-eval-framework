@@ -56,7 +56,10 @@ def _finish(result: dict[str, Any], args) -> int:
     if getattr(args, "summary_md", None):
         Path(args.summary_md).write_text(markdown_summary(result), encoding="utf-8")
     verdict = "PASSED" if result["passed"] else "FAILED"
-    print(f"\n{verdict}: {result['suite']} ({result['run_id']})")
+    pr = result.get("profile")
+    print(f"\n{verdict}: {result['suite']} ({result['run_id']})" + (f", profile {pr['name']}" if pr else ""))
+    for sg in (pr or {}).get("skipped_gates", []):
+        print(f"  [skip] {sg['gate']}: {sg['reason']}")
     for g in result["gates"]:
         status = g.get("status", "pass" if g["passed"] else "fail")
         mark = "ok  " if g["passed"] else ("INFO" if g["severity"] == "info" else ("WARN" if g["severity"] == "warn"
@@ -103,6 +106,12 @@ def cmd_run(args) -> int:
     suite = load_suite(args.suite)
     if args.repeats:
         suite.repeats = args.repeats
+    for tname, ref in _kv(args.prompt_version).items():
+        t = next((t for t in suite.targets if t.name == tname), None)
+        if t is None:
+            print(f"error: --prompt-version: no target '{tname}'", file=sys.stderr)
+            return 2
+        t.prompt_version = ref
     providers = load_providers(_providers_path(args, args.suite))
     baseline = load_result(args.baseline) if args.baseline and Path(args.baseline).exists() else None
     if args.baseline and baseline is None:
@@ -111,6 +120,8 @@ def cmd_run(args) -> int:
     if args.allow_missing_baseline:
         for g in suite.gates:
             g.allow_missing_baseline = True
+    if args.engine == "promptfoo":
+        return _run_with_promptfoo(args, suite, baseline)
     runner = Runner(suite, providers, prompt_overrides=_kv(args.prompt), use_cache=not args.no_cache, telemetry=_telemetry(args))
     result = runner.run(args.target or None, baseline, _kv(args.baseline_map))
     return _finish(result, args)
@@ -679,10 +690,71 @@ def cmd_labels(args) -> int:
     return 1 if args.fail_on_dispute and disputed else 0
 
 
+SME_INSTRUCTIONS = """# Reviewing the draft eval cases
+
+You have {n} draft test case(s) in `review.csv`, written from your documents{prod}. Nothing counts until you sign
+it off. For each row:
+
+1. Read the question and the source passage shown next to it.
+2. Set **decision**: `keep` (right as written), `fix` (fill in the corrected_* columns), or `drop` (wrong,
+   unrealistic or a duplicate).
+3. Put your name in **reviewer**.
+4. Pay attention to flagged rows (`flags`): `source_unverified` (the source passage was guessed),
+   `answer_not_found_in_passage`, `source_contains_instructions`. They can't be promoted without a decision.
+
+Then send the sheet back. The partner runs:
+
+    genai-evals cases promote {drafts} --sheet {sheet} --into data/cases.jsonl
+
+Seeded questions are synthetic: they start the eval set, they aren't the measure of production quality. That comes
+from a sample of real traffic (`genai-evals cases sample`) as soon as there is some.
+"""
+
+
+def _cases_day0(args) -> int:
+    """Day 1: draft 50-100 cases from the customer's documents (and production, if there's an online run), one review
+    sheet and instructions for the SME. Day 2: the SME fills in the sheet; `cases promote --sheet` signs them in."""
+    import copy
+
+    from . import cases as cs
+    if not (args.docs or args.chunks):
+        raise SystemExit("cases day0 needs --docs <the customer's knowledge base> (or --chunks)")
+    out = Path(args.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    a = copy.copy(args)
+    a.action, a.out, a.corpus_out, a.append = "seed", str(out / "seeded-drafts.jsonl"), str(out / "corpus.jsonl"), False
+    a.max_cases = args.max_cases or 80
+    code = cmd_cases(a)
+    if code or args.dry_run:
+        return code
+    files = [out / "seeded-drafts.jsonl"]
+    if args.from_online:
+        b = copy.copy(args)
+        b.action, b.path, b.n, b.out, b.append = "sample", args.from_online, args.production_n, str(out / "production-drafts.jsonl"), False
+        code = cmd_cases(b)
+        if code:
+            return code
+        files.append(out / "production-drafts.jsonl")
+    rows = [json.loads(x) for f in files if f.exists() for x in f.read_text(encoding="utf-8").splitlines() if x.strip()]
+    allp = cs.write_jsonl(rows, out / "drafts.jsonl", append=False)
+    n = cs.write_review_sheet(allp, out / "review.csv")
+    prod = " and real (tokenised) production questions" if args.from_online else ""
+    sheet = out / "review.csv"
+    text = SME_INSTRUCTIONS.format(n=n, prod=prod, drafts=allp, sheet=sheet)
+    (out / "SME-INSTRUCTIONS.md").write_text(text, encoding="utf-8")
+    print(f"\nDay 0 package in {out}/: {n} draft(s) in review.csv, SME-INSTRUCTIONS.md, corpus.jsonl")
+    print("  day 1: send review.csv and SME-INSTRUCTIONS.md to the subject-matter expert")
+    print(f"  day 2: genai-evals cases promote {allp} --sheet {out / 'review.csv'} --into data/cases.jsonl")
+    return 0
+
+
 def cmd_cases(args) -> int:
     from . import cases as cs
+    from . import pii
     from . import taxonomy as tx
     from .config import load_cases
+    if getattr(args, "pii_set", None):
+        pii.configure({"sets": args.pii_set})       # identifiers to tokenise in seeded / harvested / sampled drafts
     if args.action == "tags":
         for d in tx.describe(args.workflow):
             print(f"  {d['tag']:<22} {d['group']:<10} {d['description']}")
@@ -742,6 +814,8 @@ def cmd_cases(args) -> int:
         print("  seeded cases are synthetic and written from the documents: a starting point, not the representative "
               "set. Replace them with production samples (cases sample) as traffic arrives.")
         return 0
+    if args.action == "day0":
+        return _cases_day0(args)
     if args.action == "review-sheet":
         n = cs.write_review_sheet(args.path, args.out or "review.csv")
         print(f"wrote {args.out or 'review.csv'}: {n} draft(s). Fill in decision (keep / fix / drop), the corrected_* "
@@ -864,6 +938,8 @@ def cmd_cases(args) -> int:
         if not args.generator:
             raise SystemExit("cases generate needs --generator <provider profile> (use a strong model)")
         suite = load_suite(args.path)
+        if not getattr(args, "pii_set", None):
+            pii.configure(suite.pii)
         existing = load_cases(suite)
         tok = None if args.no_tokenize else cs.default_tokenizer()
         rows = cs.generate(suite, load_providers(_providers_path(args, args.path)), args.generator, tags=args.tag,
@@ -900,19 +976,25 @@ def cmd_promptfoo(args) -> int:
         notes = write_config(suite, load_providers(_providers_path(args, args.suite)), args.out)
         print(f"wrote {args.out}" + "".join(f"\n  note: {n}" for n in notes))
         return 0
+    base = load_suite(args.suite) if args.suite else None
+    return _finish(_promptfoo_result(args.results, base, args.name, mode="import:promptfoo"), args)
+
+
+def _promptfoo_result(results: str, base: Any, name: str | None, mode: str,
+                      extra: dict[str, Any] | None = None, baseline: dict[str, Any] | None = None) -> dict[str, Any]:
+    """A genai-evals result from Promptfoo's results JSON: the suite's gates, slices, critical cases and reports."""
     from .config import GraderSpec, SuiteSpec, load_cases
     from .interop import import_results_with_cases
     from .models import Case
     from .runner import Runner
-    samples, scores, info = import_results_with_cases(args.results)
+    samples, scores, info = import_results_with_cases(results)
     names = sorted({s.grader for s in scores})
     graders = [GraderSpec(name=n, type="imported") for n in names]
     known: dict[str, Case] = {}
-    if args.suite:
+    if base is not None:
         # gate and report Promptfoo results with a genai-evals suite: its gates, min_n, report template, and the tags /
         # critical flags of its dataset for cases with the same id
-        base = load_suite(args.suite)
-        suite = base.model_copy(update={"graders": graders, "targets": [], "judges": [], "name": args.name or base.name})
+        suite = base.model_copy(update={"graders": graders, "targets": [], "judges": [], "name": name or base.name})
         try:
             known = {c.id: c for c in load_cases(base)}
         except Exception:  # noqa: BLE001
@@ -922,7 +1004,7 @@ def cmd_promptfoo(args) -> int:
         if missing:
             print("note: gates refer to graders not in the Promptfoo results (they will be invalid): " + ", ".join(missing))
     else:
-        suite = SuiteSpec(name=args.name or "promptfoo-import", graders=graders, tokenize=True)
+        suite = SuiteSpec(name=name or "promptfoo-import", graders=graders, tokenize=True)
     r = Runner.__new__(Runner)
     from .config import ProvidersConfig
     r.suite, r.telemetry, r.providers = suite, None, ProvidersConfig()
@@ -936,7 +1018,43 @@ def cmd_promptfoo(args) -> int:
                           tags=sorted(set(k.tags if k else []) | set(i.get("tags") or [])),
                           critical=bool((k.critical if k else False) or i.get("critical"))))
     targets = [{"name": t, "kind": "promptfoo", "profile": None, "family": None, "framework": None, "prompt": None} for t in sorted({s.target for s in samples})]
-    result = r.finish(cases, targets, samples, scores, GradeContext(suite=suite), None, None, extra={"mode": "import:promptfoo"})
+    return r.finish(cases, targets, samples, scores, GradeContext(suite=suite), baseline, None,
+                    extra={"mode": mode, **(extra or {})})
+
+
+def _run_with_promptfoo(args, suite, baseline=None) -> int:
+    """`run --engine promptfoo`: Promptfoo executes the model / prompt / RAG targets and their assertions; genai-evals
+    applies the suite's gates, statistics, slices and reports to the results."""
+    import shlex
+    import shutil
+    import subprocess
+
+    from .interop import write_config
+    out = Path(args.out or ".genai-evals/promptfoo")
+    out.mkdir(parents=True, exist_ok=True)
+    cfg, res = out / "promptfooconfig.yaml", out / "promptfoo-results.json"
+    notes = write_config(suite, load_providers(_providers_path(args, args.suite)), cfg)
+    skipped = [n for n in notes if "is not exported" in n]
+    if len(skipped) >= len(suite.targets):
+        print("error: no target can run in Promptfoo (agent, HTTP and Python targets stay on the native engine):\n  "
+              + "\n  ".join(skipped), file=sys.stderr)
+        return 2
+    for n in notes:
+        print(f"  note: {n}")
+    cmd = args.promptfoo_cmd or os.environ.get("GENAI_EVALS_PROMPTFOO") or (
+        "promptfoo" if shutil.which("promptfoo") else "npx -y promptfoo@latest")
+    argv = shlex.split(cmd) + ["eval", "-c", str(cfg), "-o", str(res), "--no-progress-bar", "--no-table"]
+    print("running: " + " ".join(argv))
+    p = subprocess.run(argv, check=False)
+    # Promptfoo exits 100 when assertions fail: the results are still complete, and the gates decide
+    if p.returncode not in (0, 100) or not res.exists():
+        print(f"error: promptfoo exited {p.returncode} without results at {res}", file=sys.stderr)
+        return 2
+    result = _promptfoo_result(str(res), suite, None, mode="engine:promptfoo", baseline=baseline,
+                               extra={"engine": {"name": "promptfoo", "command": cmd, "config": str(cfg),
+                                                 "not_run": skipped}})
+    if skipped:
+        result.setdefault("warnings", []).insert(0, "not run by Promptfoo (use the native engine for these): " + "; ".join(skipped))
     return _finish(result, args)
 
 
@@ -1003,10 +1121,12 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--otel", help="emit OTel spans/metrics: console | otlp | <collector URL>")
         p.add_argument("--summary-md", help="also write the markdown summary here (PR comment)")
         p.add_argument("--fail-on-warn", action="store_true")
+        p.add_argument("--profile", help="run profile from the suite's `profiles:` (e.g. pr-check, release-gate)")
 
     p = sub.add_parser("validate", help="check a suite, its providers, dataset, gates and prompts")
     p.add_argument("suite")
     p.add_argument("--providers")
+    p.add_argument("--profile", help="validate the suite as this profile runs it")
     p.set_defaults(fn=cmd_validate)
 
     p = sub.add_parser("run", help="run a suite offline and evaluate gates")
@@ -1016,10 +1136,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--baseline", help="result.json or baseline JSON to compare against")
     p.add_argument("--baseline-map", action="append", help="target=baseline_target")
     p.add_argument("--prompt", action="append", help="override a prompt version: claims_agent=1.4.0")
+    p.add_argument("--prompt-version", action="append",
+                   help="record an externally managed prompt version on a target: assistant=langfuse:claims@8")
     p.add_argument("--repeats", type=int)
     p.add_argument("--allow-missing-baseline", action="store_true",
                    help="let delta()/significant() gates pass when there is no baseline (only for the run that creates the first one)")
     p.add_argument("--no-cache", action="store_true")
+    p.add_argument("--engine", choices=["native", "promptfoo"], default="native",
+                   help="promptfoo: Promptfoo runs the model / prompt / RAG targets and assertions; genai-evals gates "
+                        "and reports the results (agents stay native)")
+    p.add_argument("--promptfoo-cmd", help="how to call Promptfoo (default: promptfoo on PATH, else npx -y promptfoo@latest)")
     outputs(p)
     p.set_defaults(fn=cmd_run)
 
@@ -1189,11 +1315,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
     p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote", "check-refs",
-                                      "health", "graduate", "grid", "seed", "review-sheet"],
+                                      "health", "graduate", "grid", "seed", "review-sheet", "day0"],
                    help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
                         "harvest <result.json> | promote <drafts.jsonl> | check-refs <suite.yaml> | health <result.json> | "
                         "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl] | grid <grid.yaml> | "
-                        "seed [suite.yaml] --docs <folder> --generator <profile> | review-sheet <drafts.jsonl>")
+                        "seed [suite.yaml] --docs <folder> --generator <profile> | review-sheet <drafts.jsonl> | "
+                        "day0 [suite.yaml] --docs <folder> [--from-online <result.json>] --generator <profile> --out-dir day0")
     p.add_argument("path", nargs="?", default="suite.yaml")
     p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
     p.add_argument("--json", action="store_true")
@@ -1208,6 +1335,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--below", type=float, help="harvest: also samples scoring below this value")
     p.add_argument("--limit", type=int, default=50)
     p.add_argument("--no-tokenize", action="store_true", help="harvest / generate: don't tokenise personal data (not recommended)")
+    p.add_argument("--pii-set", action="append", help="detector sets to tokenise (default: global, in, pci; see docs/dpdp.md): us_hipaa, uk, banking, ...")
     p.add_argument("--out", help="drafts file (default drafts.jsonl)")
     p.add_argument("--append", action="store_true")
     p.add_argument("--into", help="promote: dataset to add reviewed cases to")
@@ -1233,6 +1361,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="seed: stratified across folders and file types (default), round-robin per document, or random")
     p.add_argument("--budget-usd", type=float, help="seed: stop before this spend (needs pricing on the generator profile)")
     p.add_argument("--dry-run", action="store_true", help="seed: show the plan and estimated cost, send nothing")
+    p.add_argument("--from-online", help="day0: an online result over production telemetry; adds tokenised production drafts")
+    p.add_argument("--production-n", type=int, default=20, help="day0: production cases to draw from --from-online (default 20)")
+    p.add_argument("--out-dir", default="day0", help="day0: folder for the drafts, corpus, review sheet and SME instructions")
     p.add_argument("--sheet", help="promote: a filled-in review sheet (cases review-sheet): keep / fix / drop per draft")
     p.add_argument("--also", action="append", help="graduate: more result files that must also show the case passing")
     p.add_argument("--apply", action="store_true", help="graduate: set purpose: regression on ready cases in --into")
@@ -1409,6 +1540,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: env file {env_file} not found", file=sys.stderr)
             return 2
         load_env_file(env_file)
+    prof = getattr(args, "profile", None)
+    prev = os.environ.get("GENAI_EVALS_PROFILE")
+    if prof:
+        os.environ["GENAI_EVALS_PROFILE"] = prof      # every load_suite in this command applies it
     try:
         return args.fn(args)
     except Exception as e:  # noqa: BLE001
@@ -1426,7 +1561,16 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(e, (SuiteError, KeyError, FileNotFoundError, ValidationError, MissingEnvError)):
             print(f"error: {e}", file=sys.stderr)
             return 2
+        if isinstance(e, ValueError) and str(e).startswith("profile "):
+            print(f"error: {e}", file=sys.stderr)
+            return 2
         raise
+    finally:
+        if prof:
+            if prev is None:
+                os.environ.pop("GENAI_EVALS_PROFILE", None)
+            else:
+                os.environ["GENAI_EVALS_PROFILE"] = prev
 
 
 if __name__ == "__main__":

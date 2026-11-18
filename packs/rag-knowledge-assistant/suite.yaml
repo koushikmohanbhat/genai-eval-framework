@@ -3,7 +3,7 @@
 # To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml), and switch
 # providers to providers.live.yaml for real judges. See README.md.
 name: rag-knowledge-assistant
-pack: rag-knowledge-assistant@0.2.2
+pack: rag-knowledge-assistant@0.5.0
 description: Retrieval quality, grounded answers with citations, correct refusals, privacy and safety
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -15,6 +15,19 @@ judge_policy: {aggregate: mean, require_different_family: false}   # set true on
 min_judge_kappa: 0.4
 min_n: 5
 repeats: 1
+# Run profiles: `genai-evals run suite.yaml --profile pr-check` on every pull request (fast, one calibrated judge),
+# `--profile release-gate` before production sign-off (judge panel, repeats, every case). Without --profile the
+# suite runs as written above. Gates a profile can't evaluate are listed as skipped, never passed.
+profiles:
+  pr-check:
+    description: "pull requests: deterministic graders and one calibrated judge, one repeat, up to 60 cases (critical cases always run)"
+    repeats: 1
+    judges: ["${EVAL_JUDGE_A:-offline-judge-a}"]   # the judge with the best calibration
+    max_cases: 60
+  release-gate:
+    description: "pre-production sign-off: two-judge panel, 3 repeats, the full representative set and stress suite"
+    repeats: 3
+    judges: ["${EVAL_JUDGE_A:-offline-judge-a}", "${EVAL_JUDGE_B:-offline-judge-b}"]
 # Where the representative set comes from (doctor checks it). Build it with `genai-evals cases sample` from an online
 # run over production telemetry, which writes this block for you. The starter cases are synthetic.
 # representative_sample:

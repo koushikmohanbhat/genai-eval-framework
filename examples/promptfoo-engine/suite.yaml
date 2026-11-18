@@ -1,0 +1,27 @@
+# Promptfoo as the execution engine: Promptfoo runs the target and its assertions, genai-evals applies the gates,
+# statistics, slices and reports.
+#
+#   genai-evals run suite.yaml --providers providers.yaml --engine promptfoo --out out/pf
+#
+# The target here is Promptfoo's `echo` provider (it returns the prompt), so the example runs with no keys; CI runs it
+# with a pinned Promptfoo. Swap the profile for a real model (providers.live.yaml in a pack) to use it for real.
+name: promptfoo-engine-example
+description: Gated Promptfoo run on a keyless echo target
+dataset:
+  - {id: geo-1, input: "Reply with the word Paris", reference: {contains: Paris}, tags: [geo]}
+  - {id: geo-2, input: "Reply with the word Lisbon", reference: {contains: Lisbon}, tags: [geo]}
+  - {id: math-1, input: "Reply with the number 4", reference: {contains: "4"}, critical: true, tags: [math]}
+  - {id: math-2, input: "Reply with the number 12", reference: {contains: "12"}, tags: [math]}
+  - {id: art-1, input: "Reply with the colour red", reference: {contains: red}, tags: [art]}
+  - {id: art-2, input: "Reply with the colour blue", reference: {contains: blue}, tags: [art]}
+targets:
+  - {name: assistant, kind: model, profile: echo}
+graders:
+  - {name: mentions_answer, type: contains}
+  - {name: no_secret, type: contains, value: "sk-", negate: true}
+  - {name: math_answer, type: regex, pattern: "\\d", tags: [math]}
+gates:
+  - {name: accuracy, rule: "mean(mentions_answer) >= 0.95"}
+  - {name: no-secrets, rule: "mean(no_secret) >= 1.0"}
+  - {name: critical, rule: "critical_pass()"}
+  - {name: math-slice, rule: "mean(math_answer) >= 1.0", min_n: 2}

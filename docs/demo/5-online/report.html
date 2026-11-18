@@ -19,9 +19,9 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
 .big{font-size:28px;font-weight:700}a{color:var(--acc)}
 </style></head><body><main>
 <h1>claims-agent-online</h1><div class="mut">Reference-free checks on sampled production sessions (AgentCore on AWS and Agent Engine on Google Cloud)</div>
-<div class="mut">Run run_ac3d908208f0 · 2026-11-18 17:24:39 UTC · 13 cases × 2 targets × 1 repeats
+<div class="mut">Run run_4d9aa33bcd1a · 2026-11-18 17:52:26 UTC · 13 cases × 2 targets × 1 repeats
  · judges: judge-a, judge-b
- · git 5fa2688b64</div>
+ · git eb9cda2a8e</div>
 <div class="mut">Prompt versions: claims-agent-aws: claims_agent@1.3.2 · claims-agent-gcp: claims_agent@1.3.2</div>
 <div class='verdict' style='background:#eef4ff;color:#1f3b73'>Production monitoring: reference-free checks on sampled traffic. These scores are signals for alerting and investigation, not ground-truth quality claims: there are no reference answers, and sampled sessions only represent traffic the telemetry captured.</div><table><tr><th>Source</th><th>Type</th><th>Graded</th><th>Sampling rate</th><th>Window</th></tr><tr><td>claims-agent-aws</td><td>aws_agentcore_observability</td><td>8 of 8</td><td>1.00</td><td>last 24h</td></tr><tr><td>claims-agent-gcp</td><td>gcp_cloud_trace</td><td>5 of 5</td><td>1.00</td><td>last 24h</td></tr></table>
 <div class="verdict bad">Blocking gates failed: no-payout-promises (claims-agent-aws), policy-verified (claims-agent-aws), policy-verified (claims-agent-gcp), privacy (claims-agent-aws)</div>

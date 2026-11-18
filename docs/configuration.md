@@ -55,6 +55,8 @@ container platforms can inject the same names from their own secret stores.
 | Variable | Used for |
 |---|---|
 | `GENAI_EVALS_PROVIDERS` | default providers file when `--providers` is not given |
+| `GENAI_EVALS_PROFILE` | run profile when `--profile` is not given |
+| `GENAI_EVALS_PROMPTFOO` | how to call Promptfoo for `run --engine promptfoo` (default `promptfoo`, else `npx -y promptfoo@latest`) |
 | `GENAI_EVALS_TOKEN_KEY` | key for DPDP tokenisation; set a stable value (from a secret manager) so tokens match across runs |
 | `GENAI_EVALS_PROMPTS_DIR` | prompts directory for `genai_evals.prompts.load()` in application code (default `prompts`) |
 | `GENAI_EVALS_PROMPT_STAGE` | stage for `load()` (default `prod`) |
@@ -138,6 +140,25 @@ profiles:
 | `safety_claim` | `false` | results will back a safety claim: coverage and `doctor` require about 100 multi-turn or 1,000 single-turn cases ([how many cases](gates.md#how-many-cases)) |
 | `gate_correction` | `none` | `holm`: decide every `significant()` across the run's gates on Holm-adjusted p-values ([gates](gates.md#statistical-assumptions)) |
 | `tokenize`, `tokenizer` | `true`, `{}` | DPDP tokenisation of inputs and outputs before judges and storage ([DPDP](dpdp.md)) |
+| `pii` | `{sets: [global, in, pci]}` | identifier detectors for tokenisation and `pii_leak`: built-in sets (`global`, `in`, `pci`, `banking`, `eu`, `us`, `us_hipaa`, `uk`) and `custom` detectors; overlays add to them ([detector sets](dpdp.md#detector-sets)) |
+| `profiles` | `{}` | named ways to run the suite (`pr-check`, `release-gate`): see below |
+
+**Profiles** change how much a run does without a second suite. Each field left out keeps the suite's value:
+
+```yaml
+profiles:
+  pr-check:                          # genai-evals run suite.yaml --profile pr-check  (or GENAI_EVALS_PROFILE)
+    repeats: 1
+    judges: [judge-openai]           # replaces the panel (and per-grader panels): use the best-calibrated judge
+    max_cases: 60                    # deterministic sample; critical cases always run
+  release-gate:
+    repeats: 3
+    judges: [judge-openai, judge-gemini]
+```
+
+Also `graders` / `skip_graders`, `splits`, `tags` / `exclude_tags`, `gates` (by name) and `overrides` (any other
+suite field). A gate that reads a grader or split the profile leaves out is **skipped and listed** in the result
+(`profile.skipped_gates`), the CLI output and the PR comment; it is never counted as passed.
 
 ### Targets
 
@@ -148,6 +169,7 @@ profiles:
 | `profile` | provider profile (model, prompt, rag, agent with `tool_loop`) |
 | `prompt` | `id` (uses `prompt_stage`, default `prod`) or `id@1.2.0` |
 | `system`, `template` | inline prompt when not using `prompts/` |
+| `prompt_version` | a prompt managed elsewhere, recorded on every sample and in results: `langfuse:claims_agent@7`, a Bedrock prompt ARN with `:3`, or `{id: version}`. No `prompts/` or `prompts.lock` needed; `--prompt-version target=ref` sets it per run ([prompts](prompts.md#prompts-managed-elsewhere)) |
 | `framework` | agents: `tool_loop`, `openai_agents_sdk`, `agentcore_runtime`, `bedrock_agent`, `agent_engine` |
 | `tools_module` | Python module with tool implementations for `tool_loop` |
 | `callable` | `module:function` for `python` targets (and the Agents SDK agent factory) |
@@ -239,6 +261,9 @@ sources:
     # connector options: region, log_group, project, location, table, columns, resource, memory_id, actor_id,
     # dimensions, metrics, group_by, max_traces, max_records, path, s3_uri, trace_filter, log_filter
 ```
+
+Top-level `join_policy: {on_problem: invalid | warn, min_id_share, max_time_share, min_content_share}` decides what
+an online run does when telemetry joins look wrong ([sources](sources.md#troubleshooting-telemetry-joins)).
 
 Connector list and what each returns: [sources](sources.md). Cloud prerequisites: [AWS](setup-aws.md),
 [Google Cloud](setup-gcp.md).

@@ -1,4 +1,4 @@
-# Limitations (v0.6.4)
+# Limitations (v0.7.0)
 
 Read this before using the framework in production.
 
@@ -25,6 +25,14 @@ please open an issue with what you find.
   simulators and starter cases show the shape of an evaluation; they say nothing about any real system.
 
 ## Known gaps
+
+- **Promptfoo engine scope.** `run --engine promptfoo` runs model, prompt and RAG targets only, with the graders
+  Promptfoo has (the rest are reported as not run). It is exercised in CI with a real, pinned Promptfoo on the keyless
+  `echo` provider, not against a live model.
+- **PII detector sets find structured identifiers only.** `us_hipaa` is not a HIPAA de-identification: names,
+  addresses, dates and free-text health details need an NER-based detector or upstream redaction.
+- **Domain overlay policies are starting points.** The `financial-services` disclaimer and advice rules are generic;
+  the customer's compliance team owns the wording and should review the cases.
 
 - **Request tags for joins are not live tested.** Bedrock documents `requestMetadata` in invocation logs; that Vertex
   request-response logs keep request `labels` in `full_request` is unverified. Run `examples/request-tags/` once

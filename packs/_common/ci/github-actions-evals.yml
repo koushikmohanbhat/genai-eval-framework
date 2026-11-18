@@ -1,9 +1,14 @@
 # Copy to .github/workflows/evals.yml in your application repo and adjust paths.
 # Settings live in GitHub repository variables (vars.*) and secrets (secrets.*), not in this file.
+# Two tiers: pull requests run the suite's fast `pr-check` profile; a release tag (or a manual run) runs
+# `release-gate`, the full sign-off run. Both use the same suite, gates and baseline.
 name: evals
 on:
   pull_request:
     paths: ["evals/**", "src/**"]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
 permissions: {contents: read, pull-requests: write, id-token: write}
 jobs:
   evals:
@@ -35,9 +40,10 @@ jobs:
         if: vars.GCP_WIF_PROVIDER != ''
         with: {workload_identity_provider: "${{ vars.GCP_WIF_PROVIDER }}", service_account: "${{ vars.GCP_EVAL_SERVICE_ACCOUNT }}"}
       # Pinned to a release (a full commit SHA is stronger); see https://github.com/koushikmohanbhat/genai-eval-framework/releases
-      - uses: koushikmohanbhat/genai-eval-framework@v0.6.4   # or the release commit SHA
+      - uses: koushikmohanbhat/genai-eval-framework@v0.7.0   # or the release commit SHA
         with:
           suite: evals/suite.yaml
+          profile: ${{ github.event_name == 'pull_request' && 'pr-check' || 'release-gate' }}
           allow-missing-baseline: "true"            # until baselines/main.json exists; then set baseline and remove this
           # baseline: evals/baselines/main.json   # after `genai-evals baseline promote` (RUNBOOK step 6)
           extras: "openai,aws,gcp"

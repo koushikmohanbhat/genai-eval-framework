@@ -55,6 +55,8 @@ class Runner:
         self.prompts = PromptStore(prompts_dir) if prompts_dir else None
         self.ctx = RunContext(suite, providers, self.pool, self.prompts, dict(prompt_overrides or {}), dict(extra or {}))
         self.cache_dir = Path(cache_dir) if cache_dir and use_cache else None
+        from . import pii
+        pii.configure(suite.pii)        # detector sets for tokenisation and pii_leak (suite + overlays)
         self.tokenizer = build_tokenizer(suite.tokenizer) if suite.tokenize else None
         self.telemetry = telemetry
 
@@ -106,6 +108,10 @@ class Runner:
             except Exception as e:  # noqa: BLE001 - a failing system is a result, not a crash
                 s = Sample(case_id=case.id, target=t.name, repeat=repeat, input=case.input, error=f"{type(e).__name__}: {e}")
         s.metadata.setdefault("trial_id", trial["trial_id"])
+        if getattr(t.spec, "prompt_version", None):
+            from .config import parse_prompt_version
+            for pid, ver in parse_prompt_version(t.spec.prompt_version).items():
+                s.prompt_versions.setdefault(pid, ver)
         if t.spec.reset:
             s.metadata["reset"] = True
         if key and not s.error:
@@ -310,6 +316,8 @@ class Runner:
             "samples": [json.loads(s.model_dump_json()) for s in samples], "scores": [json.loads(s.model_dump_json()) for s in scores],
         }
         result.update(extra or {})
+        if self.suite.active_profile:
+            result["profile"] = self.suite.active_profile
         result.setdefault("mode", "offline")
         if self.suite.report:
             result["report"] = self.suite.report

@@ -22,6 +22,11 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
     lines = [f"## {icon} genai-evals: `{result['suite']}`", ""]
     lines.append(f"Run `{result['run_id']}` · {len(result['cases'])} cases × {len(result['targets'])} targets × {result['repeats']} repeats"
                  + (f" · baseline `{result['baseline']}`" if result.get("baseline") else ""))
+    pr = result.get("profile")
+    if pr:
+        lines.append(f"Profile **{pr['name']}**" + (f": {pr['description']}" if pr.get("description") else "")
+                     + (" · skipped gates: " + ", ".join(f"`{s['gate']}` ({s['reason']})" for s in pr["skipped_gates"])
+                        if pr.get("skipped_gates") else ""))
     pv = result.get("prompt_versions") or {}
     if pv:
         lines.append("Prompt versions: " + "; ".join(f"**{t}**: " + ", ".join(f"`{k}@{v}`" for k, v in d.items()) for t, d in pv.items()))

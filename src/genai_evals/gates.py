@@ -216,6 +216,17 @@ class _Evaluator:
         raise GateError(f"unsupported expression {type(node).__name__}")
 
 
+def split_args(rule: str) -> set[str]:
+    """Splits a gate rule reads (split='stress' arguments)."""
+    out: set[str] = set()
+    for n in ast.walk(_parse(rule)):
+        if isinstance(n, ast.Call):
+            for kw in n.keywords:
+                if kw.arg == "split" and isinstance(kw.value, ast.Constant):
+                    out.add(str(kw.value.value))
+    return out
+
+
 def gated_graders(gates: list, severities: tuple[str, ...] = ("block",)) -> set[str]:
     """Graders a gate of these severities reads (any metric function's first argument)."""
     out: set[str] = set()

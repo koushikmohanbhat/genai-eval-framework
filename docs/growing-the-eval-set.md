@@ -5,6 +5,20 @@ cases, and turning production failures into new cases, with expert review before
 
 ## Day 1: no dataset yet
 
+**The two-day path.** One command builds the package the customer's subject-matter expert reviews:
+
+```bash
+genai-evals cases day0 --docs ./customer-kb/ --generator judge-openai --budget-usd 2 \
+    --from-online out/online/result.json --out-dir day0      # --from-online is optional: real (tokenised) questions
+# day0/: drafts.jsonl (~80 seeded + sampled), review.csv, SME-INSTRUCTIONS.md, corpus.jsonl
+# day 1: send review.csv and SME-INSTRUCTIONS.md to the SME
+# day 2: genai-evals cases promote day0/drafts.jsonl --sheet day0/review.csv --into data/cases.jsonl
+```
+
+It runs `cases seed` (default 80 cases; `--max-cases`, `--budget-usd` and `--dry-run` work as below), adds
+`cases sample` drafts from an online run when you have one, and writes a single review sheet with instructions.
+Nothing counts until the SME has decided each row. The rest of this section is what `day0` does underneath.
+
 Engagements often stall because the customer has documents but no eval set. `cases seed` drafts one from the
 documents themselves:
 

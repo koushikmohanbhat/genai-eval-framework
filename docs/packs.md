@@ -84,6 +84,21 @@ failure_categories:
   wrong or missing field: [gstin_format]
 ```
 
+An overlay can also switch on identifier detectors (`pii: {sets: [...], custom: [...]}`, added to the suite's;
+[detector sets](dpdp.md#detector-sets)).
+
+**Domain overlays** keep the core domain-agnostic:
+
+| Overlay | Pack | Adds |
+|---|---|---|
+| `insurance-policy` | rag-knowledge-assistant | motor policy wording cases, a no-payout-promise policy |
+| `financial-services` | rag-knowledge-assistant | investment product cases; a mandatory risk disclaimer (`regex`), no personal investment advice and no guaranteed-return claims (`policy` judges); IBAN, card and folio numbers as personal data. The offline system has a `noncompliant: true` option that fails all three, to prove the overlay catches it. Replace the disclaimer text and the advice rule with the customer compliance team's wording |
+| `india-gst` | structured-extraction | GSTIN and GST fields |
+| `security-guardrails` | rag-knowledge-assistant, tool-agent | OWASP LLM01 / LLM06 / LLM07 ([security](security.md)) |
+
+Healthcare, retail and public-sector overlays follow the same shape; the `us_hipaa` and `uk` detector sets are
+already in the core for them.
+
 Enable one with `genai-evals init ... --overlay india-gst`, or in an existing project with
 `overlays: [overlays/india-gst]` in `suite.yaml`. Overlays only add; a grader name that clashes with the base suite
 is an error. Overlay cases must be tagged so the gates can address their slice, and a slice needs `min_n` cases.

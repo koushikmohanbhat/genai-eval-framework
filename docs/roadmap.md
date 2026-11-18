@@ -9,11 +9,15 @@ next engagement comes before more connectors.
 - **More packs:** contact-centre QA (transcripts), summarisation, classification / routing; agent pack overlays
   (insurance claims, banking service requests).
 
-- **v0.7 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
+- **v0.8 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
   p50 / p95, barge-in, silence / overlap, ASR word error rate, recorded fixtures plus live mode
 - **Live integration tests** on AWS and GCP sandbox accounts for every connector and target
 - **Industry eval packs (catalog 4.2):** BFSI document extraction, insurance claims, contact-centre QA, medical summary
-  hallucination, Indic-language quality
+  hallucination, Indic-language quality. v0.7 shipped the `financial-services` overlay and the `us_hipaa` / `uk` /
+  `banking` detector sets; next, healthcare, retail and public-sector overlays, and a financial-services overlay for
+  the agent pack
+- **Promptfoo engine:** a live model in the Promptfoo-engine CI job (it runs a real Promptfoo on a keyless target today),
+  and HTTP agents through Promptfoo's `http` provider
 - **Red-teaming (4.3):** the security-guardrails overlays (v0.6) are the curated part; next, more cases per threat,
   security overlays for the extraction pack, OWASP categories as a report section, and a Promptfoo red-team config
   generated from a suite

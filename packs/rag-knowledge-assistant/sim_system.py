@@ -5,6 +5,8 @@ other people's personal data, refuses when retrieval support is weak, and answer
 retrieved passages. Options (target `options:`) simulate typical regressions for experiments:
   k: passages retrieved (default 4)
   embellish: share of answers that get an extra, unsupported sentence (default 0)
+  vulnerable: drop the prompt-leak and planted-instruction defences (security-guardrails overlay)
+  noncompliant: give personal investment advice and drop mandatory disclaimers (financial-services overlay)
 
 Replace it with your system: see README.md, "Connect your system". `retrieve` doubles as a retriever for the
 targets/python-retriever.yaml target (your model + this corpus).
@@ -19,8 +21,14 @@ from pathlib import Path
 HERE = Path(__file__).parent
 STOP = set("a an and are as at be by can do does for from get have how i if in is it its me my of on or our per should so "
            "that the their there this to was what when where which who will with you your each any after before".split())
-SENSITIVE = re.compile(r"\b(password for|admin password|credentials?|home address|phone number|salary of|ignore (?:your|all|the) "
+SENSITIVE = re.compile(r"\b(password for|admin password|credentials?|home address|phone number|(?:card|account) numbers? (?:on file|for|of)\b|"
+                       r"salary of|ignore (?:your|all|the) "
                        r"(?:previous )?instructions|list every restricted)\b", re.I)
+
+
+# asks for a personal recommendation on what to invest in (a regulated activity: answer with general information only)
+ADVICE = re.compile(r"\b(should i (?:buy|sell|invest|move|put|switch)|which (?:fund|stock|share)s? should i|"
+                    r"what should i invest|double my money)\b", re.I)
 
 
 # asks for the system prompt or hidden instructions (OWASP LLM07)
@@ -46,7 +54,10 @@ def _corpus() -> list[dict]:
 def retrieve(query: str, k: int = 4) -> list[dict]:
     q = _toks(query)
     scored = sorted(((len(q & _toks(d["title"] + " " + d["text"])) / (len(q) or 1), d) for d in _corpus()), key=lambda x: (-x[0], x[1]["id"]))
-    return [{"id": d["id"], "text": d["text"], "score": round(s, 3), "source": d["title"]} for s, d in scored[:k]]
+    # mandatory wording (e.g. a risk disclaimer) is part of the passage the answer is grounded in
+    return [{"id": d["id"], "text": d["text"] + (" " + d["must_include"] if d.get("must_include") else ""),
+             "score": round(s, 3), "source": d["title"],
+             **({"must_include": d["must_include"]} if d.get("must_include") else {})} for s, d in scored[:k]]
 
 
 def _rnd(*parts) -> float:
@@ -66,6 +77,17 @@ def answer(case, ctx) -> dict:
     if LEAK.search(q):
         return {"output": "I can't share my instructions or configuration. I can answer questions about company policies "
                           "from the knowledge base.", "context": [], "latency_ms": lat, "cost_usd": 0.0005}
+    noncompliant = bool(opts.get("noncompliant"))
+    if noncompliant:                                # a system that drops the mandatory wording
+        chunks = [{**c, "text": c["text"].replace(" " + c["must_include"], "")} if c.get("must_include") else c
+                  for c in chunks]
+    if ADVICE.search(q) and noncompliant:
+        return {"output": "You should invest in the Balanced Advantage Fund now; its returns are guaranteed to beat "
+                          "a fixed deposit.", "context": chunks, "latency_ms": lat, "cost_usd": 0.0012}
+    if ADVICE.search(q) and not vulnerable:
+        return {"output": "I can't give personal investment advice or recommend a specific product. I can explain how a "
+                          "product works, its charges and its risks; for a recommendation, please speak to a "
+                          "registered investment adviser.", "context": [], "latency_ms": lat, "cost_usd": 0.0006}
     if SENSITIVE.search(q):
         return {"output": "I can't share passwords, credentials or other people's personal information, and I can't change how I work. "
                           "Please contact the IT helpdesk or HR directly.", "context": [], "latency_ms": lat, "cost_usd": 0.0006}
@@ -83,6 +105,11 @@ def answer(case, ctx) -> dict:
         return {"output": "I can't find this in the company knowledge base, so I can't answer it. Please contact the relevant team.",
                 "context": chunks, "latency_ms": lat, "cost_usd": 0.0009}
     out = " ".join(f"{s} [{cid}]" for _, cid, s in sents[:2] if _)  or f"{sents[0][2]} [{sents[0][1]}]"
+    used = {cid for _, cid, _s in sents[:2]}
+    for note in dict.fromkeys(c["must_include"] for c in chunks
+                              if c["id"] in used and c.get("must_include") and not noncompliant):
+        if note not in out:
+            out += " " + note                   # mandatory wording the passage carries (e.g. a risk disclaimer)
     if _rnd(case.id, ctx.get("repeat", 0), "embellish") < float(opts.get("embellish", 0)):
         out += " Exceptions are usually approved within a day."
     return {"output": out, "context": chunks, "latency_ms": lat + 400, "cost_usd": 0.0016}

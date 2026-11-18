@@ -95,6 +95,10 @@ class TargetSpec(BaseModel):
     profile: str | None = None
     prompt: str | None = None                       # "claims_agent" (uses stage) or "claims_agent@1.4.0"
     prompt_stage: str = "prod"
+    # a prompt managed outside this repo (Langfuse, Bedrock Prompt Management, Vertex): recorded on every sample and
+    # in results so gates, comparisons and online scores are tied to it, without prompts/ or prompts.lock.
+    # "langfuse:claims_agent@7", "bedrock:arn:aws:bedrock:...:prompt/ABC:3", or a map {id: version}
+    prompt_version: str | dict[str, str] | None = None
     system: str | None = None                       # inline system prompt (when not using prompts/)
     template: str | None = None                     # inline user template
     framework: str | None = None                    # agent: tool_loop | openai_agents_sdk | agentcore_runtime | bedrock_agent | agent_engine
@@ -142,6 +146,49 @@ class RepresentativeSample(BaseModel):
     notes: str | None = None
 
 
+class CaseFilter(BaseModel):
+    """Which cases a run uses (set by a profile). Critical cases are always kept."""
+    model_config = ConfigDict(extra="forbid")
+    splits: list[Literal["representative", "stress"]] | None = None
+    tags: list[str] | None = None              # keep cases with any of these tags
+    exclude_tags: list[str] = Field(default_factory=list)
+    max_cases: int | None = None               # deterministic sample (by suite seed) of the non-critical cases
+
+
+def parse_prompt_version(v: str | dict[str, str] | None) -> dict[str, str]:
+    """{prompt id: version} from a target's prompt_version: "registry:id@version" splits at the last @."""
+    if not v:
+        return {}
+    if isinstance(v, dict):
+        return {str(k): str(x) for k, x in v.items()}
+    s = str(v).strip()
+    if "@" in s:
+        pid, ver = s.rsplit("@", 1)
+        return {pid: ver}
+    if s.count(":") >= 1 and s.rsplit(":", 1)[1].isdigit():      # Bedrock prompt ARN with a :version suffix
+        pid, ver = s.rsplit(":", 1)
+        return {pid: ver}
+    return {s: "unversioned"}
+
+
+class ProfileSpec(BaseModel):
+    """A named way to run the same suite, e.g. a fast `pr-check` and a thorough `release-gate`. Fields left out keep
+    the suite's value. Gates that read a grader the profile drops, or a split it leaves out, are skipped and listed
+    in the result (`profile.skipped_gates`), never silently passed."""
+    model_config = ConfigDict(extra="forbid")
+    description: str = ""
+    repeats: int | None = None
+    judges: list[str] | None = None            # replaces the suite's panel and any per-grader panel
+    graders: list[str] | None = None           # run only these graders
+    skip_graders: list[str] = Field(default_factory=list)
+    splits: list[Literal["representative", "stress"]] | None = None
+    tags: list[str] | None = None
+    exclude_tags: list[str] = Field(default_factory=list)
+    max_cases: int | None = None
+    gates: list[str] | None = None             # keep only these gates (by name)
+    overrides: dict[str, Any] = Field(default_factory=dict)   # any other suite field: min_n, concurrency, ...
+
+
 class SuiteSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
@@ -172,6 +219,9 @@ class SuiteSpec(BaseModel):
     stress_min_cases: dict[str, int] = Field(default_factory=lambda: {"high": 10, "standard": 5})  # per coverage tag, by risk tier
     stress_min_by_tag: dict[str, int] = Field(default_factory=dict)  # per-tag overrides
     tokenizer: dict[str, Any] = Field(default_factory=dict)
+    # identifier detectors for tokenisation and pii_leak (genai_evals.pii): {sets: [global, in, pci, us_hipaa, uk,
+    # banking, ...], custom: [{name, pattern, validator, context}]}; overlays add to it
+    pii: dict[str, Any] = Field(default_factory=dict)
     validation: str | None = None                    # adapter validation records (default: validation.yaml next to the suite)
     overlays: list[str] = Field(default_factory=list)  # pack overlays (folders with overlay.yaml): extra cases, graders, gates
     pack: str | None = None                          # the eval pack this suite came from (informational)
@@ -183,6 +233,9 @@ class SuiteSpec(BaseModel):
                                                      # or ~1,000 single-turn cases (Anthropic's guidance)
     extra_datasets: list[str] = Field(default_factory=list)   # more case files (overlays add theirs here)
     report: dict[str, Any] = Field(default_factory=dict)      # report template: title, intro, headline, failure_categories
+    profiles: dict[str, ProfileSpec] = Field(default_factory=dict)   # named run profiles (pr-check, release-gate)
+    case_filter: CaseFilter | None = None            # set by the active profile
+    active_profile: dict[str, Any] | None = None     # the profile this suite was loaded with, recorded in results
     base_dir: str = "."
 
     @model_validator(mode="after")
@@ -275,7 +328,59 @@ def load_providers(path: str | Path | None) -> ProvidersConfig:
     return ProvidersConfig(profiles=data.get("profiles", {}))
 
 
-def load_suite(path: str | Path) -> SuiteSpec:
+def load_suite(path: str | Path, profile: str | None = None) -> SuiteSpec:
+    """Load a suite. `profile` (or GENAI_EVALS_PROFILE) applies one of the suite's `profiles:`."""
+    suite = _load_suite(path)
+    name = profile if profile is not None else os.environ.get("GENAI_EVALS_PROFILE") or None
+    return apply_profile(suite, name) if name else suite
+
+
+def apply_profile(suite: SuiteSpec, name: str) -> SuiteSpec:
+    from .gates import gated_graders, split_args
+    if name not in suite.profiles:
+        raise ValueError(f"profile {name!r} not in the suite (has: {', '.join(sorted(suite.profiles)) or 'none'})")
+    p = suite.profiles[name]
+    upd: dict[str, Any] = dict(p.overrides)
+    graders = list(suite.graders)
+    if p.graders is not None:
+        unknown = set(p.graders) - {g.name for g in graders}
+        if unknown:
+            raise ValueError(f"profile {name!r}: unknown graders {sorted(unknown)}")
+        graders = [g for g in graders if g.name in p.graders]
+    graders = [g for g in graders if g.name not in set(p.skip_graders)]
+    if p.judges is not None:
+        upd["judges"] = list(p.judges)
+        graders = [g.model_copy(update={"judges": None}) if g.judges else g for g in graders]
+    kept = {g.name for g in graders}
+    gates, skipped = [], []
+    for g in suite.gates:
+        reads = gated_graders([g], ("block", "warn", "info")) & {x.name for x in suite.graders}
+        why = None
+        if p.gates is not None and g.name not in p.gates:
+            why = "not in this profile"
+        elif reads - kept:
+            why = f"reads {', '.join(sorted(reads - kept))}, not run in this profile"
+        elif p.splits is not None and split_args(g.rule) - set(p.splits):
+            why = f"reads the {', '.join(sorted(split_args(g.rule) - set(p.splits)))} split, left out of this profile"
+        if why:
+            skipped.append({"gate": g.name, "severity": g.severity, "reason": why})
+        else:
+            gates.append(g)
+    upd.update(graders=graders, gates=gates)
+    if p.repeats is not None:
+        upd["repeats"] = p.repeats
+    if any(v not in (None, []) for v in (p.splits, p.tags, p.exclude_tags, p.max_cases)):
+        upd["case_filter"] = CaseFilter(splits=p.splits, tags=p.tags, exclude_tags=p.exclude_tags, max_cases=p.max_cases)
+    upd["active_profile"] = {"name": name, "description": p.description, "repeats": upd.get("repeats", suite.repeats),
+                             "judges": upd.get("judges", suite.judges), "graders": sorted(kept),
+                             "case_filter": upd["case_filter"].model_dump() if "case_filter" in upd else None,
+                             "skipped_gates": skipped}
+    out = suite.model_copy(update=upd)
+    SuiteSpec.model_validate(out.model_dump())
+    return out
+
+
+def _load_suite(path: str | Path) -> SuiteSpec:
     data = _load_yaml(path)
     data.setdefault("base_dir", str(Path(path).parent))
     if data.get("targets_from"):
@@ -295,9 +400,17 @@ def apply_overlays(suite: SuiteSpec) -> SuiteSpec:
     relative to the overlay), `graders`, `gates` and `failure_categories`. Overlays add; they never replace."""
     graders, gates, extra = list(suite.graders), list(suite.gates), list(suite.extra_datasets)
     report = dict(suite.report)
+    pii = {"sets": list((suite.pii or {}).get("sets") or []), "custom": list((suite.pii or {}).get("custom") or [])}
     for o in suite.overlays:
         d = suite.path(o)
         spec = _load_yaml(d / "overlay.yaml")
+        op = spec.get("pii") or {}
+        if op:
+            from .pii import DEFAULT_SETS
+            base_sets = pii["sets"] or list(DEFAULT_SETS)      # an overlay adds to the defaults, never narrows them
+            pii["sets"] = base_sets + [s for s in op.get("sets", []) if s not in base_sets]
+            names = {c["name"] for c in pii["custom"]}
+            pii["custom"] += [c for c in op.get("custom", []) if c["name"] not in names]
         extra += [str(Path(o) / c) for c in spec.get("cases", [])]
         graders += [GraderSpec(**g) for g in spec.get("graders", [])]
         gates += [GateSpec(**g) for g in spec.get("gates", [])]
@@ -306,7 +419,10 @@ def apply_overlays(suite: SuiteSpec) -> SuiteSpec:
             for k, v in spec["failure_categories"].items():
                 fc[k] = fc.get(k, []) + [g for g in v if g not in fc.get(k, [])]
             report["failure_categories"] = fc
-    out = suite.model_copy(update={"graders": graders, "gates": gates, "extra_datasets": extra, "report": report})
+    upd = {"graders": graders, "gates": gates, "extra_datasets": extra, "report": report}
+    if pii["sets"] or pii["custom"]:
+        upd["pii"] = {k: v for k, v in pii.items() if v}
+    out = suite.model_copy(update=upd)
     SuiteSpec.model_validate(out.model_dump())   # duplicate grader names from an overlay fail here
     return out
 
@@ -329,7 +445,35 @@ def load_cases(suite: SuiteSpec) -> list[Case]:
     if len(ids) != len(set(ids)):
         dup = sorted({i for i in ids if ids.count(i) > 1})
         raise ValueError(f"case ids must be unique (duplicated: {', '.join(dup[:5])})")
+    if suite.case_filter:
+        cases = filter_cases(cases, suite.case_filter, suite.stress_tags, suite.seed)
     return cases
+
+
+def filter_cases(cases: list[Case], f: CaseFilter, stress_tags: list[str], seed: int) -> list[Case]:
+    import hashlib
+
+    from .stats import split_of
+    keep = []
+    for c in cases:
+        tags = set(c.tags or [])
+        if c.critical:
+            keep.append(c)
+            continue
+        if f.splits is not None and split_of(c, stress_tags) not in f.splits:
+            continue
+        if f.tags is not None and not tags & set(f.tags):
+            continue
+        if tags & set(f.exclude_tags):
+            continue
+        keep.append(c)
+    if f.max_cases is not None:
+        crit = [c for c in keep if c.critical]
+        rest = sorted((c for c in keep if not c.critical),
+                      key=lambda c: hashlib.sha256(f"{seed}:{c.id}".encode()).hexdigest())
+        chosen = {c.id for c in crit + rest[:max(0, f.max_cases - len(crit))]}
+        keep = [c for c in keep if c.id in chosen]
+    return keep
 
 
 class DatasetError(ValueError):

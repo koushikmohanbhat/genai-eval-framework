@@ -38,6 +38,35 @@ reversed by the framework.
 - **Keyed tokens are still personal data** if the key holder can recompute them. Treat stored results as pseudonymised,
   not anonymised.
 
+## Detector sets
+
+The same detectors drive the tokeniser (what judges, results and reports see) and the `pii_leak` grader. The default
+is unchanged from earlier versions (`global`, `in`, `pci`); a suite or a domain overlay picks more:
+
+| Set | Detects (checksum where one exists) |
+|---|---|
+| `global` | email addresses |
+| `in` | Aadhaar (Verhoeff), PAN, UPI ids, +91 phones |
+| `pci` | payment card numbers (Luhn) |
+| `banking` | IBAN (mod 97) and payment cards |
+| `eu` | IBAN (mod 97) |
+| `us` | SSN, US phone numbers |
+| `us_hipaa` | HIPAA Safe Harbor identifiers that have a structure: SSN, Medicare MBI, NPI (Luhn, only after "NPI" or "provider id"), US phone numbers, IPv4 addresses |
+| `uk` | NHS number (mod 11), National Insurance number |
+
+```yaml
+pii:
+  sets: [global, pci, us_hipaa]
+  custom:                                         # your own identifiers
+    - {name: MEMBER_ID, pattern: "\\b[A-Z]{3}\\d{9}\\b", validator: luhn, context: "member|subscriber"}
+```
+
+`validator` is one of `luhn`, `card`, `verhoeff`, `npi`, `nhs_mod11`, `iban_mod97`, `ipv4`; `context` is a keyword
+that must appear just before the match. `cases seed / harvest / sample` take `--pii-set`. What this does **not**
+cover: names, addresses, dates of birth, free-text diagnoses and the other HIPAA identifiers without a fixed format.
+For PHI use an NER-based detector (the DPDP framework tokeniser, or upstream redaction) as well; regex sets alone are
+not a HIPAA de-identification.
+
 ## Rights and lineage
 
 | Where | Control |

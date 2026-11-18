@@ -112,11 +112,21 @@ def export_config(suite: SuiteSpec, providers: ProvidersConfig) -> tuple[dict[st
         e["prompts"] = [t.name]
         provs.append(e)
     asserts, default_test = [], {}
+    per_case: list[tuple[Any, dict[str, Any], str | None]] = []   # (grader, assertion, reference key it reads)
     for g in suite.graders:
         a, note = _assertion(g, suite)
         if a:
             a["metric"] = g.name
-            asserts.append(a)
+            ref_key = None
+            if "{{reference_answer}}" in json.dumps(a):
+                # the grader reads the case's reference: genai-evals' default key per type, or reference_key
+                ref_key = g.params().get("reference_key", "contains" if g.type == "contains" else "answer")
+            if g.tags or (ref_key and ref_key != "answer"):
+                # applies only to some cases (grader tags), or reads a reference key other than `answer`: written
+                # into each test it applies to, and left out where genai-evals would skip it
+                per_case.append((g, a, ref_key))
+            else:
+                asserts.append(a)
         if note:
             notes.append(note)
     if suite.judges:
@@ -131,7 +141,21 @@ def export_config(suite: SuiteSpec, providers: ProvidersConfig) -> tuple[dict[st
             vars_["reference_answer"] = c.reference["answer"]
         if c.reference.get("context"):
             vars_["context"] = c.reference["context"]
-        tests.append({"description": c.id, "vars": vars_, "metadata": {"tags": c.tags, "critical": c.critical}})
+        test: dict[str, Any] = {"description": c.id, "vars": vars_, "metadata": {"tags": c.tags, "critical": c.critical}}
+        own = []
+        for g, a, ref_key in per_case:
+            if g.tags and not set(g.tags) & set(c.tags or []):
+                continue
+            if ref_key:
+                from ..graders.base import dig
+                v = dig(c.reference, ref_key)
+                if v is None:
+                    continue
+                a = json.loads(json.dumps(a).replace('"{{reference_answer}}"', json.dumps(v)))
+            own.append(a)
+        if own:
+            test["assert"] = own
+        tests.append(test)
     if asserts:
         default_test["assert"] = asserts
     cfg = {"description": f"Exported from genai-evals suite '{suite.name}'", "prompts": prompts, "providers": provs,

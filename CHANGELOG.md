@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.7.0 (2026-11-18)
+
+Orchestrate and govern: less plumbing to maintain, a predictable partner delivery motion, domain-specific checks
+outside the core. Packs: rag-knowledge-assistant 0.5.0, tool-agent 0.5.0, structured-extraction 0.2.0 (require
+framework 0.7).
+
+### Delivery
+- **Run profiles.** `profiles:` in a suite, chosen with `--profile` (or `GENAI_EVALS_PROFILE`): repeats, judges,
+  graders, splits, tags, a capped case sample (critical cases always run), gates and other overrides. Gates a profile
+  can't evaluate are listed as skipped in the result, CLI and PR comment, never passed. Every pack ships `pr-check`
+  (one judge, one repeat, up to 60 cases) and `release-gate` (the panel, three repeats, every case); the pack CI
+  template runs the first on pull requests and the second on release tags, and the composite action takes `profile`.
+- **`cases day0`**: seeds ~80 drafts from the customer's documents, optionally adds tokenised production drafts from
+  an online run, and writes one review sheet and SME instructions, so the SME has it on day 1 and promotion happens on
+  day 2.
+- **Least-privilege Terraform for security review.** The GCP module replaces `roles/aiplatform.user` with a custom
+  role holding only `aiplatform.endpoints.predict` for judges. New `docs/permissions.md` lists every permission on both
+  clouds, why it's needed and what it can't do. CI now runs `terraform validate` on both modules.
+
+### Orchestrate instead of rebuild
+- **`run --engine promptfoo`** (opt-in): exports the suite, runs `promptfoo eval`, then applies the suite's gates,
+  statistics, slices, profiles and reports to Promptfoo's results. Agent, HTTP and Python targets stay on the native
+  engine (refused or listed as not run). CI runs `examples/promptfoo-engine` through a real, pinned Promptfoo.
+- **Found on the first real Promptfoo run:** exported `contains` assertions referenced `vars.reference_answer`, which
+  is only set from `reference.answer`, so Promptfoo failed every one (`reference.contains` is what the grader reads).
+  Graders that read another reference key, or apply only to tagged cases, are now per-test assertions with the value
+  filled in and are left out where genai-evals would skip them (graders with `tags` were previously applied to every
+  case in Promptfoo).
+- **External prompt versions.** `prompt_version` on a target (`langfuse:claims_agent@7`, a Bedrock prompt ARN with its
+  version, or a map) and `run --prompt-version target=ref`: recorded on samples and results without `prompts/` or
+  `prompts.lock`.
+
+### Domain overlays, domain-agnostic core
+- **Identifier detector sets** (`genai_evals.pii`): `global`, `in`, `pci`, `banking`, `eu`, `us`, `us_hipaa`, `uk`, with
+  checksums (Verhoeff, Luhn, NPI, NHS mod 11, IBAN mod 97) and `custom` detectors with optional validator and context
+  keyword. Suites choose with `pii:`; overlays add to it; the tokeniser and `pii_leak` use the same detectors; case
+  commands take `--pii-set`. The default is unchanged (`global`, `in`, `pci`).
+- **`financial-services` overlay** for the RAG pack: investment product cases, a mandatory risk disclaimer, no personal
+  investment advice, no guaranteed-return claims, IBAN / card / folio numbers as personal data. The offline system's
+  `noncompliant: true` mode fails all three gates, and a test checks both ways.
+
 ## 0.6.4 (2026-11-18)
 
 ### Telemetry joins, enforced

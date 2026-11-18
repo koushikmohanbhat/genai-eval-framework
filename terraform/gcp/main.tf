@@ -50,13 +50,31 @@ resource "google_service_account" "evals" {
 }
 
 locals {
-  roles = concat([
+  roles = [
     "roles/cloudtrace.user",          # read traces (incl. spans ingested via the Telemetry API)
     "roles/logging.viewer",           # Cloud Logging / Agent Engine logs
     "roles/monitoring.viewer",        # Vertex AI / Agent Engine metrics
     "roles/monitoring.metricWriter",  # publish custom.googleapis.com/genai_eval/* scores
     "roles/bigquery.jobUser",         # run read queries
-  ], var.use_vertex_judges ? ["roles/aiplatform.user"] : ["roles/aiplatform.viewer"])
+    "roles/aiplatform.viewer",        # read Agent Engine sessions and evaluation results; no writes
+  ]
+}
+
+# Judges on Vertex need only to call models: one permission, not roles/aiplatform.user (which can also create
+# datasets, endpoints and jobs). aiplatform.endpoints.predict covers generateContent / streamGenerateContent and
+# rawPredict for partner models such as Claude on Vertex.
+resource "google_project_iam_custom_role" "judge" {
+  count       = var.use_vertex_judges ? 1 : 0
+  role_id     = replace("${var.name}_judge", "-", "_")
+  title       = "genai-evals judge (model calls only)"
+  permissions = ["aiplatform.endpoints.predict"]
+}
+
+resource "google_project_iam_member" "judge" {
+  count   = var.use_vertex_judges ? 1 : 0
+  project = var.project
+  role    = google_project_iam_custom_role.judge[0].id
+  member  = "serviceAccount:${google_service_account.evals.email}"
 }
 
 resource "google_project_iam_member" "evals" {
