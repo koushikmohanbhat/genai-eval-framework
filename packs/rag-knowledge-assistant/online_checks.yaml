@@ -1,7 +1,7 @@
 # Production monitoring: reference-free checks on sampled sessions pulled by sources.yaml (no targets, no dataset).
 #   genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
 name: rag-knowledge-assistant-online
-pack: rag-knowledge-assistant@0.2.0
+pack: rag-knowledge-assistant@0.2.1
 description: Grounding, privacy, safety and latency on production sessions
 judges: ["${EVAL_JUDGE_A:-offline-judge-a}", "${EVAL_JUDGE_B:-offline-judge-b}"]
 min_n: 3

@@ -1,7 +1,7 @@
 # Production monitoring: reference-free checks on extracted documents pulled by sources.yaml.
 #   genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
 name: structured-extraction-online
-pack: structured-extraction@0.1.1
+pack: structured-extraction@0.1.2
 description: Schema validity, PII and latency on production extractions
 min_n: 3
 graders:

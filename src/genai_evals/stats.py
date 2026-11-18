@@ -62,9 +62,72 @@ def paired_delta(cur: dict[str, float], base: dict[str, float], seed: int = 7, c
     return out
 
 
+SPLITS = ("representative", "stress")
+
+
+def split_of(case: Case, stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> str:
+    """representative (production-like traffic) or stress (edge / adversarial cases written to find failures).
+    An explicit `split` on the case wins; otherwise a case with any of the stress tags is stress."""
+    if case.split in SPLITS:
+        return case.split
+    return "stress" if set(case.tags or []) & set(stress_tags) else "representative"
+
+
+def weighted_mean(values: list[float], weights: list[float]) -> float | None:
+    tot = sum(weights)
+    return (sum(v * w for v, w in zip(values, weights)) / tot) if values and tot > 0 else None
+
+
+def weighted_bootstrap_ci(values: list[float], weights: list[float], seed: int = 7, alpha: float = 0.05,
+                          b: int = B) -> tuple[float, float]:
+    """Bootstrap CI for a weighted mean: resample cases (with their weights)."""
+    if not values:
+        return (float("nan"), float("nan"))
+    if len(values) == 1:
+        return (values[0], values[0])
+    rng = random.Random(seed)
+    n = len(values)
+    ms = []
+    for _ in range(b):
+        idx = [rng.randrange(n) for _ in range(n)]
+        m = weighted_mean([values[i] for i in idx], [weights[i] for i in idx])
+        if m is not None:
+            ms.append(m)
+    ms.sort()
+    return (ms[int(alpha / 2 * len(ms))], ms[min(len(ms) - 1, int((1 - alpha / 2) * len(ms)))])
+
+
+def _split_stats(per_case: dict[str, float], per_case_pass_all: dict[str, list[bool]], by_case: dict[str, Case],
+                 stress_tags, seed: int) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for sp in SPLITS:
+        ids = [c for c in per_case if split_of(by_case.get(c, Case(id=c, input="")), stress_tags) == sp]
+        if not ids:
+            continue
+        vals = [per_case[c] for c in ids]
+        ws = [float(by_case[c].weight) if c in by_case and by_case[c].weight is not None else 1.0 for c in ids]
+        weighted = sp == "representative" and any(c in by_case and by_case[c].weight is not None for c in ids)
+        if weighted:
+            mean, (lo, hi) = weighted_mean(vals, ws), weighted_bootstrap_ci(vals, ws, seed)
+        else:
+            mean, (lo, hi) = statistics.fmean(vals), bootstrap_ci(vals, seed)
+        passes = [per_case_pass_all[c] for c in ids if c in per_case_pass_all]
+        allp = [p for ps in passes for p in ps]
+        out[sp] = {"n": len(ids), "mean": mean, "ci_low": lo, "ci_high": hi, "weighted": weighted,
+                   "unweighted_mean": statistics.fmean(vals),
+                   "pass_rate": (sum(allp) / len(allp)) if allp else None,
+                   "pass_at_k": (sum(any(p) for p in passes) / len(passes)) if passes else None,
+                   "pass_hat_k": (sum(all(p) for p in passes) / len(passes)) if passes else None}
+    return out
+
+
 def summarise(target: str, cases: list[Case], samples: list[Sample], scores: list[Score], seed: int = 7,
-              on_error: str = "fail") -> dict[str, Any]:
+              on_error: str = "fail", stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> dict[str, Any]:
     """Aggregate one target's scores.
+
+    Each grader is also reported per split: `representative` (production-like cases, weighted by `case.weight` when
+    given, so the mean estimates production performance) and `stress` (edge / adversarial cases, which find failures
+    but would bias an average of production quality). Gate on them separately: mean(g, split="representative").
 
     Skipped scores (grader not applicable) are excluded. Errored scores (grader or target failed) count as a failure
     with value 0 when ``on_error="fail"`` (the default), so a grader that errors on hard cases cannot raise the mean;
@@ -107,6 +170,7 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
             "mean_disagreement": (statistics.fmean([s.details["disagreement"] for s in lst if "disagreement" in s.details])
                                   if any("disagreement" in s.details for s in lst) else None),
         }
+        graders[g]["splits"] = _split_stats(case_means, per_case_pass, by_case, stress_tags, seed)
         lw = [s.details["longer_won"] for s in lst if s.details.get("longer_won") is not None]
         if any("length_ratio" in s.details for s in lst):
             pc = [s.details["position_consistent"] for s in lst if "position_consistent" in s.details]
@@ -144,7 +208,9 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
     failed = sorted({s.case_id for s in scores if s.target == target and s.case_id in crit_ids and not s.skipped
                      and (s.passed is False or (s.error and on_error == "fail"))}
                     | {s.case_id for s in mine if s.case_id in crit_ids and s.error})
+    split_n = {sp: sum(1 for c in cases if split_of(c, stress_tags) == sp) for sp in SPLITS}
     return {"target": target, "graders": graders, "ops": ops, "slices": dict(slices), "slice_n": dict(slice_n),
+            "split_cases": split_n,
             "critical": {"total": len(crit_ids), "failed": failed, "passed": len(crit_ids) - len(failed)}}
 
 

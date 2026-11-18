@@ -19,13 +19,15 @@ imports or comprehensions).
 |---|---|
 | `mean(g)`, `ci_low(g)`, `ci_high(g)` | grader aggregate; `mean(g, tag='lang:hi')` for a slice |
 | `pass_rate(g)`, `pass_at_k(g)`, `pass_hat_k(g)` | pass statistics |
+| any of the above with `split='representative'` or `split='stress'` | the production-like set (weighted by `case.weight` when given) or the edge / adversarial suite; see [two sets](growing-the-eval-set.md#two-sets-representative-and-stress) |
 | `p50/p95/p99(metric)`, `mean(metric)`, `total(metric)` | `latency_ms`, `ttft_ms`, `cost_usd`, `tokens`, `steps` |
 | `delta(g)`, `delta_ci_low(g)`, `delta_ci_high(g)`, `significant(g, alpha=0.05)` | paired comparison with the baseline for the same target |
 | `critical_pass()`, `error_rate()` | |
 
 ```yaml
 gates:
-  - {name: grounded,      rule: "mean(faithfulness) >= 0.9 and ci_low(faithfulness) >= 0.85"}
+  - {name: grounded,      rule: "mean(faithfulness, split='representative') >= 0.9 and ci_low(faithfulness, split='representative') >= 0.85"}
+  - {name: stress,        rule: "mean(faithfulness, split='stress') >= 0.8"}
   - {name: no-regression, rule: "delta(task_success) > -0.03 or not significant(task_success)"}
   - {name: critical,      rule: "critical_pass()"}
   - {name: hindi,         rule: "mean(fields, tag='lang:hi') >= 0.9"}
@@ -85,6 +87,21 @@ Gates answer "may this ship?" for one candidate against fixed thresholds and a b
 these changes should we make?" for several candidates at once, with corrected significance; they apply the suite's
 absolute gates to every variant and replace `delta()` gates with the side-by-side comparison. See
 [experiments](experiments.md).
+
+## Representative and stress results
+
+Every grader is reported overall, per tag, and per split:
+
+- **representative:** production-like cases, weighted by `case.weight` when given;
+- **stress:** cases tagged `edge` / `adversarial`, or marked `split: stress`.
+
+Gate the headline on the representative split, because that is the number that estimates production quality.
+Gate the stress suite separately. An overall mean mixes the two in whatever proportion the dataset happens to have,
+so adding edge cases lowers it without production getting worse. `genai-evals doctor` flags blocking gates that do
+this. Requirements that every case must meet (`>= 1.0`) aren't averages, and are fine across both.
+
+The weighted representative mean is a ratio estimate (Σ w·v / Σ w). Its CI comes from a bootstrap that resamples
+cases together with their weights.
 
 ## Why averages are not enough
 

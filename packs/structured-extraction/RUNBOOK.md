@@ -1,6 +1,6 @@
 # Runbook: Structured extraction
 
-The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.1).
+The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.2).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -35,9 +35,14 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
-genai-evals cases coverage suite.yaml    # standard coverage tags: typical / edge / adversarial, multilingual, typos, jailbreak ...
+genai-evals cases coverage suite.yaml    # the representative set (size) and the stress suite (coverage tags)
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
+
+Keep two sets ([two sets](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md#two-sets-representative-and-stress)):
+a **representative** set sampled from production traffic (at least 30 cases, with `weight:` where the sample isn't in
+production proportions), whose score is the production estimate; and a **stress** suite of `edge` / `adversarial`
+cases that find failures. The headline gates use `split='representative'`; the stress suite is gated separately.
 
 Generated (and later, harvested) cases are drafts: they don't count until an SME writes the reference and
 `genai-evals cases promote` marks them reviewed ([growing the eval set](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md)).
@@ -91,8 +96,9 @@ Recommended gates for this pack:
 | Gate | Rule | Why |
 |---|---|---|
 | valid-json | `mean(valid_json) >= 1.0` | downstream systems need every document to parse |
-| field-accuracy | `mean(fields) >= 0.95 and ci_low(fields) >= 0.9` | the accuracy the business case assumed |
-| amounts | `mean(amount_exact) >= 0.98` | amounts go straight into payments |
+| field-accuracy | `mean(fields, split='representative') >= 0.95 and ci_low(fields, split='representative') >= 0.9` | the accuracy the business case assumed, on production-like documents |
+| field-accuracy-under-stress (warn) | `mean(fields, split='stress') >= 0.85` | scans, informal and other edge documents, reported apart from the production estimate |
+| amounts | `mean(amount_exact, split='representative') >= 0.98` | amounts go straight into payments |
 | critical-documents | `critical_pass()` | high-value invoices and non-invoices never fail |
 | ocr-slice (warn) | `mean(fields, tag='ocr') >= 0.9` | scanned documents are where extraction breaks first (raise min_n as OCR cases grow) |
 | cost-budget (warn) | `mean(cost_usd) <= 0.01` | per-document cost from the business case |

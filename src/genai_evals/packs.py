@@ -371,20 +371,28 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
         probs.append("no CI workflow running genai-evals")
     checks.append(Check("release gate", not probs, "; ".join(probs) or f"{len(quality_gates)} blocking quality gates, baseline {baselines[0].name}, CI {ci[0].name}",
                         "RUNBOOK step 6" if probs else ""))
-    # 4b. edge-case coverage (standard tags from OpenAI's evaluation best practices)
+    # 4b. representative set and stress suite (OpenAI's evaluation best practices; kept apart so edge cases don't
+    #     distort the production estimate)
     from . import taxonomy
     from .config import load_cases
     try:
         cases = load_cases(suite)
-        cov = taxonomy.coverage(cases, taxonomy.workflow_of(suite))
+        cov = taxonomy.coverage(cases, taxonomy.workflow_of(suite), min_representative=suite.min_representative_cases,
+                                stress_tags=suite.stress_tags)
         drafts = sum(1 for c in _raw_rows(suite) if c.get("review_status") == "draft")
-        detail = (f"{len(cases)} cases, {cov['hard_share']:.0%} edge or adversarial; "
-                  + ("; ".join(cov["problems"]) if cov["problems"] else "every applicable coverage tag has a case")
+        mixed = taxonomy.mixed_gates(suite)
+        problems = list(cov["problems"])
+        if mixed and cov["stress"] and cov["representative"]:
+            problems.append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed)
+                            + " (gate the headline with split='representative', and the stress suite separately)")
+        w = f", {cov['representative_weighted']} weighted" if cov["representative_weighted"] else ""
+        detail = (f"{cov['representative']} representative{w} + {cov['stress']} stress cases; "
+                  + ("; ".join(problems) if problems else "every applicable coverage tag has a stress case")
                   + (f"; {drafts} draft case(s) awaiting review" if drafts else ""))
-        checks.append(Check("edge-case coverage", not cov["problems"], detail,
-                            "" if not cov["problems"] else "genai-evals cases coverage suite.yaml; add cases (or `cases generate`)"))
+        checks.append(Check("eval set", not problems, detail,
+                            "" if not problems else "genai-evals cases coverage suite.yaml (docs/growing-the-eval-set.md)"))
     except Exception as e:  # noqa: BLE001
-        checks.append(Check("edge-case coverage", False, f"{type(e).__name__}: {e}", "fix the dataset"))
+        checks.append(Check("eval set", False, f"{type(e).__name__}: {e}", "fix the dataset"))
     judged = [g.name for g in suite.graders if g.type in JUDGE_GRADER_TYPES or g.type == "policy"]
     if judged:
         cal = suite.path(suite.calibration) if suite.calibration else None
@@ -395,8 +403,11 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
             data = load_calibration(cal)
             bad = untrusted_graders(data, suite.min_judge_kappa or 0.0, suite.min_calibration_n)
             uncal = [g for g in judged if g not in data]
+            no_val = [g for g in judged if g in data and not (data[g].get("validation") or {}).get("n")]
+            ok_txt = "all judges trusted" + (f" (on the calibration sample only; no representative validation sample for: "
+                                             f"{', '.join(no_val)})" if no_val else ", including on a representative validation sample")
             checks.append(Check("judges calibrated", not bad and not uncal,
-                                "; ".join([f"untrusted: {', '.join(bad)}"] * bool(bad) + [f"not calibrated: {', '.join(uncal)}"] * bool(uncal)) or "all judges trusted",
+                                "; ".join([f"untrusted: {', '.join(bad)}"] * bool(bad) + [f"not calibrated: {', '.join(uncal)}"] * bool(uncal)) or ok_txt,
                                 "" if not bad and not uncal else "RUNBOOK step 5"))
     else:
         checks.append(Check("judges calibrated", None, "no judge-graded graders"))

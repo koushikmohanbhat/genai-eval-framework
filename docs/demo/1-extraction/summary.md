@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-extraction`
 
-Run `run_1fbcf54404bb` · 24 cases × 2 targets × 1 repeats
+Run `run_75c4023394a9` · 24 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -17,7 +17,7 @@ Run `run_1fbcf54404bb` · 24 cases × 2 targets × 1 repeats
 | latency-budget | extractor-v1 | ✅ pass | `p95(latency_ms)`=1,068 |
 | latency-budget | extractor-v2 | ✅ pass | `p95(latency_ms)`=1,584 |
 
-### Scores (mean, 95% CI)
+### Scores (mean, 95% CI; representative and stress splits reported separately)
 
 | Target | schema | fields | latency | p95 latency | cost / case |
 |---|---|---|---|---|---|

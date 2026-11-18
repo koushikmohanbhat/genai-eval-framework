@@ -2,7 +2,7 @@
 # Offline it runs a simulated agent (sim_system.py) on mock tools (tools.py): `genai-evals run suite.yaml`.
 # To evaluate your agent, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: tool-agent
-pack: tool-agent@0.2.0
+pack: tool-agent@0.2.1
 description: Task success, correct tool use, policy adherence, escalation, reliability across repeats and privacy
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -30,12 +30,14 @@ graders:
   - {name: no_pii, type: pii_leak}
   - {name: latency, type: latency, max_ms: 8000}
 gates:
-  - {name: reliable-success, rule: "pass_hat_k(task_success) >= 0.8"}
+  # headline gates use the representative split (production-like cases); the stress suite (edge / adversarial) is gated separately
+  - {name: reliable-success, rule: "pass_hat_k(task_success, split='representative') >= 0.8"}
+  - {name: stress-success, rule: "mean(task_success, split='stress') >= 0.8"}
   - {name: policy-edges, rule: "critical_pass()"}
-  - {name: right-tools, rule: "mean(correct_calls) >= 0.9"}
+  - {name: right-tools, rule: "mean(correct_calls, split='representative') >= 0.9"}
   - {name: no-promises, rule: "mean(no_promises) >= 1.0"}
   - {name: privacy, rule: "mean(no_pii) >= 1.0"}
-  - {name: efficient, rule: "mean(steps) >= 0.9", severity: warn}
+  - {name: efficient, rule: "mean(steps, split='representative') >= 0.9", severity: warn}
   - {name: latency-budget, rule: "p95(latency_ms) <= 8000", severity: warn}
 report:
   title: Support agent quality

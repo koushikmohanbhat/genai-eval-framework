@@ -22,7 +22,7 @@ Promptfoo is the main way this framework works with other eval tooling: see [Wor
 | Guide | Framework |
 |---|---|
 | Mix production data, expert references and historical logs | `source: production | sme | synthetic` on every case; online runs build cases from production samples; `cases harvest` turns failures into drafts |
-| Include typical, edge and adversarial cases | standard difficulty tags `typical`, `edge`, `adversarial`; `doctor` flags datasets with too few hard cases (default under 20%) |
+| Include typical, edge and adversarial cases | standard difficulty tags; `edge` / `adversarial` cases form a **stress suite** reported and gated apart from the **representative** set (production-like, optionally prevalence-weighted), so stress cases never distort the production estimate. `doctor` checks both sets and flags gates that average them |
 | Use a strong model to generate scenarios, then have experts label them | `cases generate --generator <strong model profile>` writes **draft** cases per coverage tag; drafts are left out of runs and gates until `cases promote` marks them reviewed |
 | Prefer pairwise, classification or criterion-based tasks over open-ended scoring | `pairwise` (both orders), pass/fail rubrics, `reference_match`, `policy`; 1–5 rubrics support anchors per level |
 
@@ -45,6 +45,7 @@ Promptfoo is the main way this framework works with other eval tooling: see [Wor
 | Start with a strong judge and check agreement with human labels | `calibrate` reports accuracy, Cohen's κ with a bootstrap CI, positive and negative agreement, and warns on small or imbalanced label sets; gates that depend on an untrusted judge are **invalid** |
 | Move to cheaper judges only once they match human annotations | `calibrate --grader <cheap> --compare-to <strong>`: approves the cheaper judge only if the 95% lower bound of κ(cheap) − κ(strong) is above −margin (default 0.05) on the same labelled items, and reports both judges' cost ([judge ladder](human-labels.md#the-judge-ladder)) |
 | Expert human labels are the ground truth | consensus labels from several reviewers; the calibration warns when reviewers agree only moderately (κ < 0.6), because a judge can't be held to a standard the humans don't meet |
+| (sampling for labels) | the stratified calibration sample measures agreement on both outcomes and per slice; its design and inverse-inclusion weights are recorded, so calibration also reports production-weighted agreement and, from a separate random **validation** sample, agreement on representative traffic. A trusted judge must clear the bar on both |
 | Judge quality varies by context | calibrate per grader and per suite; judge prompt hashes and model ids are recorded with every result, so a judge change is visible |
 
 ## Architectures

@@ -2,7 +2,7 @@
 # Offline it runs a pattern-based extractor (sim_system.py): `genai-evals run suite.yaml`.
 # To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: structured-extraction
-pack: structured-extraction@0.1.1
+pack: structured-extraction@0.1.2
 description: Schema validity, field-level accuracy by format and currency, rejection of non-invoices, cost and latency
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -29,8 +29,10 @@ graders:
   - {name: latency, type: latency, max_ms: 5000}
 gates:
   - {name: valid-json, rule: "mean(valid_json) >= 1.0"}
-  - {name: field-accuracy, rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9"}
-  - {name: amounts, rule: "mean(amount_exact) >= 0.98"}
+  # headline gates use the representative split; OCR, informal and other edge documents are gated separately
+  - {name: field-accuracy, rule: "mean(fields, split='representative') >= 0.95 and ci_low(fields, split='representative') >= 0.9"}
+  - {name: field-accuracy-under-stress, rule: "mean(fields, split='stress') >= 0.85", severity: warn}
+  - {name: amounts, rule: "mean(amount_exact, split='representative') >= 0.98"}
   - {name: critical-documents, rule: "critical_pass()"}
   - {name: ocr-slice, rule: "mean(fields, tag='ocr') >= 0.9", severity: warn, min_n: 2}
   - {name: cost-budget, rule: "mean(cost_usd) <= 0.01", severity: warn}

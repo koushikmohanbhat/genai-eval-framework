@@ -20,7 +20,7 @@ from .graders.judges import JUDGE_GRADER_TYPES, judge_prompts_hash
 from .models import Case, Sample, Score
 from .prompts import PromptStore
 from .providers import ProviderPool
-from .stats import paired_delta, summarise
+from .stats import paired_delta, split_of, summarise
 from .store import ResultStore
 from .targets import RunContext, Target, build_target
 
@@ -147,7 +147,7 @@ class Runner:
 
     def finish(self, cases, targets: list[dict[str, Any]], samples, scores, gctx, baseline, baseline_map,
                extra: dict[str, Any] | None = None) -> dict[str, Any]:
-        summary = {t["name"]: summarise(t["name"], cases, samples, scores, self.suite.seed, self.suite.on_error) for t in targets}
+        summary = {t["name"]: summarise(t["name"], cases, samples, scores, self.suite.seed, self.suite.on_error, self.suite.stress_tags) for t in targets}
         base_summaries = baseline_summaries(baseline, list(summary), baseline_map)
         untrusted = untrusted_graders(gctx.calibration, self.suite.min_judge_kappa, self.suite.min_calibration_n)
         gate_results = evaluate_gates(self.suite.gates, summary, samples, base_summaries, self.suite.seed, untrusted,
@@ -170,8 +170,11 @@ class Runner:
             "passed": not blocking_failures(gate_results),
             "targets": targets,
             "judges": self.suite.judges, "repeats": self.suite.repeats,
-            "cases": [{"id": c.id, "tags": c.tags, "critical": c.critical, "input": (self.tokenizer.tokenize(c.input_text()) if self.tokenizer else c.input_text())[:500]}
+            "cases": [{"id": c.id, "tags": c.tags, "critical": c.critical, "split": split_of(c, self.suite.stress_tags),
+                       **({"weight": c.weight} if c.weight is not None else {}),
+                       "input": (self.tokenizer.tokenize(c.input_text()) if self.tokenizer else c.input_text())[:500]}
                       for c in cases],
+            "stress_tags": list(self.suite.stress_tags),
             "graders": [_grader_info(g) for g in self.suite.graders],
             "judge_provenance": self._judge_provenance(scores),
             "summary": summary, "gates": [asdict(g) for g in gate_results], "comparisons": comparisons,

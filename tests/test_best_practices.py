@@ -200,7 +200,8 @@ def test_coverage_by_workflow():
     cases = [Case(id="a", input="x", tags=["typical"]), Case(id="b", input="x", tags=["edge", "typos"]),
              Case(id="c", input="x", tags=["adversarial", "jailbreak"]), Case(id="d", input="x")]
     cov = tx.coverage(cases, "agent")
-    assert cov["untagged"] == 1 and cov["hard_share"] == 0.5 and "typos" in cov["present"]
+    assert cov["untagged"] == 1 and cov["stress"] == 2 and cov["representative"] == 2 and "typos" in cov["present"]
+    assert any("representative set too small (2 < 30)" in p for p in cov["problems"])
     assert "circular_handoff" in cov["missing"] and "no_answer" not in cov["missing"]
     assert "no_answer" in tx.coverage(cases, "rag")["missing"] and "circular_handoff" not in tx.coverage(cases, "rag")["missing"]
     assert tx.workflow_of(SuiteSpec(name="s", pack="tool-agent@0.1.0")) == "agent"
@@ -282,3 +283,88 @@ def test_calibration_file_shapes_all_load(tmp_path):
         p.write_text(json.dumps(data))
         got = cal.load_calibration(p)
         assert list(got) == ["f"] and got["f"]["kappa"] == 0.8
+
+
+# ---- representative vs stress, and calibration sampling --------------------------------------------------------------
+
+def _sc(cid, v, g="g"):
+    return Score(grader=g, case_id=cid, target="t", value=v, passed=v >= 0.5)
+
+
+def test_representative_and_stress_splits_are_reported_and_weighted():
+    cases = [Case(id="r1", input="x", tags=["typical"], weight=3), Case(id="r2", input="x", tags=["typical"], weight=1),
+             Case(id="s1", input="x", tags=["edge"]), Case(id="s2", input="x", tags=["adversarial"]),
+             Case(id="x1", input="x", tags=["edge"], split="representative")]
+    scores = [_sc("r1", 1.0), _sc("r2", 0.0), _sc("s1", 0.0), _sc("s2", 0.0), _sc("x1", 1.0)]
+    sp = summarise("t", cases, [], scores)["graders"]["g"]["splits"]
+    rep, st = sp["representative"], sp["stress"]
+    assert rep["n"] == 3 and st["n"] == 2 and rep["weighted"]
+    assert rep["mean"] == pytest.approx((3 * 1 + 1 * 0 + 1 * 1) / 5) and rep["unweighted_mean"] == pytest.approx(2 / 3)
+    assert st["mean"] == 0.0 and not st["weighted"]
+
+
+def test_gates_on_splits_and_rule_validation():
+    from genai_evals.config import GateSpec
+    from genai_evals.gates import evaluate_gates, validate_rule
+    cases = [Case(id=f"r{i}", input="x", tags=["typical"]) for i in range(5)] + [Case(id=f"s{i}", input="x", tags=["edge"]) for i in range(5)]
+    scores = [_sc(f"r{i}", 1.0) for i in range(5)] + [_sc(f"s{i}", 0.0) for i in range(5)]
+    summ = {"t": summarise("t", cases, [], scores)}
+    gates = [GateSpec(name="rep", rule="mean(g, split='representative') >= 0.9"),
+             GateSpec(name="stress", rule="mean(g, split='stress') >= 0.5"),
+             GateSpec(name="mixed", rule="mean(g) >= 0.9")]
+    res = {r.gate: r.status for r in evaluate_gates(gates, summ, [], min_n=5)}
+    assert res == {"rep": "pass", "stress": "fail", "mixed": "fail"}
+    assert validate_rule("mean(g, split='prod') >= 1", {"g"}) and validate_rule("p95(latency_ms, split='stress') < 1", {"g"})
+    assert not validate_rule("ci_low(g, split='stress') >= 0.5", {"g"})
+
+
+def test_doctor_flags_gates_that_mix_the_splits():
+    suite = SuiteSpec(name="s", gates=[{"name": "headline", "rule": "mean(q) >= 0.9"},
+                                       {"name": "rep", "rule": "mean(q, split='representative') >= 0.9"},
+                                       {"name": "every-case", "rule": "mean(no_pii) >= 1.0"},
+                                       {"name": "slo", "rule": "mean(latency_ms) <= 900"},
+                                       {"name": "soft", "rule": "mean(q) >= 0.8", "severity": "warn"}])
+    assert tx.mixed_gates(suite) == ["headline"]
+
+
+def test_label_sheet_records_design_and_inverse_inclusion_weights():
+    cases = [{"id": f"c{i}", "tags": ["rare" if i < 4 else "common"]} for i in range(40)]
+    samples = [{"case_id": f"c{i}", "target": "t", "repeat": 0, "input": "q", "output": "a"} for i in range(40)]
+    scores = [{"grader": "j", "case_id": f"c{i}", "target": "t", "repeat": 0, "passed": i % 4 != 0} for i in range(40)]
+    res = {"cases": cases, "samples": samples, "scores": scores}
+    strat = lb.sample_items(res, "j", n=12)
+    assert {i["sample_design"] for i in strat} == {"stratified"}
+    # weights recover the population: sum of weights per stratum == stratum size
+    assert sum(i["weight"] for i in strat) == pytest.approx(40)
+    rare = [i for i in strat if i["tags"] == "rare"]
+    assert rare and all(i["weight"] < 2 for i in rare)              # rare tag over-sampled -> small weights
+    rnd = lb.sample_items(res, "j", n=10, design="random")
+    assert {i["sample_design"] for i in rnd} == {"random"} and {i["weight"] for i in rnd} == {4.0}
+
+
+def test_calibration_reports_weighted_slice_and_validation_agreement(tmp_path):
+    # population: judge right on 'common', wrong half the time on 'rare'; humans pass 90% in production
+    cases = [{"id": f"c{i}", "tags": ["rare" if i < 10 else "common"] + (["edge"] if i < 10 else ["typical"])} for i in range(100)]
+    human = {f"c{i}": (i % 10 != 0) for i in range(100)}
+    judge = {f"c{i}": (human[f"c{i}"] if i >= 10 or i % 2 else not human[f"c{i}"]) for i in range(100)}
+    result = {"cases": cases, "samples": [], "stress_tags": ["edge", "adversarial"],
+              "scores": [{"grader": "j", "case_id": c, "target": "t", "repeat": 0, "passed": judge[c]} for c in judge]}
+    labels = {(c, "*"): h for c, h in human.items()}
+    info = {(c, "*"): {"design": "stratified", "weight": 1.0 if int(c[1:]) >= 10 else 0.5} for c in human}
+    out = cal.calibrate(result, "j", labels, sample_info=info, validation={(f"c{i}", "*"): human[f"c{i}"] for i in range(10, 60)})
+    assert out["sample"] == {"design": "stratified", "weighted": True}
+    assert out["weighted"]["accuracy"] > out["accuracy"]                       # rare, error-prone slice down-weighted
+    assert out["slices"]["rare"]["accuracy"] == pytest.approx(0.5) and out["slices"]["common"]["accuracy"] == 1.0
+    assert out["slices"]["split:stress"]["n"] == 10 and out["slices"]["split:representative"]["n"] == 90
+    assert any("agrees noticeably less on" in w and "rare (50%, n=10)" in w for w in out["warnings"])
+    assert any("not production estimates" in w for w in out["warnings"])
+    assert out["validation"]["n"] == 50 and out["validation"]["accuracy"] == 1.0
+    # a judge that clears the bar on the calibration sample but not on the validation sample is not trusted
+    bad = dict(out, kappa=0.9, kappa_ci=[0.8, 0.95], n=100, validation={"n": 50, "kappa": 0.2, "kappa_ci": [0.0, 0.4]})
+    assert "validation sample" in cal.untrusted_graders({"j": bad}, 0.6)["j"]
+
+
+def test_read_sample_info_from_sheet(tmp_path):
+    p = tmp_path / "l.csv"
+    p.write_text("case_id,target,reviewer,label,sample_design,stratum,weight\nc1,t,ana,pass,stratified,rare|True,0.5\nc1,t,bo,pass,stratified,rare|True,0.5\n")
+    assert cal.read_sample_info(p) == {("c1", "t"): {"design": "stratified", "stratum": "rare|True", "weight": 0.5}}

@@ -116,7 +116,9 @@ def test_doctor_tracks_the_repeatability_bar(tmp_path, monkeypatch):
     data.write_text("".join(json.dumps(r) + "\n" for r in rows))
     (proj / "calibration.json").write_text(json.dumps(cal))
     suite = proj / "suite.yaml"
-    suite.write_text(suite.read_text().replace("# calibration: calibration.json", "calibration: calibration.json"))
+    # the starter set is small; a real engagement samples 30+ production cases into the representative set
+    suite.write_text(suite.read_text().replace("# calibration: calibration.json", "calibration: calibration.json")
+                     + "\nmin_representative_cases: 10\n")
     h = proj / "HANDOVER.md"
     h.write_text(h.read_text().replace("- [ ]", "- [x]").replace("Owner: ____", "Owner: Customer platform team"))
     from genai_evals.plugins import record_validation

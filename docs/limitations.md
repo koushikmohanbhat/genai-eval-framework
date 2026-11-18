@@ -1,4 +1,4 @@
-# Limitations (v0.4.0)
+# Limitations (v0.4.1)
 
 Read this before using the framework in production.
 
@@ -25,6 +25,13 @@ please open an issue with what you find.
   simulators and starter cases show the shape of an evaluation; they say nothing about any real system.
 
 ## Known gaps
+
+- **The representative set is only as representative as its sample.** Weights correct for known over- or
+  under-sampling, not for traffic the sample never saw. Re-sample it from production regularly. The starter packs'
+  representative sets are synthetic and below the 30-case minimum on purpose.
+- **Production-weighted agreement depends on the sheet's weights.** They describe the result the sheet was drawn
+  from; if that result was a curated suite rather than production traffic, the "production" estimate inherits the
+  curation. Use the random validation sample from the representative set as the check.
 
 - **Length bias is measured, not corrected.** Judges are told not to reward length and `pairwise` reports how often
   the longer answer won, but no score is adjusted for length. Read `length_bias` and act on it (shorter answers in

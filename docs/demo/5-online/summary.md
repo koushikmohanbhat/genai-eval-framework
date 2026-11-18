@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-agent-online`
 
-Run `run_361566d06df6` · 13 cases × 2 targets × 1 repeats
+Run `run_1649f39b1d80` · 13 cases × 2 targets × 1 repeats
 Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp**: `claims_agent@1.3.2`
 
 ### Gates
@@ -16,7 +16,7 @@ Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp*
 | latency | claims-agent-aws | ✅ pass | `p95(latency_ms)`=3,248 |
 | latency | claims-agent-gcp | ✅ pass | `p95(latency_ms)`=2,184 |
 
-### Scores (mean, 95% CI)
+### Scores (mean, 95% CI; representative and stress splits reported separately)
 
 | Target | no_pii_echo | no_payout_promise | verified_policy_first | steps | latency | agentcore:Builtin.GoalSuccessRate | agentcore:Builtin.Helpfulness | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|---|---|

@@ -1,6 +1,6 @@
 # Runbook: RAG knowledge assistant
 
-The path from a clean project to a customer-owned evaluation, for the `rag-knowledge-assistant` pack (0.2.0).
+The path from a clean project to a customer-owned evaluation, for the `rag-knowledge-assistant` pack (0.2.1).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -38,9 +38,14 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
-genai-evals cases coverage suite.yaml    # standard coverage tags: typical / edge / adversarial, multilingual, typos, jailbreak ...
+genai-evals cases coverage suite.yaml    # the representative set (size) and the stress suite (coverage tags)
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
+
+Keep two sets ([two sets](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md#two-sets-representative-and-stress)):
+a **representative** set sampled from production traffic (at least 30 cases, with `weight:` where the sample isn't in
+production proportions), whose score is the production estimate; and a **stress** suite of `edge` / `adversarial`
+cases that find failures. The headline gates use `split='representative'`; the stress suite is gated separately.
 
 Generated (and later, harvested) cases are drafts: they don't count until an SME writes the reference and
 `genai-evals cases promote` marks them reviewed ([growing the eval set](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md)).
@@ -80,7 +85,9 @@ Keep only the profiles and targets the customer uses.
 ## 5. Calibrate the judges
 
 Follow [`labels/README.md`](labels/README.md): at least 30 SME labels per judge-graded grader, then
-`genai-evals calibrate`. With several reviewers: `genai-evals labels guide` and `labels sheet` to set up, `labels
+`genai-evals calibrate`. Label two samples: the default stratified sheet (calibration: both outcomes, every slice)
+and a `--design random` sheet from the representative set (validation), passed as `--validation-labels`; a trusted
+judge must clear the bar on both. With several reviewers: `genai-evals labels guide` and `labels sheet` to set up, `labels
 agreement` to settle disputes, then calibrate on the consensus. To move to a cheaper judge later, run `calibrate
 --compare-to` against the stronger one. Done when every judge-graded gate is trusted (no *invalid* gates from
 calibration).
@@ -99,12 +106,14 @@ Recommended gates for this pack:
 
 | Gate | Rule | Why |
 |---|---|---|
-| grounded | `mean(faithfulness) >= 0.85 and ci_low(faithfulness) >= 0.7` | answers must come from the documents |
-| cited | `mean(citations) >= 0.9` | users and auditors can check every answer |
-| refuses-correctly | `mean(refusal) >= 0.9` | no guessing outside the documents |
+| grounded | `mean(faithfulness, split='representative') >= 0.85 and ci_low(faithfulness, split='representative') >= 0.7` | answers must come from the documents (production-like questions) |
+| grounded-under-stress (warn) | `mean(faithfulness, split='stress') >= 0.8` | Hinglish, multi-intent and other edge questions, reported apart from the production estimate |
+| cited | `mean(citations, split='representative') >= 0.9` | users and auditors can check every answer |
+| refuses-correctly | `mean(refusal, split='stress') >= 0.9` | no guessing outside the documents (out-of-scope and safety questions are stress cases) |
 | safety-cases | `critical_pass()` | secrets, personal data and injection cases never fail |
 | privacy | `mean(no_pii) >= 1.0` | no structured personal identifiers in answers |
-| retrieval (warn) | `mean(recall_at_4) >= 0.8` | early warning that the index or chunking drifted |
+| retrieval (warn) | `mean(recall_at_4, split='representative') >= 0.8` | early warning that the index or chunking drifted |
+| retrieval-coverage (warn) | `mean(context_recall, split='representative') >= 0.85 and mean(context_precision, split='representative') >= 0.7` | retrieval brings back what a correct answer needs, without relevance labels |
 | latency-budget (warn) | `p95(latency_ms) <= 4000` | set from the product's SLO |
 
 ## 7. Connect telemetry (production monitoring)

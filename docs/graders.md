@@ -65,7 +65,9 @@ genai-evals calibrate out/result.json --grader faithfulness --labels labels.csv 
 The labels CSV has columns `case_id,target,label`, where `target` may be `*`. With several reviewers, add `reviewer`
 (and optionally `round` and `adjudicated`): labels are combined into a consensus first and the reviewers' agreement
 is reported alongside. `--compare-to <grader>` checks whether a cheaper judge can replace a stronger one. Both are
-covered in [human labels and the judge ladder](human-labels.md). Point the suite at the file with
+covered in [human labels and the judge ladder](human-labels.md). Label sheets record their sampling design and
+weights, so calibration reports production-weighted agreement and agreement per slice; `--validation-labels` adds a
+separate representative sample, and a trusted judge must clear `min_judge_kappa` on both. Point the suite at the file with
 `calibration: calibration.json` and set `min_judge_kappa: 0.4`.
 
 A judge is **trusted** only when it was calibrated on at least `min_calibration_n` labels (default 30) **and** the lower

@@ -1,7 +1,9 @@
 """Standard case tags for coverage, following the edge cases in OpenAI's evaluation best practices.
 
 Tag cases with these (alongside your own domain tags) so a suite can be checked for what it does not yet test, and so
-results can be read per slice (`summary.slices` already breaks every grader down by tag). `genai-evals doctor` and
+results can be read per slice (`summary.slices` breaks every grader down by tag). `edge` and `adversarial` also put a
+case in the **stress** split, reported and gated apart from the **representative** split, so stress cases never
+distort the production estimate. `genai-evals doctor` and
 `genai-evals cases coverage` report coverage against the tags that apply to the pack's workflow.
 """
 from __future__ import annotations
@@ -54,31 +56,85 @@ def applicable(workflow: str | None) -> list[str]:
     return [t for t, (_g, _d, wfs) in TAGS.items() if wf in wfs]
 
 
-def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int = 1,
-             min_hard_share: float = 0.2) -> dict[str, Any]:
-    """Which standard tags the cases carry, which applicable ones are missing, and the share of edge / adversarial
-    cases. Cases may be Case objects or dicts with `tags`."""
+def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int = 1, min_representative: int = 30,
+             stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> dict[str, Any]:
+    """Two sets, checked separately:
+
+    - the **representative** set (cases without a stress tag, or `split: representative`): production-like traffic,
+      ideally sampled from production and weighted by prevalence. Its score estimates production performance, so it
+      needs enough cases (`min_representative`, default 30) and no edge cases mixed in;
+    - the **stress** suite (`edge` / `adversarial`, or `split: stress`): written to find failures. Coverage tags say
+      which kinds of stress case are missing.
+
+    Cases may be Case objects or dicts with `tags` (and optionally `split`)."""
     def tags_of(c):
         return list(getattr(c, "tags", None) or (c.get("tags") if isinstance(c, dict) else None) or [])
+
+    def split_of(c):
+        sp = getattr(c, "split", None) if not isinstance(c, dict) else c.get("split")
+        if sp in ("representative", "stress"):
+            return sp
+        return "stress" if set(tags_of(c)) & set(stress_tags) else "representative"
     counts = Counter(t for c in cases for t in set(tags_of(c)))
     app = applicable(workflow)
     present = {t: counts[t] for t in app if counts[t] >= min_per_tag}
     missing = [t for t in app if counts[t] < min_per_tag]
     n = len(cases)
-    hard = sum(1 for c in cases if {"edge", "adversarial"} & set(tags_of(c)))
-    untagged = sum(1 for c in cases if not {"typical", "edge", "adversarial"} & set(tags_of(c)))
+    rep = sum(1 for c in cases if split_of(c) == "representative")
+    stress = n - rep
+    untagged = sum(1 for c in cases if not {"typical", "edge", "adversarial"} & set(tags_of(c))
+                   and getattr(c, "split", None) is None and not (isinstance(c, dict) and c.get("split")))
+    weighted = sum(1 for c in cases if split_of(c) == "representative"
+                   and (getattr(c, "weight", None) if not isinstance(c, dict) else c.get("weight")) is not None)
     by_group = {g: {"present": [t for t in present if TAGS[t][0] == g], "missing": [t for t in missing if TAGS[t][0] == g]}
                 for g in GROUPS}
     problems = []
     if untagged:
-        problems.append(f"{untagged} of {n} cases have no difficulty tag (typical / edge / adversarial)")
-    if n and hard / n < min_hard_share:
-        problems.append(f"only {hard / n:.0%} of cases are edge or adversarial (aim for at least {min_hard_share:.0%})")
+        problems.append(f"{untagged} of {n} cases have no difficulty tag (typical / edge / adversarial) or split")
+    if rep < min_representative:
+        problems.append(f"representative set too small ({rep} < {min_representative}): sample it from production, since "
+                        "its score is the production estimate")
+    if not stress:
+        problems.append("no stress cases (edge / adversarial)")
     if missing:
-        problems.append("no cases for: " + ", ".join(missing))
+        problems.append("stress suite has no cases for: " + ", ".join(missing))
     return {"workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
-            "present": present, "missing": missing, "hard_share": (hard / n) if n else 0.0, "untagged": untagged,
+            "present": present, "missing": missing, "representative": rep, "stress": stress,
+            "representative_weighted": weighted, "stress_share": (stress / n) if n else 0.0, "untagged": untagged,
             "by_group": by_group, "problems": problems}
+
+
+def mixed_gates(suite: Any) -> list[str]:
+    """Blocking gates that average representative and stress cases together: a mean / CI / pass rate over a grader
+    without split= or tag=, with a threshold below 1.0. (A requirement that every case passes, `>= 1.0`, is not an
+    average and applies to both sets.)"""
+    import ast
+    out = []
+    for g in getattr(suite, "gates", []) or []:
+        if getattr(g, "severity", "block") != "block":
+            continue
+        try:
+            tree = ast.parse(g.rule, mode="eval")
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare):
+                continue
+            for call in [node.left, *node.comparators]:
+                if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                        and call.func.id in ("mean", "ci_low", "ci_high", "pass_rate", "pass_at_k", "pass_hat_k")):
+                    continue
+                if any(k.arg in ("split", "tag") for k in call.keywords):
+                    continue
+                if call.args and isinstance(call.args[0], ast.Name) and call.args[0].id in (
+                        "latency_ms", "ttft_ms", "cost_usd", "tokens", "steps"):
+                    continue
+                consts = [c.value for c in [node.left, *node.comparators] if isinstance(c, ast.Constant)]
+                if consts and all(isinstance(v, (int, float)) and v >= 1.0 for v in consts):
+                    continue
+                out.append(g.name)
+                break
+    return sorted(set(out))
 
 
 def describe(workflow: str | None = None) -> list[dict[str, str]]:

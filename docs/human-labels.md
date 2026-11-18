@@ -14,17 +14,32 @@ The guide is built from the grader's rubric and `anchors`. It explains what to j
 section for an example at each level. **Fill in the examples before anyone labels**: reviewers agree more when each
 level is shown, not just described. Put the same examples in the grader's `anchors` so the judge sees them too.
 
-## 2. Make the sheet
+## 2. Make the sheets: a calibration sample and a validation sample
+
+Two samples answer two different questions, so draw both:
 
 ```bash
-genai-evals labels sheet out/live/result.json --grader faithfulness --n 60 --reviewers ana,bo,cy --out reviews.csv
+# calibration: is the judge right on both outcomes and on every slice?
+genai-evals labels sheet out/live/result.json --grader faithfulness --n 60 --reviewers ana,bo,cy --out calibration.csv
+# validation: how often is the judge right on production-like traffic?
+genai-evals labels sheet out/live/result.json --grader faithfulness --n 40 --design random --reviewers ana,bo --out validation.csv
 ```
 
-- Items are sampled at random, **stratified by tag** and balanced between judge passes and fails, so agreement is
-  measured on both outcomes and on the rare slices. `--no-stratify` for a plain random sample.
-- One row per item per reviewer. Reviewers fill `label` (`pass`, `fail` or `unsure`) and `notes`.
-- **The judge's verdict is not in the sheet**, so labels stay independent of the judge.
-- Inputs and outputs come from the result, which is already tokenised when the run used tokenisation.
+| | Calibration sample (`--design stratified`, the default) | Validation sample (`--design random`) |
+|---|---|---|
+| How items are drawn | stratified by tag and balanced between the judge's passes and fails | simple random sample of the scored items |
+| Good for | agreement on both outcomes and on rare slices (a random sample of a 95%-pass system has almost no fails to check) | an estimate of agreement, and of the human pass rate, as they are in production |
+| Not good for | estimating production prevalence or overall agreement: rare slices and fails are over-represented | small or rare slices |
+
+- **Which result to sample from.** Run on the representative set (or on online production samples) for the
+  validation sheet. A sample of a suite that includes the stress cases is "random" only over that suite.
+- **Weights.** Every row records `sample_design`, `stratum` and `weight`: the inverse inclusion weight, i.e. the
+  number of scored items the labelled item stands for (stratum size ÷ items drawn from it). Calibration uses the
+  weights to estimate agreement at the population's prevalence. Leave these columns as they are.
+- **Rows.** One row per item per reviewer. Reviewers fill `label` (`pass`, `fail` or `unsure`) and `notes`.
+- **Independence.** The judge's verdict is not in the sheet, so labels stay independent of the judge.
+- **Personal data.** Inputs and outputs come from the result, which is already tokenised when the run used
+  tokenisation.
 
 ## 3. Measure agreement between reviewers
 
@@ -50,13 +65,38 @@ held to a standard the humans don't meet.
 ## 4. Calibrate the judge
 
 ```bash
-genai-evals calibrate out/live/result.json --grader faithfulness --labels reviews.csv --out calibration.json --min-kappa 0.4
+genai-evals calibrate out/live/result.json --grader faithfulness --labels calibration.csv \
+    --validation-labels validation.csv --out calibration.json --min-kappa 0.4
+#   faithfulness: n=60 accuracy=0.883 kappa=0.71 (95% CI 0.52–0.86) on the stratified calibration sample -> calibration.json
+#     production-weighted: kappa 0.66, accuracy 94%, human pass rate 91% (sample: 52%)
+#     representative validation sample: n=40, accuracy 93%, kappa 0.62, human pass rate 90%
+#     slice lang:hi: n=12, accuracy 75%, kappa 0.48
+#     slice split:stress: n=24, accuracy 83%, kappa 0.66
+#     warning: judge agrees noticeably less on: lang:hi (75%, n=12)
 ```
 
-`--labels` takes either a single-reviewer file (`case_id,target,label`) or the multi-reviewer sheet, which is
-combined into consensus labels first (`--rule` as above). The calibration records the reviewers' agreement next to
-the judge's, and warns if the judge agrees with the consensus suspiciously more than the reviewers agree with each
-other (a sign the labels aren't independent). Trust rules are in [graders](graders.md#calibration).
+`--labels` takes either a single-reviewer file (`case_id,target,label`) or the multi-reviewer sheet. A multi-reviewer
+sheet is combined into consensus labels first (`--rule` as above). The calibration reports four things.
+
+**Agreement on the calibration sample.** Accuracy, Cohen's κ with a bootstrap CI, positive and negative agreement,
+and the confusion matrix. The sample was designed, so the human pass rate here (52% above) is not production
+prevalence. The tool says so when the design is stratified.
+
+**A production-weighted estimate**, from the sheet's weights: weighted κ, accuracy, and the human and judge pass
+rates. The estimate is only as good as the population the sheet was drawn from (see above).
+
+**Agreement per slice.** Agreement for every tag, and for `split:representative` and `split:stress`, with `n`.
+Slices with at least 5 items and accuracy more than 15 points below the overall figure are warned about. A judge that
+is fine overall but poor on Hindi questions, or on the stress suite, shouldn't gate those slices.
+
+**The representative validation sample** (`--validation-labels`). It is reported separately and never pooled with
+the calibration sample. When it is given, a trusted judge must clear `--min-kappa` (its CI lower bound) on **both**
+samples. If it isn't given and the calibration sample is stratified (or of unknown design), the tool recommends
+labelling one.
+
+The calibration also records the reviewers' agreement next to the judge's. It warns if the judge agrees with the
+consensus suspiciously more than the reviewers agree with each other, a sign the labels aren't independent. Trust
+rules are in [graders](graders.md#calibration).
 
 ## The judge ladder
 

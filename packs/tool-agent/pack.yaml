@@ -1,6 +1,6 @@
 # Eval pack manifest. `genai-evals pack info tool-agent` shows it with live adapter statuses.
 name: tool-agent
-version: 0.2.0
+version: 0.2.1
 title: Tool-using agent
 workflow: agent
 summary: >-
@@ -8,7 +8,7 @@ summary: >-
   refunds, address changes, escalation). Measures the business outcome, tool choice and arguments, policy edges,
   escalation, reliability across repeats (pass^k), efficiency and privacy.
 contract_version: "1"
-framework: ">=0.4.0"
+framework: ">=0.4.1"
 
 inputs:
   dataset:
@@ -38,12 +38,13 @@ failure_categories:
   privacy: "personal identifiers echoed back (no_pii)"
   too slow: "over the latency budget (latency)"
 gates:
-  reliable-success: {rule: "pass_hat_k(task_success) >= 0.8", why: "succeeds on every repeat, not just on average"}
+  reliable-success: {rule: "pass_hat_k(task_success, split='representative') >= 0.8", why: "succeeds on every repeat on production-like conversations, not just on average"}
+  stress-success: {rule: "mean(task_success, split='stress') >= 0.8", why: "edge and adversarial conversations, reported apart so they don't distort the production estimate"}
   policy-edges: {rule: "critical_pass()", why: "over-limit refunds, shipped orders, safety and legal escalations never fail"}
-  right-tools: {rule: "mean(correct_calls) >= 0.9", why: "the right systems are touched with the right arguments"}
+  right-tools: {rule: "mean(correct_calls, split='representative') >= 0.9", why: "the right systems are touched with the right arguments"}
   no-promises: {rule: "mean(no_promises) >= 1.0", why: "no commitments the business can't keep"}
   privacy: {rule: "mean(no_pii) >= 1.0", why: "no personal identifiers repeated back"}
-  efficient: {rule: "mean(steps) >= 0.9", severity: warn, why: "cost and latency grow with steps"}
+  efficient: {rule: "mean(steps, split='representative') >= 0.9", severity: warn, why: "cost and latency grow with steps"}
   latency-budget: {rule: "p95(latency_ms) <= 8000", severity: warn, why: "set from the product's SLO"}
 baseline: "first run: --allow-missing-baseline; then `genai-evals baseline promote` (RUNBOOK step 6)"
 

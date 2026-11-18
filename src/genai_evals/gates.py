@@ -6,6 +6,8 @@
     p95(latency_ms) <= 3000 and mean(cost_usd) <= 0.02
     pass_hat_k(task_success) >= 0.8
     mean(field_accuracy, tag="lang:hi") >= 0.85
+    mean(faithfulness, split="representative") >= 0.9      # production-like cases (weighted when cases carry weight)
+    pass_rate(task_success, split="stress") >= 0.8          # edge / adversarial suite, reported and gated separately
 
 Functions (grader names or ops metrics as bare words):
   mean ci_low ci_high pass_rate pass_at_k pass_hat_k   - grader aggregates (mean also accepts latency_ms / ttft_ms / cost_usd / tokens / steps)
@@ -75,6 +77,13 @@ def validate_rule(rule: str, grader_names: set[str]) -> list[str]:
         problems.append(f"unknown function '{f}'")
     for n in names - grader_names - OPS_METRICS:
         problems.append(f"unknown grader or metric '{n}'")
+    for node in ast.walk(_parse(rule)):
+        if isinstance(node, ast.Call):
+            for k in node.keywords:
+                if k.arg == "split" and not (isinstance(k.value, ast.Constant) and k.value.value in ("representative", "stress")):
+                    problems.append("split= must be \"representative\" or \"stress\"")
+                if k.arg == "split" and node.func.id not in GRADER_FUNCS:
+                    problems.append(f"split= only works with {', '.join(sorted(GRADER_FUNCS))}")
     return problems
 
 
@@ -126,7 +135,14 @@ class _Evaluator:
                 v = percentile(series, {"p50": .5, "p95": .95, "p99": .99}[fn])
         elif fn in GRADER_FUNCS:
             g = self._g(args[0])
-            if kw.get("tag"):
+            if kw.get("split"):
+                sp = (g.get("splits") or {}).get(kw["split"])
+                if sp is None:
+                    raise GateError(f"no '{args[0]}' scores in the {kw['split']} split")
+                if sp["n"] < self.min_n:
+                    raise GateError(f"{kw['split']} split has only {sp['n']} case(s) for '{args[0]}' (min_n {self.min_n})")
+                v = sp.get(fn)
+            elif kw.get("tag"):
                 v = self.s["slices"].get(kw["tag"], {}).get(args[0]) if fn == "mean" else None
                 if v is None:
                     raise GateError(f"no '{args[0]}' scores for tag '{kw['tag']}'")

@@ -17,13 +17,21 @@ from pathlib import Path
 from typing import Any
 
 SHEET_COLUMNS = ["case_id", "target", "repeat", "tags", "input", "output", "judge_passed", "reviewer", "round", "label",
-                 "adjudicated", "notes"]
+                 "adjudicated", "notes", "sample_design", "stratum", "weight"]
 
 
 def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7, stratify: bool = True,
-                 include_judge: bool = False) -> list[dict[str, Any]]:
-    """Pick items to label: a random sample of the grader's scored items, stratified by tag (so rare slices are not
-    missed) and balanced between judge passes and fails where possible, so agreement can be measured on both."""
+                 include_judge: bool = False, design: str | None = None) -> list[dict[str, Any]]:
+    """Pick items to label.
+
+    design="stratified" (calibration, the default): stratified by tag (so rare slices are not missed) and balanced
+    between judge passes and fails, so agreement can be measured on both outcomes. Not representative of production.
+    design="random" (validation): a simple random sample, representative of the scored items.
+
+    Every item records its design, stratum and inverse-inclusion weight (stratum size / items drawn from it), so
+    calibration can weight agreement back to the population's prevalence."""
+    design = design or ("stratified" if stratify else "random")
+    stratify = design == "stratified"
     cases = {c["id"]: c for c in result.get("cases", [])}
     samples = {(s["case_id"], s["target"], s.get("repeat", 0)): s for s in result.get("samples", [])}
     scored = [s for s in result["scores"] if s["grader"] == grader and not s.get("skipped") and s.get("passed") is not None]
@@ -33,8 +41,9 @@ def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7
     groups: dict[tuple[str, bool], list[dict]] = defaultdict(list)
     for s in scored:
         tags = cases.get(s["case_id"], {}).get("tags") or ["(untagged)"]
-        key = (sorted(tags)[0] if stratify else "*", bool(s["passed"]))
+        key = (sorted(tags)[0], bool(s["passed"])) if stratify else ("*", None)
         groups[key].append(s)
+    sizes = {k: len(v) for k, v in groups.items()}
     for g in groups.values():
         rng.shuffle(g)
     picked: list[dict] = []
@@ -43,13 +52,22 @@ def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7
         for k in keys:
             if groups[k] and len(picked) < n:
                 picked.append(groups[k].pop())
+    drawn: dict[tuple, int] = defaultdict(int)
+    strata = {}
+    for s in picked:
+        tags = cases.get(s["case_id"], {}).get("tags") or ["(untagged)"]
+        k = (sorted(tags)[0], bool(s["passed"])) if stratify else ("*", None)
+        drawn[k] += 1
+        strata[id(s)] = k
     out = []
     for s in picked:
         smp = samples.get((s["case_id"], s["target"], s.get("repeat", 0)), {})
         case = cases.get(s["case_id"], {})
         out.append({"case_id": s["case_id"], "target": s["target"], "repeat": s.get("repeat", 0),
                     "tags": ";".join(case.get("tags") or []), "input": smp.get("input") or case.get("input") or "",
-                    "output": smp.get("output") or "", "judge_passed": s["passed"] if include_judge else ""})
+                    "output": smp.get("output") or "", "judge_passed": s["passed"] if include_judge else "",
+                    "sample_design": design, "stratum": "|".join(map(str, strata[id(s)])) if stratify else "all",
+                    "weight": round(sizes[strata[id(s)]] / drawn[strata[id(s)]], 6)})
     return out
 
 

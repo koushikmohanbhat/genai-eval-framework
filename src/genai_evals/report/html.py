@@ -133,6 +133,11 @@ def _scores_table(result: dict) -> str:
                 extra.append(f"{d['errors']} errors")
             if d.get("mean_disagreement"):
                 extra.append(f"judge spread {d['mean_disagreement']:.2f}")
+            sps = d.get("splits") or {}
+            if len(sps) == 2:
+                rp, st = sps["representative"], sps["stress"]
+                extra.insert(0, f"representative {rp['mean']:.2f}{' (weighted)' if rp.get('weighted') else ''} n={rp['n']} · "
+                                f"stress {st['mean']:.2f} n={st['n']}")
             lb = d.get("length_bias") or {}
             if lb.get("longer_win_rate") is not None:
                 extra.append(f"longer answer won {lb['longer_win_rate']:.0%} of {lb['decided']}")
@@ -369,13 +374,18 @@ def render_scorecard(result: dict[str, Any]) -> str:
     pg = _primary_grader(result)
     cards = []
     for t, s in result["summary"].items():
-        d = s["graders"].get(pg or "", {})
+        full = s["graders"].get(pg or "", {})
+        sps = full.get("splits") or {}
+        # the headline is the representative (production-like) estimate when the suite has both splits
+        d = sps.get("representative") if len(sps) == 2 else full
+        stress_txt = (f" · stress suite {_pct(sps['stress']['mean'])} (n={sps['stress']['n']})" if len(sps) == 2 else "")
+        label = ("representative" + (", weighted" if d.get("weighted") else "") + " · ") if len(sps) == 2 else ""
         gates = [g for g in result["gates"] if g["target"] == t]
         blocked = [g for g in gates if g["severity"] == "block" and not g["passed"]]
         cost = s["ops"]["cost_usd"]["mean"]
         lat = s["ops"]["latency_ms"]["p95"]
         cards.append(f"<div class='card'><div class='k'>{escape(t)}</div><div class='big'>{_pct(d.get('mean'))}</div>"
-                     f"<div class='mut'>{escape(pg or '')} · 95% CI {_pct(d.get('ci_low'))}–{_pct(d.get('ci_high'))}</div>"
+                     f"<div class='mut'>{escape(pg or '')} · {label}95% CI {_pct(d.get('ci_low'))}–{_pct(d.get('ci_high'))}{stress_txt}</div>"
                      f"<div style='margin-top:8px'>{_pill('fail' if blocked else 'pass', ('alert' if blocked else 'ok') if result.get('mode') == 'online' else ('not ready' if blocked else 'ready'))} "
                      f"<span class='mut'>{len(gates) - len(blocked)}/{len(gates)} gates</span></div>"
                      f"<div class='mut' style='margin-top:6px'>{('$%.4f / case' % cost) if cost is not None else 'cost n/a'} · "

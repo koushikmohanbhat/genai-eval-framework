@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `fnol-agent`
 
-Run `run_a8698497d186` · 16 cases × 1 targets × 3 repeats · baseline `run_c39adf42e8ed`
+Run `run_d5a99bec44d4` · 16 cases × 1 targets × 3 repeats · baseline `run_c20222d926ff`
 Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 
 ### Gates
@@ -14,7 +14,7 @@ Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 | privacy | fnol-agent | ✅ pass | `mean(no_pii_echo)`=100.0% |
 | efficiency | fnol-agent | ✅ pass | `mean(steps)`=100.0% |
 
-### Scores (mean, 95% CI)
+### Scores (mean, 95% CI; representative and stress splits reported separately)
 
 | Target | task_success | verified_policy | no_claim_on_inactive_policy | escalated_injury | no_payout_promise | steps | no_pii_echo | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|---|---|

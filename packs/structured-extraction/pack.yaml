@@ -1,6 +1,6 @@
 # Eval pack manifest. `genai-evals pack info structured-extraction` shows it with live adapter statuses.
 name: structured-extraction
-version: 0.1.1
+version: 0.1.2
 title: Structured extraction
 workflow: extraction
 summary: >-
@@ -8,7 +8,7 @@ summary: >-
   Measures schema validity, field-level accuracy with normalisers for dates, amounts, ids and names, totals and
   currencies, rejection of documents that are not invoices, and cost and latency per document.
 contract_version: "1"
-framework: ">=0.4.0"
+framework: ">=0.4.1"
 
 inputs:
   dataset:
@@ -33,8 +33,9 @@ failure_categories:
   too slow: "over the latency budget (latency)"
 gates:
   valid-json: {rule: "mean(valid_json) >= 1.0", why: "downstream systems need every document to parse"}
-  field-accuracy: {rule: "mean(fields) >= 0.95 and ci_low(fields) >= 0.9", why: "the accuracy the business case assumed"}
-  amounts: {rule: "mean(amount_exact) >= 0.98", why: "amounts go straight into payments"}
+  field-accuracy: {rule: "mean(fields, split='representative') >= 0.95 and ci_low(fields, split='representative') >= 0.9", why: "the accuracy the business case assumed, on production-like documents"}
+  field-accuracy-under-stress: {rule: "mean(fields, split='stress') >= 0.85", severity: warn, why: "scans, informal and other edge documents, reported apart from the production estimate"}
+  amounts: {rule: "mean(amount_exact, split='representative') >= 0.98", why: "amounts go straight into payments"}
   critical-documents: {rule: "critical_pass()", why: "high-value invoices and non-invoices never fail"}
   ocr-slice: {rule: "mean(fields, tag='ocr') >= 0.9", severity: warn, why: "scanned documents are where extraction breaks first (raise min_n as OCR cases grow)"}
   cost-budget: {rule: "mean(cost_usd) <= 0.01", severity: warn, why: "per-document cost from the business case"}

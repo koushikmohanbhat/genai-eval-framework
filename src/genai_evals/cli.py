@@ -372,7 +372,7 @@ def cmd_prompts(args) -> int:
 
 
 def cmd_calibrate(args) -> int:
-    from .calibration import calibrate, compare_judges, consensus, read_reviews, reviewer_agreement
+    from .calibration import calibrate, compare_judges, consensus, read_reviews, read_sample_info, reviewer_agreement
     from .runner import load_result
     reviews = read_reviews(args.labels)
     labels, _ = consensus(reviews, args.rule)
@@ -391,7 +391,12 @@ def cmd_calibrate(args) -> int:
                   f"judge cost ${cmp['judge_cost_cheap']:.4f} vs ${cmp['judge_cost_strong']:.4f}")
         print(("approved: " if cmp["approved"] else "not approved: ") + cmp["reason"])
         return 0 if cmp["approved"] else 1
-    res = calibrate(result, args.grader, labels, human)
+    validation = None
+    if args.validation_labels:
+        validation = consensus(read_reviews(args.validation_labels), args.rule)[0]
+    stress = list(result.get("stress_tags") or ["edge", "adversarial"])
+    res = calibrate(result, args.grader, labels, human, sample_info=read_sample_info(args.labels), validation=validation,
+                    stress_tags=stress)
     out = Path(args.out or "calibration.json")
     existing = json.loads(out.read_text()) if out.exists() else {"graders": []}
     existing["graders"] = [g for g in existing.get("graders", []) if g["grader"] != args.grader] + [res]
@@ -399,7 +404,20 @@ def cmd_calibrate(args) -> int:
     k, ci = res["kappa"], res.get("kappa_ci")
     ci_txt = f" (95% CI {ci[0]:.2f}–{ci[1]:.2f})" if ci else ""
     print(f"{args.grader}: n={res['n']} accuracy={res['accuracy'] if res['accuracy'] is None else round(res['accuracy'], 3)} "
-          f"kappa={k if k is None else round(k, 3)}{ci_txt} -> {out}")
+          f"kappa={k if k is None else round(k, 3)}{ci_txt} on the {res['sample']['design']} calibration sample -> {out}")
+    w = res.get("weighted")
+    if w and w.get("kappa") is not None:
+        print(f"  production-weighted: kappa {w['kappa']:.2f}, accuracy {w['accuracy']:.0%}, human pass rate "
+              f"{w['human_pass_rate']:.0%} (sample: {res['human_pass_rate']:.0%})")
+    v = res.get("validation")
+    if v and v.get("n"):
+        vk = v.get("kappa")
+        print(f"  representative validation sample: n={v['n']}, accuracy {v['accuracy']:.0%}, "
+              f"kappa {'n/a' if vk is None else f'{vk:.2f}'}, human pass rate {v['human_pass_rate']:.0%}")
+    for name, d in (res.get("slices") or {}).items():
+        if d.get("n", 0) >= 5:
+            dk = d.get("kappa")
+            print(f"  slice {name}: n={d['n']}, accuracy {d['accuracy']:.0%}, kappa {'n/a' if dk is None else f'{dk:.2f}'}")
     if human:
         fk = human.get("fleiss_kappa")
         print(f"  reviewers: {human['multi_reviewed']} items with 2+ reviewers, raw agreement "
@@ -424,11 +442,15 @@ def cmd_labels(args) -> int:
         from .runner import load_result
         if not args.grader:
             raise SystemExit("labels sheet needs --grader")
-        items = lb.sample_items(load_result(args.path), args.grader, n=args.n, seed=args.seed, stratify=not args.no_stratify)
+        design = args.design or ("random" if args.no_stratify else "stratified")
+        items = lb.sample_items(load_result(args.path), args.grader, n=args.n, seed=args.seed, design=design)
         reviewers = [r.strip() for r in (args.reviewers or "").split(",") if r.strip()]
         out = lb.write_sheet(items, args.out or "labels-sheet.csv", reviewers)
-        print(f"wrote {out}: {len(items)} items x {max(1, len(reviewers))} reviewer(s). Judge verdicts are not included, "
-              "so labels stay independent.")
+        print(f"wrote {out}: {len(items)} items x {max(1, len(reviewers))} reviewer(s), {design} sample. Judge verdicts are "
+              "not included, so labels stay independent.")
+        if design == "stratified":
+            print("  this sample is for calibration (balanced, by tag); for a production estimate also label a random one: "
+                  "--design random")
         return 0
     if args.action == "guide":
         if not args.grader:
@@ -469,14 +491,20 @@ def cmd_cases(args) -> int:
         return 0
     if args.action == "coverage":
         suite = load_suite(args.path)
-        cov = tx.coverage(load_cases(suite), args.workflow or tx.workflow_of(suite))
+        cov = tx.coverage(load_cases(suite), args.workflow or tx.workflow_of(suite),
+                          min_representative=suite.min_representative_cases, stress_tags=suite.stress_tags)
+        mixed = tx.mixed_gates(suite)
+        if mixed and cov["stress"] and cov["representative"]:
+            cov["problems"].append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed))
         if args.json:
             print(json.dumps(cov, indent=1))
         else:
-            print(f"{cov['cases']} cases ({cov['workflow']} workflow); {cov['hard_share']:.0%} edge or adversarial")
+            w = f" ({cov['representative_weighted']} weighted)" if cov["representative_weighted"] else ""
+            print(f"{cov['cases']} cases ({cov['workflow']} workflow): representative {cov['representative']}{w}, "
+                  f"stress {cov['stress']}")
             for g, d in cov["by_group"].items():
                 pres = ", ".join(f"{t} ({cov['present'][t]})" for t in d["present"]) or "-"
-                print(f"  {g:<10} covered: {pres}")
+                print(f"  {g:<10} stress cases: {pres}")
                 if d["missing"]:
                     print(f"  {'':<10} missing: {', '.join(d['missing'])}")
             for pr in cov["problems"]:
@@ -745,6 +773,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="judge ladder: approve --grader (cheaper judge) only if it agrees with humans about as well as GRADER")
     p.add_argument("--compare-result", help="result.json holding --compare-to, if it is a different run on the same cases")
     p.add_argument("--margin", type=float, default=0.05, help="largest acceptable drop in kappa for the cheaper judge (default 0.05)")
+    p.add_argument("--validation-labels", help="labels on a representative random sample (`labels sheet --design random`), "
+                                               "reported separately; a trusted judge must clear --min-kappa on it too")
     p.set_defaults(fn=cmd_calibrate)
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
@@ -778,7 +808,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--grader")
     p.add_argument("--n", type=int, default=50, help="sheet: items to sample (default 50)")
     p.add_argument("--seed", type=int, default=7)
-    p.add_argument("--no-stratify", action="store_true", help="sheet: plain random sample instead of by tag and verdict")
+    p.add_argument("--design", choices=["stratified", "random"],
+                   help="sheet: stratified (calibration: by tag, balanced on the judge's verdict; default) or random (a "
+                        "representative validation sample)")
+    p.add_argument("--no-stratify", action="store_true", help="sheet: same as --design random")
     p.add_argument("--reviewers", help="sheet: comma list; one row per item per reviewer")
     p.add_argument("--rule", choices=["majority", "unanimous"], default="majority")
     p.add_argument("--fail-on-dispute", action="store_true", help="agreement: exit 1 while any item is disputed")

@@ -151,6 +151,8 @@ class SuiteSpec(BaseModel):
     min_n: int = 5                                   # fewest cases behind any gated metric or slice
     min_calibration_n: int = 30                      # fewest human labels before a calibration result is trusted
     include_draft_cases: bool = False                # draft cases (review_status: draft) are left out of runs and gates
+    stress_tags: list[str] = Field(default_factory=lambda: ["edge", "adversarial"])  # cases with these tags form the stress split
+    min_representative_cases: int = 30              # doctor: size of the representative (production-like) set
     tokenizer: dict[str, Any] = Field(default_factory=dict)
     validation: str | None = None                    # adapter validation records (default: validation.yaml next to the suite)
     overlays: list[str] = Field(default_factory=list)  # pack overlays (folders with overlay.yaml): extra cases, graders, gates

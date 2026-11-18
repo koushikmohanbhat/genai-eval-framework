@@ -4,6 +4,12 @@ Human labels can come from one reviewer or several. With several (a `reviewer` c
 into a consensus (majority, unanimous, or an adjudicator's call on disputed items), and agreement *between the
 reviewers* is reported alongside: a judge cannot be expected to agree with humans more than they agree with each other.
 
+Label samples are usually *designed*, not random: `labels sheet` stratifies by tag and balances judge passes and fails,
+so agreement can be measured on both outcomes and on rare slices. That sample's pass rate and overall agreement do not
+reflect production prevalence. So the sheet records each item's design and inverse-inclusion weight, and calibration
+reports (a) agreement on the calibration sample, (b) a production-weighted estimate from those weights, (c) agreement
+per slice and per split, and (d) agreement on a separate representative validation sample when one is given.
+
 `compare_judges` supports the judge ladder from OpenAI's evaluation best practices: start with a strong judge, check it
 against human labels, and move to a cheaper judge only when it agrees with the humans about as well (non-inferiority on
 kappa, on the same labelled items).
@@ -117,6 +123,28 @@ def reviewer_agreement(reviews: dict[tuple[str, str], list[dict[str, Any]]], rul
             "rule": rule, "disputed": disputed[:100], "labelled": len(labels), "warnings": warnings}
 
 
+def read_sample_info(path: str | Path) -> dict[tuple[str, str], dict[str, Any]]:
+    """Per labelled item: the sample design (stratified | random), stratum and inverse-inclusion weight, when the labels
+    file came from `labels sheet` (columns sample_design, stratum, weight). Items without them get nothing."""
+    out: dict[tuple[str, str], dict[str, Any]] = {}
+    with open(path, encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            key = (r["case_id"], r.get("target") or "*")
+            info = {}
+            if (r.get("sample_design") or "").strip():
+                info["design"] = r["sample_design"].strip()
+            if (r.get("stratum") or "").strip():
+                info["stratum"] = r["stratum"].strip()
+            try:
+                if (r.get("weight") or "").strip():
+                    info["weight"] = float(r["weight"])
+            except ValueError:
+                pass
+            if info:
+                out.setdefault(key, info)
+    return out
+
+
 def read_labels(path: str | Path, rule: str = "majority") -> dict[tuple[str, str], bool]:
     """Labels per (case_id, target). With several reviewers per item, returns their consensus (see `consensus`)."""
     return consensus(read_reviews(path), rule)[0]
@@ -142,6 +170,46 @@ def kappa_ci(pairs: list[tuple[bool, bool]], seed: int = 7, b: int = 2000, alpha
     rng = random.Random(seed)
     ks = sorted(cohen_kappa([pairs[rng.randrange(n)] for _ in range(n)]) for _ in range(b))
     return ks[int(alpha / 2 * b)], ks[min(b - 1, int((1 - alpha / 2) * b))]
+
+
+def weighted_kappa(pairs: list[tuple[bool, bool]], weights: list[float]) -> float:
+    """Cohen's kappa with item weights (each item counts as its inverse-inclusion weight), estimating agreement at
+    the population's prevalence rather than the sample's."""
+    w = sum(weights)
+    if not pairs or w <= 0:
+        return float("nan")
+    po = sum(wi for (a, b), wi in zip(pairs, weights) if a == b) / w
+    pa = sum(wi for (a, _), wi in zip(pairs, weights) if a) / w
+    pb = sum(wi for (_, b), wi in zip(pairs, weights) if b) / w
+    pe = pa * pb + (1 - pa) * (1 - pb)
+    return 1.0 if pe == 1 else (po - pe) / (1 - pe)
+
+
+def _weighted_ci(pairs, weights, seed: int = 7, b: int = 2000) -> tuple[float, float] | None:
+    import random
+    n = len(pairs)
+    if n < 2:
+        return None
+    rng = random.Random(seed)
+    ks = []
+    for _ in range(b):
+        idx = [rng.randrange(n) for _ in range(n)]
+        k = weighted_kappa([pairs[i] for i in idx], [weights[i] for i in idx])
+        if k == k:
+            ks.append(k)
+    ks.sort()
+    return (ks[int(0.025 * len(ks))], ks[min(len(ks) - 1, int(0.975 * len(ks)))]) if ks else None
+
+
+def _agreement(pairs: list[tuple[bool, bool]], seed: int = 7) -> dict[str, Any]:
+    n = len(pairs)
+    if not n:
+        return {"n": 0}
+    k = cohen_kappa(pairs)
+    ci = kappa_ci(pairs, seed)
+    return {"n": n, "accuracy": sum(a == b for a, b in pairs) / n, "kappa": k if k == k else None,
+            "kappa_ci": list(ci) if ci else None, "human_pass_rate": sum(h for _, h in pairs) / n,
+            "judge_pass_rate": sum(j for j, _ in pairs) / n}
 
 
 MIN_LABELS = 30
@@ -202,16 +270,19 @@ def _judge_cost(result: dict[str, Any], grader: str) -> float:
 
 
 def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool],
-              human: dict[str, Any] | None = None) -> dict[str, Any]:
+              human: dict[str, Any] | None = None, sample_info: dict[tuple[str, str], dict[str, Any]] | None = None,
+              validation: dict[tuple[str, str], bool] | None = None,
+              stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> dict[str, Any]:
     """Agreement between a model grader and human labels.
 
     Reports accuracy, Cohen's kappa with a bootstrap CI, per-class agreement (kappa alone is unstable when one class is
     rare), the human pass rate, and warnings for small or imbalanced label sets. Label a random sample of cases (or a
     stratified sample across tags), not hand-picked ones, so agreement generalises to the whole suite.
     """
-    pairs, mismatches = [], []
+    pairs, mismatches, keys = [], [], []
     for (cid, tgt, _r), (j, lab) in _pairs(result, grader, labels).items():
         pairs.append((j, lab))
+        keys.append((cid, tgt))
         if j != lab:
             mismatches.append({"case_id": cid, "target": tgt, "judge": j, "human": lab})
     tp = sum(1 for j, h in pairs if j and h)
@@ -234,7 +305,62 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
         if hk is not None and jk is not None and jk > hk + 0.1:
             warnings.append(f"judge agrees with the consensus (kappa {jk:.2f}) more than reviewers agree with each other "
                             f"({hk:.2f}): check the labels are independent")
+    # --- how the labelled sample was drawn, and what it says about production --------------------------------------
+    info = sample_info or {}
+
+    def info_for(k):
+        return info.get(k) or info.get((k[0], "*")) or {}
+    designs = sorted({info_for(k).get("design") for k in keys if info_for(k).get("design")})
+    design = designs[0] if len(designs) == 1 else ("mixed" if designs else "unknown")
+    weights = [info_for(k).get("weight") for k in keys]
+    weighted = None
+    if n and all(w is not None for w in weights):
+        wk = weighted_kappa(pairs, weights)
+        wci = _weighted_ci(pairs, weights)
+        tot = sum(weights)
+        weighted = {"kappa": wk if wk == wk else None, "kappa_ci": list(wci) if wci else None,
+                    "accuracy": sum(w for (a, b), w in zip(pairs, weights) if a == b) / tot,
+                    "human_pass_rate": sum(w for (_, h), w in zip(pairs, weights) if h) / tot,
+                    "judge_pass_rate": sum(w for (j, _), w in zip(pairs, weights) if j) / tot}
+    # --- agreement per slice (tag) and per split --------------------------------------------------------------------
+    case_tags = {c["id"]: c.get("tags") or [] for c in result.get("cases", [])}
+    case_split = {c["id"]: (c.get("split") if c.get("split") in ("representative", "stress")
+                            else ("stress" if set(c.get("tags") or []) & set(stress_tags) else "representative"))
+                  for c in result.get("cases", [])}
+    groups: dict[str, list[tuple[bool, bool]]] = {}
+    for (cid, _t), pr in zip(keys, pairs):
+        for t in case_tags.get(cid, []):
+            groups.setdefault(t, []).append(pr)
+        if cid in case_split:
+            groups.setdefault(f"split:{case_split[cid]}", []).append(pr)
+    slices = {g: _agreement(prs) for g, prs in sorted(groups.items())}
+    overall_acc = (tp + tn) / n if n else None
+    weak = [g for g, d in slices.items() if d["n"] >= 5 and overall_acc is not None and d["accuracy"] < overall_acc - 0.15]
+    if weak:
+        warnings.append("judge agrees noticeably less on: " + ", ".join(f"{g} ({slices[g]['accuracy']:.0%}, n={slices[g]['n']})" for g in weak))
+    # --- a separate representative validation sample ----------------------------------------------------------------
+    val = None
+    if validation:
+        vp = list(_pairs(result, grader, validation).values())
+        val = _agreement(vp)
+    if design == "stratified":
+        msg = ("calibration sample is stratified (balanced on the judge's verdict and spread across tags), so its pass "
+               f"rate ({prevalence:.0%}) and overall agreement are not production estimates" if prevalence is not None else "")
+        if weighted:
+            msg += f"; production-weighted: human pass rate {weighted['human_pass_rate']:.0%}, kappa {weighted['kappa']:.2f}"
+        if not val:
+            msg += "; label a random sample too (`labels sheet --design random`) and pass it as --validation-labels"
+        if msg:
+            warnings.append(msg)
+    elif design == "unknown" and not val:
+        warnings.append("sampling design unknown (labels not from `labels sheet`): if the items were hand-picked, "
+                        "agreement may not generalise; label a random sample as --validation-labels")
+    if val and val.get("kappa_ci") and ci and val["kappa_ci"][0] < ci[0] - 0.1:
+        warnings.append(f"agreement on the representative validation sample is lower (kappa {val['kappa']:.2f}) than on "
+                        f"the calibration sample ({cohen_kappa(pairs):.2f})")
     return {"grader": grader, "n": n, "accuracy": (tp + tn) / n if n else None, "kappa": cohen_kappa(pairs) if n else None,
+            "sample": {"design": design, "weighted": weighted is not None}, "weighted": weighted,
+            "slices": slices, "validation": val,
             "kappa_ci": list(ci) if ci else None,
             "human_pass_rate": prevalence,
             "positive_agreement": (2 * tp / (2 * tp + fp + fn)) if (2 * tp + fp + fn) else None,
@@ -283,4 +409,11 @@ def untrusted_graders(calibration: dict[str, Any], min_kappa: float | None, min_
         if low < min_kappa:
             out[g] = (f"kappa {d['kappa']:.2f}, 95% CI lower bound {low:.2f} < {min_kappa}" if ci
                       else f"kappa {d['kappa']:.2f} < {min_kappa}")
+            continue
+        # when a representative validation sample was labelled, the judge must also clear the bar there
+        v = d.get("validation") or {}
+        if v.get("kappa") is not None:
+            vlow = (v.get("kappa_ci") or [v["kappa"]])[0]
+            if vlow < min_kappa:
+                out[g] = f"on the representative validation sample: kappa {v['kappa']:.2f}, 95% CI lower bound {vlow:.2f} < {min_kappa}"
     return out

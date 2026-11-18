@@ -27,9 +27,9 @@ Engagement readiness for acme-kb-eval: 4/9
   [pass] report: engineer report and scorecard with failure categories
   [todo] release gate: no CI workflow running genai-evals
          next: RUNBOOK step 6
-  [todo] edge-case coverage: 23 cases, 35% edge or adversarial; no cases for: structured_input, image_input, typos, very_short
-         next: genai-evals cases coverage suite.yaml; add cases (or `cases generate`)
-  [pass] judges calibrated: all judges trusted
+  [todo] eval set: 15 representative + 8 stress cases; representative set too small (15 < 30): sample it from production, since its score is the production estimate; stress suite has no cases for: structured_input, image_input, typos, very_short
+         next: genai-evals cases coverage suite.yaml (docs/growing-the-eval-set.md)
+  [pass] judges calibrated: all judges trusted (on the calibration sample only; no representative validation sample for: context_precision, context_recall, faithfulness, relevance, safe_content)
   [todo] handover: 19 unticked item(s), 6 owner(s) not named
          next: walk through HANDOVER.md with the customer
   [todo] adapters validated: not yet recorded as live tested: provider bedrock
@@ -37,7 +37,8 @@ Engagement readiness for acme-kb-eval: 4/9
 ```
 
 This is a real transcript, from a `rag-knowledge-assistant` project midway through an engagement. It has had one
-live run on Bedrock, a baseline and calibrated judges, but no telemetry, CI or handover yet. The score counts the
+live run on Bedrock, a baseline and calibrated judges, but no telemetry, CI or handover yet. Its representative set
+is still the pack's starter set; the next step is to sample production traffic into it. The score counts the
 checks that pass out of those that apply. `doctor` exits 1 until every check passes, so it can gate a "ready for
 handover" step in CI.
 
@@ -48,8 +49,8 @@ handover" step in CI.
 | telemetry connected | an online result exists that read live telemetry (not a fixture) |
 | report | that live run has an engineer report and scorecard, and the suite has a report template with failure categories |
 | release gate | a blocking gate on a quality grader, a baseline in `baselines/`, and a CI workflow that runs genai-evals |
-| edge-case coverage | every case has a difficulty tag, at least 20% are edge or adversarial, and every standard coverage tag that applies to the workflow has a case ([growing the eval set](growing-the-eval-set.md)) |
-| judges calibrated | every judge-graded grader has a trusted calibration (or the pack has no judges) |
+| eval set | a **representative** set of at least `min_representative_cases` (default 30) production-like cases, kept apart from the **stress** suite (edge / adversarial); every applicable coverage tag has a stress case; no blocking gate averages the two sets ([growing the eval set](growing-the-eval-set.md)) |
+| judges calibrated | every judge-graded grader has a trusted calibration (or the pack has no judges); the detail says whether a representative validation sample was labelled too ([human labels](human-labels.md)) |
 | handover | `HANDOVER.md` has no unticked items and every owner is named |
 | adapters validated | every adapter the live runs used is recorded as live tested or better in `validation.yaml` |
 

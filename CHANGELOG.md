@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.4.1 (2026-11-18)
+
+Review feedback: keep the production estimate apart from stress testing, and account for how human labels were sampled.
+
+### Representative and stress sets
+- Every case is in the **representative** split (production-like) or the **stress** split (`edge` / `adversarial`
+  tags, configurable with `suite.stress_tags`, or an explicit `split:`). Representative cases can carry a `weight`
+  (production prevalence). The representative mean and its CI are then weighted, with a weighted bootstrap.
+- Every grader is reported per split (`summary[target].graders[g].splits`), in the HTML and Markdown reports, and on
+  the scorecard. The scorecard headline is the representative number, with the stress result beside it.
+- Gate functions accept `split='representative' | 'stress'`, and `validate` checks the value.
+- `doctor`'s coverage check becomes **eval set**:
+  - the representative set needs at least `min_representative_cases` (default 30);
+  - the stress suite needs a case for every applicable coverage tag;
+  - blocking gates that average the two sets are flagged (`>= 1.0` requirements are exempt);
+  - the old "at least 20% edge or adversarial" rule is gone, because it encouraged mixing.
+- Pack headline gates now use `split='representative'`, with separate stress gates:
+  - `tool-agent` 0.2.1 adds `stress-success`;
+  - `rag-knowledge-assistant` 0.2.1 adds `grounded-under-stress` (warn), and refusal is gated on the stress split;
+  - `structured-extraction` 0.1.2 adds `field-accuracy-under-stress` (warn).
+- Results record each case's split and weight, and the suite's `stress_tags`.
+
+### Calibration sampling
+- `labels sheet --design stratified | random`. Every row records `sample_design`, `stratum` and an inverse-inclusion
+  `weight`.
+- `calibrate` reports:
+  - agreement on the calibration sample, labelled with its design;
+  - a **production-weighted** estimate (weighted κ, accuracy, human and judge pass rates);
+  - agreement **per slice** (every tag, plus `split:representative` / `split:stress`), with a warning for slices well
+    below the overall figure;
+  - a separate **representative validation sample** (`--validation-labels`), never pooled with the calibration
+    sample.
+- When a validation sample is present, a trusted judge must clear `min_judge_kappa` on it too. `doctor` says whether
+  judges were validated on a representative sample.
+- Docs: two sets in `growing-the-eval-set.md`, two samples in `human-labels.md`, splits in `gates.md`, the
+  best-practices mapping, the runbook template, and a new `doctor` transcript.
+
 ## 0.4.0 (2026-11-17)
 
 Aligns the framework with OpenAI's [evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)

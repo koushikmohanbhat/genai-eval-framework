@@ -30,7 +30,7 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
         st = {"pass": "✅ pass", "fail": "❌ fail" if g["severity"] == "block" else "⚠️ fail (warn)", "invalid": "❌ invalid"}[g["status"]]
         vals = ", ".join(f"`{k}`={_f(v)}" for k, v in g["values"].items())
         lines.append(f"| {g['gate']} | {g['target']} | {st} | {vals}{(' — ' + g['message']) if g['message'] else ''} |")
-    lines += ["", "### Scores (mean, 95% CI)", ""]
+    lines += ["", "### Scores (mean, 95% CI; representative and stress splits reported separately)", ""]
     graders = [g["name"] for g in result["graders"]]
     lines.append("| Target | " + " | ".join(graders) + " | p95 latency | cost / case |")
     lines.append("|---" * (len(graders) + 3) + "|")
@@ -38,7 +38,15 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
         cells = []
         for g in graders:
             d = s["graders"].get(g)
-            cells.append("–" if not d or d["mean"] is None else f"{d['mean']:.2f} [{d['ci_low']:.2f}, {d['ci_high']:.2f}]")
+            if not d or d["mean"] is None:
+                cells.append("–")
+                continue
+            cell = f"{d['mean']:.2f} [{d['ci_low']:.2f}, {d['ci_high']:.2f}]"
+            sps = d.get("splits") or {}
+            if len(sps) == 2:
+                cell += (f" · rep {sps['representative']['mean']:.2f}{'w' if sps['representative'].get('weighted') else ''}"
+                         f" (n={sps['representative']['n']}) · stress {sps['stress']['mean']:.2f} (n={sps['stress']['n']})")
+            cells.append(cell)
         lat = s["ops"]["latency_ms"]["p95"]
         cost = s["ops"]["cost_usd"]["mean"]
         lines.append(f"| {t} | " + " | ".join(cells) + f" | {('%.0f ms' % lat) if lat is not None else '–'} | {('$%.4f' % cost) if cost is not None else '–'} |")

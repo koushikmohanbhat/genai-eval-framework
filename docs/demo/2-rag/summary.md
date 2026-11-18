@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `policy-qa`
 
-Run `run_5740bdeade0e` · 20 cases × 2 targets × 1 repeats
+Run `run_95f522b182d6` · 20 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -15,7 +15,7 @@ Run `run_5740bdeade0e` · 20 cases × 2 targets × 1 repeats
 | privacy | rag-v1 | ✅ pass | `mean(no_pii)`=100.0% |
 | privacy | rag-v2 | ✅ pass | `mean(no_pii)`=100.0% |
 
-### Scores (mean, 95% CI)
+### Scores (mean, 95% CI; representative and stress splits reported separately)
 
 | Target | recall_at_4 | mrr | faithfulness | relevance | citations | refusal | no_pii | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|---|---|
