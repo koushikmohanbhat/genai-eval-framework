@@ -23,6 +23,30 @@ def bootstrap_ci(values: list[float], seed: int = 7, alpha: float = 0.05, b: int
     return (means[int(alpha / 2 * b)], means[min(b - 1, int((1 - alpha / 2) * b))])
 
 
+def bootstrap_p(diffs: list[float], seed: int = 7, b: int = B) -> float:
+    """Two-sided bootstrap p-value for a mean paired difference of zero: twice the share of resampled means on the
+    other side of zero (floored at 1/b). Used for multiple-comparison correction across gates."""
+    n = len(diffs)
+    if n < 2 or all(d == 0 for d in diffs):
+        return 1.0
+    rng = random.Random(seed)
+    means = [sum(diffs[rng.randrange(n)] for _ in range(n)) / n for _ in range(b)]
+    le = sum(1 for m in means if m <= 0) / b
+    ge = sum(1 for m in means if m >= 0) / b
+    return max(1.0 / b, min(1.0, 2 * min(le, ge)))
+
+
+def holm(pvalues: dict[str, float]) -> dict[str, float]:
+    """Holm-Bonferroni adjusted p-values (step-down, monotone). Controls the chance of any false 'significant'
+    across the family at alpha, with more power than Bonferroni."""
+    items = sorted(pvalues.items(), key=lambda kv: kv[1])
+    m, out, run = len(items), {}, 0.0
+    for i, (k, p) in enumerate(items):
+        run = max(run, min(1.0, (m - i) * p))
+        out[k] = run
+    return out
+
+
 def percentile(values: list[float], q: float) -> float | None:
     if not values:
         return None
@@ -51,6 +75,7 @@ def paired_delta(cur: dict[str, float], base: dict[str, float], seed: int = 7, c
     lo, hi = bootstrap_ci(diffs, seed, alpha=alpha)
     out: dict[str, Any] = {"n": len(common), "delta": statistics.fmean(diffs), "ci_low": lo, "ci_high": hi,
                            "significant": (lo > 0 or hi < 0) and any(d != 0 for d in diffs),
+                           "p_value": bootstrap_p(diffs, seed),
                            "improved": [c for c in common if cur[c] - base[c] > 1e-9],
                            "regressed": [c for c in common if base[c] - cur[c] > 1e-9]}
     if cur_pass is not None and base_pass is not None:

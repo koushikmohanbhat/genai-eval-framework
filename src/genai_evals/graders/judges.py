@@ -58,6 +58,22 @@ You are a strict, impartial evaluator. Grade the OUTPUT against the RUBRIC{ref_h
 {rules}
 Respond with JSON only: {schema}"""
 
+CRITERION_PROMPT = """<task>checklist</task>
+You are a strict, impartial evaluator. Decide whether the OUTPUT meets ONE criterion{ref_hint}. Judge this criterion
+only: ignore everything else about the output.
+<scale>pass_fail</scale>
+<criterion>
+{criterion}
+</criterion>
+{not_met_block}<question>
+{question}
+</question>
+{reference_block}<output>
+{output}
+</output>
+{rules}
+Respond with JSON only: {{"rationale": "...", "pass": true|false|"unknown"}}"""
+
 FAITH_PROMPT = """<task>faithfulness</task>
 Split the OUTPUT into atomic factual claims. For each claim decide whether the CONTEXT supports it.
 verdict: "supported" (stated or directly implied by the context), "contradicted" (context says otherwise),
@@ -349,6 +365,79 @@ class Rubric(Grader):
                          details=details | {"unknown": True}, cost_usd=cost)
         return self.score(sample, min(t["value"] for t in per_turn), passed=True,
                           reasoning=f"all {len(per_turn)} turns acceptable", details=details, cost_usd=cost)
+
+
+@register("checklist")
+class Checklist(Grader):
+    """Atomic, binary criteria instead of one overall score. Each criterion is judged on its own, by a separate judge
+    call, as met / not met / unknown. `not_met` spells out what does NOT count (edge cases such as a partial answer,
+    a disclaimer instead of the content, pseudocode instead of code).
+
+    criteria: ["Cites the policy section", {id: no_dates, text: "Makes no delivery promise", not_met: "..."}]
+    require_all: true (default) -> passes only if every criterion is met; value = share of criteria met
+    require_all: false          -> value = share met, passed by threshold (default 0.75)
+    use_reference: true         -> the case's reference is shown to the judge
+    """
+    uses_model = True
+    task = "checklist"
+
+    def default_threshold(self) -> float:
+        return 1.0 if self.p.get("require_all", True) else 0.75
+
+    def criteria(self) -> list[dict[str, Any]]:
+        out = []
+        for i, c in enumerate(self.p.get("criteria") or []):
+            c = {"text": c} if isinstance(c, str) else dict(c)
+            if not c.get("text"):
+                raise ValueError(f"checklist '{self.name}': criterion {i + 1} needs text")
+            c.setdefault("id", f"c{i + 1}")
+            out.append(c)
+        if not out:
+            raise ValueError(f"checklist '{self.name}' needs criteria")
+        return out
+
+    async def grade(self, sample: Sample, case: Case) -> Score:
+        crits = self.criteria()
+        if not sample.output:
+            return self.score(sample, 0.0, passed=False, reasoning="empty output",
+                              details={"criteria": [{"id": c["id"], "met": False} for c in crits]})
+        tok = self.ctx.tokenize
+        ref = self.reference_value(case) if self.p.get("use_reference") else None
+
+        async def one(c: dict[str, Any]) -> Score:
+            prompt = CRITERION_PROMPT.format(
+                criterion=c["text"], ref_hint=" (use the REFERENCE answer as the expected content)" if ref else "",
+                not_met_block=f"<does_not_count>\n{c['not_met']}\n</does_not_count>\n" if c.get("not_met") else "",
+                question=tok(case.input_text()), output=tok(sample.output), rules=JUDGE_RULES,
+                reference_block=f"<reference>\n{tok(str(ref))}\n</reference>\n" if ref else "")
+            return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, "pass_fail"))
+        res = await asyncio.gather(*[one(c) for c in crits])
+        rows = [{"id": c["id"], "text": c["text"], "met": (None if r.label == UNKNOWN or r.error else bool(r.passed)),
+                 "unknown": r.label == UNKNOWN, "error": r.error, "reasoning": r.reasoning}
+                for c, r in zip(crits, res)]
+        cost = sum(r.cost_usd for r in res)
+        met = [x for x in rows if x["met"] is True]
+        not_met = [x for x in rows if x["met"] is False]
+        details = {"criteria": rows, "met": len(met), "of": len(rows), "not_met": [x["id"] for x in not_met]}
+        require_all = self.p.get("require_all", True)
+        if require_all and not_met:                       # one unmet criterion decides it
+            return self.score(sample, len(met) / len(rows), passed=False, details=details, cost_usd=cost,
+                              reasoning="not met: " + "; ".join(f"{x['id']}: {x['reasoning'] or ''}" for x in not_met)[:2000])
+        errs = [x for x in rows if x["error"]]
+        if errs:
+            from ..retry import classify_error_text
+            msg = "; ".join(x["error"] for x in errs)
+            sc = Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                       error=msg, details=details, cost_usd=cost)
+            sc.error_kind = classify_error_text(msg)                            # type: ignore[attr-defined]
+            return sc
+        if any(x["unknown"] for x in rows) and (require_all or not met):
+            return Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                         skipped=True, label=UNKNOWN, skip_reason="judge could not decide on at least one criterion",
+                         details=details | {"unknown": True}, cost_usd=cost)
+        decided = len(met) + len(not_met)
+        return self.score(sample, len(met) / decided, details=details, cost_usd=cost,
+                          reasoning=f"{len(met)} of {decided} criteria met")
 
 
 @register("reference_match")

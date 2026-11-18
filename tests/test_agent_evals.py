@@ -255,3 +255,139 @@ def test_packs_test_both_sides_of_their_behaviours():
         assert tx.balance(cases)["one_sided"] == [], p
     rag = load_cases(load_suite(str(pack_dir("rag-knowledge-assistant") / "suite.yaml")))
     assert sum(1 for c in rag if "benign_sensitive" in (c.tags or [])) >= 2     # over-refusal pairs
+
+
+# ---- v0.5.1: checklists, sensitivity, power, grids, Holm ----------------------------------------------------------
+
+def test_checklist_judges_each_criterion_separately(monkeypatch):
+    seen = []
+
+    async def ask(self, prompt):
+        crit = prompt.split("<criterion>", 1)[1].split("</criterion>", 1)[0].strip()
+        seen.append(crit)
+        verdict = {"Cites the policy section": True, "Makes no delivery promise": False}.get(crit, "unknown")
+        return [{"judge": "judge-a", "data": {"rationale": f"on {crit}", "pass": verdict}}]
+    monkeypatch.setattr(judges.JudgePanel, "ask", ask)
+    s = Sample(case_id="c1", target="t", output="Per section 4, it arrives tomorrow.")
+    spec = {"name": "ck", "type": "checklist", "criteria": [
+        "Cites the policy section",
+        {"id": "no_dates", "text": "Makes no delivery promise", "not_met": "Any date or 'tomorrow' counts as a promise."}]}
+    r = grade(spec, s, Case(id="c1", input="when?"))
+    assert len(seen) == 2 and r.passed is False and r.value == 0.5
+    assert r.details["not_met"] == ["no_dates"] and r.details["met"] == 1 and r.details["of"] == 2
+    lenient = grade(spec | {"require_all": False, "threshold": 0.5}, s, Case(id="c1", input="when?"))
+    assert lenient.passed is True and lenient.value == 0.5
+
+
+def test_checklist_shows_what_does_not_count_and_handles_unknown(monkeypatch):
+    prompts = []
+
+    async def ask(self, prompt):
+        prompts.append(prompt)
+        return [{"judge": "judge-a", "data": {"rationale": "can't tell", "pass": "unknown" if "B" in prompt.split("<criterion>")[1][:5] else True}}]
+    monkeypatch.setattr(judges.JudgePanel, "ask", ask)
+    spec = {"name": "ck", "type": "checklist", "criteria": [{"text": "A ok", "not_met": "pseudocode doesn't count"}, "B ok"]}
+    r = grade(spec, Sample(case_id="c1", target="t", output="x"), Case(id="c1", input="q"))
+    assert any("<does_not_count>\npseudocode doesn't count" in p for p in prompts)
+    assert r.skipped and r.label == "unknown"
+    with pytest.raises(ValueError, match="needs criteria"):
+        grade({"name": "ck", "type": "checklist"}, Sample(case_id="c1", target="t", output="x"), Case(id="c1", input="q"))
+
+
+def test_power_numbers():
+    from genai_evals import power as pw
+    assert pw.n_for_interval(0.85, 0.05) == 196
+    assert pw.n_paired(0.05, 0.10) == 312
+    assert pw.n_paired(0.05, 0.10) < pw.n_unpaired(0.85, 0.05)          # same cases need far fewer
+    assert pw.mde_unpaired(40, 0.85) == pytest.approx(0.2237, abs=1e-3)
+    p = pw.plan(0.9, delta=0.05, half_width=0.05, n=50, discordant=0.08)
+    assert set(p) >= {"interval", "detect", "with_n"} and p["detect"]["paired_cases"] > 0
+
+
+def test_wide_interval_on_a_gated_grader_is_noted(tmp_path):
+    from genai_evals.config import ProvidersConfig
+    from genai_evals.runner import Runner
+    data = write_jsonl(tmp_path / "d.jsonl", [{"id": f"c{i}", "input": "yes" if i % 2 else "no"} for i in range(8)])
+    suite = SuiteSpec(name="w", dataset=str(data), base_dir=str(tmp_path),
+                      targets=[{"name": "echo", "kind": "model", "profile": "echo", "system": "{{ input }}"}],
+                      graders=[{"name": "y", "type": "contains", "value": "yes"}],
+                      gates=[{"name": "g", "rule": "mean(y) >= 0.0"}])
+    res = Runner(suite, ProvidersConfig(**MOCK_PROVIDERS), use_cache=False).run()
+    assert any("95% interval is ±" in w and "genai-evals power" in w for w in res["warnings"])
+
+
+def test_holm_adjusts_significance_across_gates():
+    from genai_evals.config import GateSpec
+    from genai_evals.gates import evaluate_gates, significance_family
+    from genai_evals.stats import holm
+    adj = holm({"a": 0.01, "b": 0.04, "c": 0.03})
+    assert adj == {"a": pytest.approx(0.03), "c": pytest.approx(0.06), "b": pytest.approx(0.06)}
+    # two graders, each a small improvement: individually significant, not after correcting for both
+    ids = [f"c{i}" for i in range(40)]
+    cur = {g: {"n": 40, "per_case": {c: (1.0 if 1 <= i < 24 else 0.0) for i, c in enumerate(ids)}} for g in ("x", "y")}
+    base = {g: {"per_case": {c: (1.0 if i < 17 else 0.0) for i, c in enumerate(ids)}} for g in ("x", "y")}
+    summ = {"t": {"target": "t", "graders": cur, "slices": {}, "critical": {}}}
+    gates = [GateSpec(name=f"sig-{g}", rule=f"significant({g})") for g in ("x", "y")]
+    raw = evaluate_gates(gates, summ, [], {"t": {"graders": base}})
+    fam = significance_family(gates, summ, {"t": {"graders": base}})
+    assert set(fam) == {"t|x", "t|y"}
+    corrected = evaluate_gates(gates, summ, [], {"t": {"graders": base}}, correction="holm")
+    assert [r.passed for r in raw] == [True, True]                       # p about 0.027 each
+    assert [r.passed for r in corrected] == [False, False]                # Holm: about 0.054 each
+    assert all("p_holm(" + g + ")" in r.values for r, g in zip(corrected, ("x", "y")))
+    assert all(r.values[f"p_holm({g})"] >= fam[f"t|{g}"] for r, g in zip(corrected, ("x", "y")))
+
+
+def test_grid_full_sample_and_pairwise():
+    from genai_evals.grid import grid_cases
+    spec = {"id_prefix": "g", "template": {"goal": "Refund a {{ product }}; you are {{ tone }}.", "tags": ["refund"]},
+            "dimensions": {"tone": ["calm", "angry", "confused"], "product": ["phone", "kettle"], "persona": ["new", "regular"]},
+            "exclude": [{"tone": "calm", "product": "kettle"}]}
+    full = grid_cases(spec)
+    assert len(full) == 10 and all(c["review_status"] == "draft" for c in full)
+    assert "Refund a phone; you are angry." in [c["goal"] for c in full]
+    assert {"tone=angry", "product=phone"} <= set(next(c for c in full if c["goal"] == "Refund a phone; you are angry.")["tags"])
+    assert len({c["id"] for c in full}) == 10                                   # stable, unique ids
+    assert len(grid_cases(spec, sample=4)) == 4
+    pw = grid_cases(spec, design="pairwise")
+    assert len(pw) < len(full)
+    import itertools
+    covered = {(a, c["metadata"]["grid"][a], b, c["metadata"]["grid"][b]) for c in pw
+               for a, b in itertools.combinations(sorted(spec["dimensions"]), 2)}
+    needed = {(a, c["metadata"]["grid"][a], b, c["metadata"]["grid"][b]) for c in full
+              for a, b in itertools.combinations(sorted(spec["dimensions"]), 2)}
+    assert covered == needed
+    with pytest.raises(ValueError, match="dimensions"):
+        grid_cases({"template": {"input": "x"}})
+
+
+def test_sensitivity_reports_flips_and_gate_changes(tmp_path, monkeypatch):
+    from genai_evals.config import ProvidersConfig
+    from genai_evals.runner import Runner
+    from genai_evals.sensitivity import sensitivity
+    data = write_jsonl(tmp_path / "d.jsonl", [{"id": f"c{i}", "input": f"question {i}"} for i in range(10)])
+    suite = SuiteSpec(name="sens", dataset=str(data), judges=["judge-a"], base_dir=str(tmp_path),
+                      targets=[{"name": "echo", "kind": "model", "profile": "echo", "system": "{{ input }}"}],
+                      graders=[{"name": "q", "type": "rubric", "scale": "pass_fail", "rubric": "Strict: answers the question."}],
+                      gates=[{"name": "quality", "rule": "mean(q) >= 0.8"}])
+    prov = ProvidersConfig(**MOCK_PROVIDERS)
+
+    async def ask(self, prompt):
+        lenient = "Lenient" in prompt
+        n = int(prompt.split("question ", 1)[1].split()[0].strip("<\n"))
+        return [{"judge": "judge-a", "data": {"rationale": "r", "pass": lenient or n < 9}}]
+    monkeypatch.setattr(judges.JudgePanel, "ask", ask)
+    res = Runner(suite, prov, use_cache=False).run()                          # 9/10 pass: gate passes
+    rep = sensitivity(suite, prov, res, "q", ["Strict: answers the question, worded differently.", "Lenient: anything goes."],
+                      max_flip_rate=0.05)
+    same, lenient = rep["variants"]
+    assert same["flips"] == 0 and same["robust"] and same["units"] == 10
+    assert lenient["flips"] == 1 and lenient["fail_to_pass"] == 1 and lenient["robust"] is False
+    assert rep["robust"] is False
+    monkeypatch.setattr(judges.JudgePanel, "ask", lambda self, p: _all(p))
+    rep2 = sensitivity(suite, prov, res, "q", [{"name": "harsh", "rubric": "Harsh"}])
+    assert rep2["variants"][0]["gates_changed"] == ["quality @ echo: pass -> fail"]
+
+
+async def _all(prompt):
+    return [{"judge": "judge-a", "data": {"rationale": "r", "pass": "Harsh" not in prompt}}]

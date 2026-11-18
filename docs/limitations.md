@@ -1,4 +1,4 @@
-# Limitations (v0.5.0)
+# Limitations (v0.5.1)
 
 Read this before using the framework in production.
 
@@ -48,9 +48,11 @@ please open an issue with what you find.
 - **The judge ladder needs labels.** Non-inferiority on κ with a 0.05 margin usually needs 150–200 labelled units on
   the sample that decides (the random validation sample, when given); with fewer the cheaper judge is (correctly)
   not approved.
-- **Anthropic's agent and safety guidance: what's left.** Atomic pass/fail checklists, grader sensitivity to rubric
-  wording, large-sample guidance for safety claims, factorial scenario generation, and multiple-comparison correction
-  across gates are not built yet ([agent and safety evals](agent-evals.md#not-covered)).
+- **Sample-size numbers are planning estimates.** `genai-evals power` uses the normal approximation for pass/fail
+  rates and assumes independent cases; it doesn't account for clustering or partial-credit scores.
+- **Holm correction covers `significant()` only.** Thresholds on means and CI bounds are not p-values and aren't
+  corrected; slices are not part of the family.
+- **Sensitivity and checklists cost judge calls:** one re-grade of every unit per variant, and one call per criterion.
 - **Reference checks only cover what a reference can stand in for.** `cases check-refs` can't check graders that
   need latency, retrieval beyond the gold passages, or trace details, and it runs judges only with `--judges`.
 - **Per-turn grading costs one judge call per turn per judge.** Long conversations are capped at `max_turns`.

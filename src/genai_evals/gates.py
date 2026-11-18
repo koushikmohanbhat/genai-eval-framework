@@ -101,9 +101,10 @@ class GateResult:
 
 class _Evaluator:
     def __init__(self, summary: dict, samples: list, baseline: dict | None, seed: int, untrusted: dict[str, str],
-                 min_n: int = 1, allow_missing_baseline: bool = False):
+                 min_n: int = 1, allow_missing_baseline: bool = False, adjusted: dict[str, float] | None = None):
         self.s, self.samples, self.base, self.seed, self.untrusted = summary, samples, baseline, seed, untrusted
         self.min_n, self.allow_missing_baseline = min_n, allow_missing_baseline
+        self.adjusted = adjusted                    # {"target|grader": Holm-adjusted p} when gate_correction is on
         self.values: dict[str, Any] = {}
         self.invalid: list[str] = []
 
@@ -166,6 +167,10 @@ class _Evaluator:
             if d["n"] < self.min_n:
                 raise GateError(f"only {d['n']} case(s) shared with the baseline for '{args[0]}' (min_n {self.min_n})")
             v = {"delta": d["delta"], "delta_ci_low": d["ci_low"], "delta_ci_high": d["ci_high"], "significant": d["significant"]}[fn]
+            if fn == "significant" and self.adjusted is not None:
+                p_adj = self.adjusted.get(f"{self.s['target']}|{args[0]}", d["p_value"])
+                v = p_adj < alpha and d["delta"] != 0
+                self.values[f"p_holm({args[0]})"] = round(p_adj, 4)
         else:
             raise GateError(f"unknown function '{fn}'")
         self.values[key] = v
@@ -206,8 +211,51 @@ class _Evaluator:
         raise GateError(f"unsupported expression {type(node).__name__}")
 
 
+def gated_graders(gates: list, severities: tuple[str, ...] = ("block",)) -> set[str]:
+    """Graders a gate of these severities reads (any metric function's first argument)."""
+    out: set[str] = set()
+    for g in gates:
+        if g.severity not in severities:
+            continue
+        for n in ast.walk(_parse(g.rule)):
+            if isinstance(n, ast.Call) and n.args and isinstance(n.args[0], ast.Name):
+                out.add(n.args[0].id)
+    return out
+
+
+def significance_family(gates: list, summaries: dict[str, dict], baselines: dict[str, dict] | None,
+                        seed: int = 7) -> dict[str, float]:
+    """Every (target, grader) a gate tests with significant(), with its raw paired-bootstrap p-value: the family
+    corrected together by gate_correction."""
+    fam: dict[str, float] = {}
+    for g in gates:
+        graders = {n.args[0].id for n in ast.walk(_parse(g.rule)) if isinstance(n, ast.Call)
+                   and getattr(n.func, "id", None) == "significant" and n.args and isinstance(n.args[0], ast.Name)}
+        for tname, summary in summaries.items():
+            if g.targets and tname not in g.targets:
+                continue
+            base = ((baselines or {}).get(tname) or {}).get("graders", {})
+            for gr in graders:
+                cur, bg = summary["graders"].get(gr), base.get(gr)
+                if cur and bg:
+                    d = paired_delta(cur["per_case"], bg["per_case"], seed)
+                    if d["n"]:
+                        fam[f"{tname}|{gr}"] = d["p_value"]
+    return fam
+
+
 def evaluate_gates(gates: list, summaries: dict[str, dict], samples: list, baselines: dict[str, dict] | None = None,
-                   seed: int = 7, untrusted: dict[str, str] | None = None, min_n: int = 1) -> list[GateResult]:
+                   seed: int = 7, untrusted: dict[str, str] | None = None, min_n: int = 1,
+                   correction: str = "none") -> list[GateResult]:
+    """correction: "none" (default: each significant() at its own alpha) or "holm" (significant() decided on
+    Holm-adjusted p-values across every (target, grader) the gates test, so the chance of any false regression or
+    improvement call stays at alpha however many gates there are)."""
+    adjusted = None
+    if correction == "holm":
+        from .stats import holm
+        adjusted = holm(significance_family(gates, summaries, baselines, seed))
+    elif correction not in ("none", None):
+        raise GateError(f"unknown gate_correction '{correction}' (use none or holm)")
     out: list[GateResult] = []
     for g in gates:
         for tname, summary in summaries.items():
@@ -215,7 +263,7 @@ def evaluate_gates(gates: list, summaries: dict[str, dict], samples: list, basel
                 continue
             ev = _Evaluator(summary, samples, (baselines or {}).get(tname), seed, untrusted or {},
                             min_n=g.min_n if getattr(g, "min_n", None) is not None else min_n,
-                            allow_missing_baseline=getattr(g, "allow_missing_baseline", False))
+                            allow_missing_baseline=getattr(g, "allow_missing_baseline", False), adjusted=adjusted)
             try:
                 ok = bool(ev.eval(_parse(g.rule)))
                 if ev.invalid:

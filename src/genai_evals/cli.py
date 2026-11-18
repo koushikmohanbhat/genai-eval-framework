@@ -374,6 +374,73 @@ def cmd_prompts(args) -> int:
     raise SystemExit(f"unknown prompts action {args.action}")
 
 
+def cmd_sensitivity(args) -> int:
+    import yaml
+
+    from .runner import SuiteError, load_result
+    from .sensitivity import sensitivity
+    variants: list = list(args.variant or [])
+    if args.variants:
+        data = yaml.safe_load(Path(args.variants).read_text(encoding="utf-8")) or []
+        variants += data.get("variants", []) if isinstance(data, dict) else data
+    if not variants:
+        raise SystemExit("sensitivity needs --variant TEXT (repeatable) or --variants file.yaml")
+    suite = load_suite(args.suite)
+    try:
+        rep = sensitivity(suite, load_providers(_providers_path(args, args.suite)), load_result(args.result), args.grader,
+                          variants, baseline=load_result(args.baseline) if args.baseline else None,
+                          max_flip_rate=args.max_flip_rate)
+    except (SuiteError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.out:
+        Path(args.out).write_text(json.dumps(rep, indent=1), encoding="utf-8")
+    for r in rep["variants"]:
+        k = f"{r['kappa']:.2f}" if r["kappa"] is not None else "n/a"
+        fr = f"{r['flip_rate']:.0%}" if r["flip_rate"] is not None else "n/a"
+        mo, mv = r["mean_original"], r["mean_variant"]
+        print(f"{r['variant']}: {r['flips']}/{r['units']} verdicts flipped ({fr}: {r['pass_to_fail']} pass->fail, "
+              f"{r['fail_to_pass']} fail->pass), kappa vs original {k}"
+              + (f", mean {mo:.2f} -> {mv:.2f}" if mo is not None and mv is not None else ""))
+        for g in r["gates_changed"]:
+            print(f"  gate changed: {g}")
+    if rep.get("gates_not_compared"):
+        print(f"  not compared (pass --baseline to include): {', '.join(rep['gates_not_compared'])}")
+    verdict = rep["robust"]
+    print(("robust: rewording didn't change the conclusion" if verdict else
+           f"sensitive: rewording flipped more than {args.max_flip_rate:.0%} of verdicts or changed a gate; the result "
+           "depends on the rubric's wording. Tighten the rubric (or use a checklist) before trusting the gate"))
+    return 0 if verdict else 1
+
+
+def cmd_power(args) -> int:
+    from .power import SAFETY_GUIDANCE, plan
+    if not (args.delta or args.half_width or args.n):
+        raise SystemExit("power needs --delta, --half-width or --n")
+    p = plan(args.rate, delta=args.delta, half_width=args.half_width, n=args.n, discordant=args.discordant,
+             alpha=args.alpha, power=args.power)
+    if args.json:
+        print(json.dumps(p, indent=1))
+        return 0
+    print(f"pass rate {args.rate:.0%}, alpha {args.alpha}, power {args.power:.0%}")
+    if "interval" in p:
+        print(f"  95% interval of ±{args.half_width * 100:.0f} points: {p['interval']['cases']} cases")
+    if "detect" in p:
+        d = p["detect"]
+        print(f"  detect a change of {args.delta * 100:+.0f} points: {d['unpaired_cases_per_arm']} cases per arm (independent samples)")
+        if "paired_cases" in d:
+            print(f"    on the same cases, with {args.discordant:.0%} of verdicts differing: {d['paired_cases']} cases (paired)")
+        else:
+            print("    on the same cases it's usually far fewer: pass --discordant (share of cases whose verdict changes)")
+    if "with_n" in p:
+        w = p["with_n"]
+        print(f"  with {args.n} cases: interval ±{w['interval_half_width'] * 100:.0f} points; smallest detectable change "
+              f"{w['mde_unpaired'] * 100:.0f} points unpaired" + (f", {w['mde_paired'] * 100:.0f} paired" if "mde_paired" in w else ""))
+    print(f"  for a safety claim, Anthropic suggests about {SAFETY_GUIDANCE['multi_turn']} multi-turn or "
+          f"{SAFETY_GUIDANCE['single_turn']} single-turn items")
+    return 0
+
+
 def cmd_regrade(args) -> int:
     from .runner import Runner, SuiteError, load_result
     suite = load_suite(args.suite)
@@ -546,6 +613,25 @@ def cmd_cases(args) -> int:
     if args.action == "tags":
         for d in tx.describe(args.workflow):
             print(f"  {d['tag']:<22} {d['group']:<10} {d['description']}")
+        return 0
+    if args.action == "grid":
+        import yaml
+
+        from .grid import grid_cases
+        spec = yaml.safe_load(Path(args.path).read_text(encoding="utf-8")) or {}
+        rows = grid_cases(spec, design=args.design, sample=args.sample, seed=args.seed)
+        out = Path(args.out or "drafts.jsonl")
+        with out.open("a" if args.append else "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        dims = spec.get("dimensions") or {}
+        total = 1
+        for v in dims.values():
+            total *= len(v)
+        print(f"wrote {len(rows)} draft case(s) to {out} ({args.design}"
+              + (f", sample of {args.sample}" if args.sample else "") + f"; {total} combinations of "
+              + " x ".join(f"{k} ({len(v)})" for k, v in dims.items()) + "). Each is tagged <dimension>=<value>; write "
+              "references, then cases promote.")
         return 0
     if args.action == "health":
         from .health import result_health
@@ -881,6 +967,29 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ack-dpdp", action="store_true")
     p.set_defaults(fn=_prompts_dispatch)
 
+    p = sub.add_parser("sensitivity", help="re-grade with reworded rubrics and report whether verdicts and gates change")
+    p.add_argument("result", help="result.json to re-grade (samples are reused; the system is not re-run)")
+    p.add_argument("--suite", required=True)
+    p.add_argument("--grader", required=True, help="judge grader to reword")
+    p.add_argument("--variant", action="append", help="reworded rubric / policy text (repeatable)")
+    p.add_argument("--variants", help="YAML list of variants: text, or parameter dicts such as {name, rubric, anchors}")
+    p.add_argument("--max-flip-rate", type=float, default=0.1, help="robust if at most this share of verdicts flip (default 0.1)")
+    p.add_argument("--baseline", help="baseline result.json for delta gates")
+    p.add_argument("--providers")
+    p.add_argument("--out", help="write the report as JSON")
+    p.set_defaults(fn=cmd_sensitivity)
+
+    p = sub.add_parser("power", help="how many cases a conclusion needs: interval width, detectable change, paired or not")
+    p.add_argument("--rate", type=float, required=True, help="expected pass rate, e.g. 0.85")
+    p.add_argument("--delta", type=float, help="change to detect, e.g. 0.05 (5 points)")
+    p.add_argument("--half-width", type=float, help="wanted 95%% interval half-width, e.g. 0.05")
+    p.add_argument("--n", type=int, help="cases you have: report the interval and the smallest detectable change")
+    p.add_argument("--discordant", type=float, help="paired: share of cases whose verdict differs between the systems")
+    p.add_argument("--alpha", type=float, default=0.05)
+    p.add_argument("--power", type=float, default=0.8)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_power)
+
     p = sub.add_parser("regrade", help="retry graders on units whose grading failed (transient judge errors by default), "
                                        "without re-running the system, then recompute gates")
     p.add_argument("result", help="result.json of the run to fix")
@@ -923,10 +1032,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
     p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote", "check-refs",
-                                      "health", "graduate"],
+                                      "health", "graduate", "grid"],
                    help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
                         "harvest <result.json> | promote <drafts.jsonl> | check-refs <suite.yaml> | health <result.json> | "
-                        "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl]")
+                        "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl] | grid <grid.yaml>")
     p.add_argument("path", nargs="?", default="suite.yaml")
     p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
     p.add_argument("--json", action="store_true")
@@ -949,6 +1058,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--schema", help="promote: check promoted rows against this case schema")
     p.add_argument("--allow-empty-reference", action="store_true")
     p.add_argument("--judges", action="store_true", help="check-refs: also run model graders (costs judge calls)")
+    p.add_argument("--design", choices=["full", "pairwise"], default="full",
+                   help="grid: every combination (full) or every pair of values across two dimensions (pairwise)")
+    p.add_argument("--sample", type=int, help="grid: a random sample of this many combinations")
     p.add_argument("--also", action="append", help="graduate: more result files that must also show the case passing")
     p.add_argument("--apply", action="store_true", help="graduate: set purpose: regression on ready cases in --into")
     p.add_argument("--providers")

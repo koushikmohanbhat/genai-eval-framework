@@ -13,7 +13,7 @@ Promptfoo is the main way this framework works with other eval tooling: see [Wor
 |---|---|
 | **Define the objective**: success criteria first | `suite.yaml` `gates:` are the success criteria, written as rules (`mean(faithfulness) >= 0.85 and ci_low(faithfulness) >= 0.7`), each pack's gates come with the reason for each ([gates](gates.md)) |
 | **Collect the dataset**: production, expert, historical, synthetic | dataset files with a schema per pack; tokenised production samples via `cases harvest`; synthetic drafts via `cases generate`; expert review before either counts ([growing the eval set](growing-the-eval-set.md)) |
-| **Define metrics** | 40 graders: deterministic, trajectory, RAG and judge-based ([graders](graders.md)) |
+| **Define metrics** | 41 graders: deterministic, trajectory, RAG and judge-based ([graders](graders.md)) |
 | **Run and compare** | `genai-evals run`, paired comparisons with a baseline, and experiments (a baseline plus candidate changes on the same cases, with corrected significance) ([experiments](experiments.md)) |
 | **Evaluate continuously** | CI gates on every change (GitHub Action, CodeBuild, Cloud Build), online evals on production telemetry, and harvesting failures back into the eval set ([CI](ci.md), [sources](sources.md)) |
 

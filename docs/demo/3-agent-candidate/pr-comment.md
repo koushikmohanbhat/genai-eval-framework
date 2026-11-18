@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `fnol-agent`
 
-Run `run_2b0644974939` · 16 cases × 1 targets × 3 repeats · baseline `run_ecf136f7dc78`
+Run `run_f24e1ddb35a4` · 16 cases × 1 targets × 3 repeats · baseline `run_14db14853aaa`
 Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 
 ### Gates
@@ -22,6 +22,7 @@ Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 
 ### Notes
 
+- task_success @ fnol-agent: 95% interval is ±22 points on 16 case(s), so differences smaller than that can't be told from noise; about 289 cases would give ±5 (genai-evals power)
 - no_claim_on_inactive_policy: 3 case(s) never passed on any trial or target (ag-03, ag-06, ag-09): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - task_success: 4 case(s) never passed on any trial or target (ag-03, ag-06, ag-09, ag-10): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - verified_policy: 11 case(s) never passed on any trial or target (ag-01, ag-02, ag-03, ag-05, ag-06, ...): check the task and the grader before blaming the system (genai-evals cases check-refs)

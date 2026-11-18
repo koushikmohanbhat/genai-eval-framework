@@ -214,6 +214,41 @@ genai-evals cases harvest out/online/result.json --grader no_promises --below 0.
   - Harvested cases come from real users. Keep the drafts file out of version control until it has been reviewed.
   - With the DPDP framework, register promoted rows so an erasure request reaches them ([DPDP](dpdp.md)).
 
+## Scenario grids
+
+To learn *which* factor a failure depends on, vary each one independently: every tone with every severity and every
+persona, rather than a few hand-picked scenarios that change several things at once.
+
+```yaml
+# refund-grid.yaml
+id_prefix: refund-grid
+template:
+  goal: "You want a refund for a {{ product }} that arrived {{ severity }}. You are {{ tone }}."
+  persona: "{{ persona }}"
+  tags: [refund, edge]
+dimensions:
+  tone: [calm, angry, confused]
+  severity: [scratched, broken, missing parts]
+  persona: [first-time buyer, regular customer]
+  product: [phone, kettle]
+exclude:
+  - {tone: calm, severity: missing parts}
+```
+
+```bash
+genai-evals cases grid refund-grid.yaml --out drafts.jsonl                    # every combination: 32 drafts
+genai-evals cases grid refund-grid.yaml --design pairwise --out drafts.jsonl  # every pair of values: 11 drafts
+genai-evals cases grid refund-grid.yaml --sample 12 --out drafts.jsonl        # a random 12
+```
+
+- The template can set `input`, `goal` (for the user simulator), `turns`, `persona`, `tags` and a `reference`,
+  with `{{ dimension }}` placeholders.
+- Each case is tagged `<dimension>=<value>` (`tone=angry`), so the report's slices show results **by each
+  dimension** separately, and `metadata.grid` records the combination.
+- `--design pairwise` covers every pair of values from any two dimensions with far fewer cases: enough to find a
+  failure that needs two factors together, without the full product.
+- They are drafts (`source: synthetic`). An expert writes each reference before `cases promote`.
+
 ## Capability and regression cases
 
 A **regression** case is something the system already does and must keep doing: it should pass close to 100% of

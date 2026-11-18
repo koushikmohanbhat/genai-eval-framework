@@ -8,8 +8,8 @@ was checked too. Its public page only names three goals: evaluate agents end to 
 production failures, and decide quickly whether a new model is worth switching to. All three were already covered:
 agent targets with trajectories and final state, `cases harvest`, and model-upgrade experiments.
 
-This page maps each recommendation to what the framework does. v0.5.0 added the rows marked **new**. The rest
-are listed under [Not covered](#not-covered).
+This page maps each recommendation to what the framework does. v0.5.0 added the rows marked **new**, and v0.5.1
+the ones in [Added in v0.5.1](#added-in-v051). What's left is under [Not covered](#not-covered).
 
 ## Agent evals
 
@@ -53,13 +53,19 @@ are listed under [Not covered](#not-covered).
 | Report results by category | Slices by tag; representative vs stress splits |
 | Document the full configuration | Judge provenance, config hashes, prompt versions, and the experiment manifest |
 
+## Added in v0.5.1
+
+| Recommendation | In the framework |
+|---|---|
+| Make criteria atomic and binary rather than one overall score; say what doesn't count | `checklist` grader: each criterion judged separately (met / not met / unknown), with `not_met` edge cases ([checklists](graders.md#checklists-atomic-passfail-criteria)) |
+| Re-grade with a different model or rubric wording; if conclusions change, you measured the grader | `genai-evals sensitivity`: re-grades the same samples with reworded rubrics and reports flips, κ and changed gates ([details](graders.md#is-the-result-about-the-rubric)) |
+| Enough items for the claim; intervals wider than about ±10 points may hide real differences | `genai-evals power` (interval width, detectable change, paired vs unpaired) and a run note when a gated grader's interval is wider than ±10 points ([how many cases](gates.md#how-many-cases)) |
+| Vary scenario dimensions independently | `genai-evals cases grid`: full, sampled or pairwise designs, tagged by dimension ([scenario grids](growing-the-eval-set.md#scenario-grids)) |
+| Correct for multiple comparisons | `gate_correction: holm` across every `significant()` in the run ([gates](gates.md#statistical-assumptions)) |
+
 ## Not covered
 
-- **Atomic, binary checklists.** A rubric gives one score. Splitting it into separate pass/fail criteria is planned.
-- **Grader sensitivity to wording.** The two-judge panel varies the model but not the rubric's wording. A re-grade
-  with reworded rubrics, reporting whether gate outcomes change, is planned.
-- **Large-sample guidance for safety claims.** The safety article suggests about 100 multi-turn or 1,000 single-turn
-  items for a safety claim. The framework's minimums (30 representative cases, 5–10 per stress tag) are enough to
-  start, not enough for such a claim. Power analysis and a warning on intervals wider than ±10 points are planned.
-- **Factorial scenarios** (every persona × tone × severity) for the user simulator.
-- **Multiple-comparison correction across gates.**
+- **Cluster-aware intervals.** Cases from the same customer or document are treated as independent
+  ([roadmap](roadmap.md)).
+- **Contamination checks** (whether eval items appeared in a model's training data): not measurable from outside the
+  model. Keep held-out cases private, and refresh them from production.

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.1 (2026-11-18)
+
+The rest of Anthropic's agent and safety eval guidance ([mapping](docs/agent-evals.md#added-in-v051)). No change to
+existing scores or judge prompts.
+
+- **New `checklist` grader:** atomic criteria, each judged on its own by a separate judge call as met / not met /
+  unknown, with `not_met` text that spells out what doesn't count. `require_all` (default) or a share-met threshold.
+- **New `genai-evals sensitivity`:** re-grades the same samples with reworded rubrics (or any grader parameters) and
+  reports flipped verdicts, Cohen's κ with the original, the change in the mean and changed gate outcomes; exits 1
+  unless robust. `regrade --only all` re-grades every unit.
+- **New `genai-evals power`:** cases needed for an interval width or to detect a change, paired (McNemar) or
+  unpaired, and the smallest detectable change for a given n; with Anthropic's safety-claim guidance. Runs add a note
+  when a grader behind a blocking gate has a 95% interval wider than ±10 points.
+- **New `genai-evals cases grid`:** scenario grids from a template and dimensions, as every combination, a random
+  sample, or a pairwise covering design; cases tagged `<dimension>=<value>` so slices report by dimension.
+- **`gate_correction: holm`** on a suite decides every `significant()` across the run's gates and targets on
+  Holm-adjusted paired-bootstrap p-values (recorded as `p_holm(grader)`). Paired comparisons now report `p_value`.
+
 ## 0.5.0 (2026-11-18)
 
 Anthropic's guidance on agent and safety evals ([mapping](docs/agent-evals.md)). **Judge prompts changed** (the

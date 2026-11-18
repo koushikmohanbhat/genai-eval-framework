@@ -151,8 +151,8 @@ class Runner:
         backoff; still-transient errors are retried, a persistent error stops. Gates, summaries and reports are
         recomputed. The new result records what was re-graded (`regrade`) and the run it came from."""
         from .retry import classify_error_text
-        if only not in ("transient", "errors", "unscored"):
-            raise SuiteError(f"--only must be transient, errors or unscored (got {only})")
+        if only not in ("transient", "errors", "unscored", "all"):
+            raise SuiteError(f"--only must be transient, errors, unscored or all (got {only})")
         samples = [Sample(**d) for d in result.get("samples", [])]
         scores = [Score(**d) for d in result.get("scores", [])]
         ids = {c["id"] for c in result.get("cases", [])}
@@ -175,10 +175,14 @@ class Runner:
         smap = {(s.target, s.case_id, s.repeat): s for s in samples}
 
         def wanted(sc: Score) -> bool:
-            if sc.grader not in built or sc.skipped:
+            if sc.grader not in built or (sc.skipped and not (only == "all" and sc.label == "unknown")):
                 return False
             kind = getattr(sc, "error_kind", None) or classify_error_text(sc.error)
-            if kind == "target" or (sc.error is None and sc.passed is not None):
+            if kind == "target":
+                return False
+            if only == "all":                                   # every graded unit (used by the sensitivity check)
+                return True
+            if sc.error is None and sc.passed is not None:
                 return False
             if only == "transient":
                 return kind == "transient"
@@ -261,7 +265,7 @@ class Runner:
         base_summaries = baseline_summaries(baseline, list(summary), baseline_map)
         untrusted = untrusted_graders(gctx.calibration, self.suite.min_judge_kappa, self.suite.min_calibration_n)
         gate_results = evaluate_gates(self.suite.gates, summary, samples, base_summaries, self.suite.seed, untrusted,
-                                      min_n=self.suite.min_n)
+                                      min_n=self.suite.min_n, correction=self.suite.gate_correction)
         comparisons = {}
         for tname, base in base_summaries.items():
             comparisons[tname] = {g: paired_delta(d["per_case"], base["graders"][g]["per_case"], self.suite.seed,
@@ -310,6 +314,18 @@ class Runner:
                  for g, d in sm["graders"].items() if (d.get("trial_drift") or {}).get("warning")]
         warns += [f"{g} @ {t}: {d['unknown']} verdict(s) the judge couldn't decide; review them (genai-evals labels queue)"
                   for t, sm in summary.items() for g, d in sm["graders"].items() if d.get("unknown")]
+        from .gates import gated_graders
+        from .power import n_for_interval
+        for t, sm in summary.items():
+            for g in sorted(gated_graders(self.suite.gates)):
+                d = sm["graders"].get(g) or {}
+                lo, hi, mean = d.get("ci_low"), d.get("ci_high"), d.get("mean")
+                if None in (lo, hi, mean) or not (0 <= mean <= 1) or lo != lo:
+                    continue
+                if (hi - lo) / 2 > 0.10:
+                    warns.append(f"{g} @ {t}: 95% interval is ±{(hi - lo) / 2 * 100:.0f} points on {d.get('n')} case(s), so "
+                                 "differences smaller than that can't be told from noise; about "
+                                 f"{n_for_interval(mean, 0.05)} cases would give ±5 (genai-evals power)")
         result["warnings"] = warns + result["health"]["notes"]
         from .results import stamp
         stamp(result)

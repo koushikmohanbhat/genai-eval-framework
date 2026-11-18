@@ -134,6 +134,7 @@ profiles:
 | `min_calibration_n` | 30 | human labels a judge needs before it can be trusted |
 | `min_n` | 5 | scored cases a gate needs (overall, per slice and in the baseline overlap); fewer makes the gate `invalid` |
 | `on_error` | `fail` | `fail`: target and grader errors count as failed scores (value 0). `exclude`: left out of means (diagnosis only) |
+| `gate_correction` | `none` | `holm`: decide every `significant()` across the run's gates on Holm-adjusted p-values ([gates](gates.md#statistical-assumptions)) |
 | `tokenize`, `tokenizer` | `true`, `{}` | DPDP tokenisation of inputs and outputs before judges and storage ([DPDP](dpdp.md)) |
 
 ### Targets

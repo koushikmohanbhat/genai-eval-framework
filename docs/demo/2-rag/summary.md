@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `policy-qa`
 
-Run `run_c1f01a644632` · 20 cases × 2 targets × 1 repeats
+Run `run_6345bd3ee114` · 20 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -24,6 +24,8 @@ Run `run_c1f01a644632` · 20 cases × 2 targets × 1 repeats
 
 ### Notes
 
+- faithfulness @ rag-v1: 95% interval is ±10 points on 20 case(s), so differences smaller than that can't be told from noise; about 222 cases would give ±5 (genai-evals power)
+- refusal @ rag-v1: 95% interval is ±18 points on 20 case(s), so differences smaller than that can't be told from noise; about 246 cases would give ±5 (genai-evals power)
 - mrr: 1 case(s) never passed on any trial or target (qa-19): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - recall_at_4: 1 case(s) never passed on any trial or target (qa-19): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - saturated: every regression case passes every trial on no_pii; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress

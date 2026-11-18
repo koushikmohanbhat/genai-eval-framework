@@ -82,11 +82,36 @@ The intervals and tests are only as good as these assumptions. Read them before 
 - **Paired tests need the same cases.** `delta()` uses cases present in both runs; a gate is `invalid` if fewer than
   `min_n` overlap. McNemar uses per-case pass/fail; the bootstrap uses per-case means.
 - **Multiple comparisons.** Every `significant()` in a suite is a separate test at `alpha` (default 0.05). With many
-  graders × targets × slices, some will be "significant" by chance. For *m* regression gates, use
-  `significant(g, alpha=0.05/m)` (Bonferroni), or gate on effect size (`delta_ci_low(g) > -0.03`) rather than p-values.
-- **Small datasets.** With 30 cases, a 95% CI on a pass rate near 0.8 is roughly ±0.14. The report warns when *n* is
-  too small to detect the observed difference. `min_n` stops gates deciding on a handful of cases; it does not make a
-  small set representative.
+  graders × targets, some will be "significant" by chance. Set `gate_correction: holm` on the suite: every
+  `significant()` across the run's gates and targets is then decided on Holm-adjusted p-values (paired bootstrap), so
+  the chance of *any* false "significant" stays at `alpha`. Holm is uniformly more powerful than Bonferroni. The gate
+  records each `p_holm(grader)`. Alternatively, gate on effect size (`delta_ci_low(g) > -0.03`) rather than on
+  significance.
+- **Small datasets.** With 30 cases, a 95% CI on a pass rate near 0.8 is roughly ±0.14. When a grader behind a
+  blocking gate has an interval wider than ±10 points, the run adds a note with the number of cases that would give
+  ±5. `min_n` stops gates deciding on a handful of cases; it does not make a small set representative.
+
+## How many cases?
+
+`genai-evals power` turns "how sure do we need to be" into a number of cases (normal approximation, pass/fail,
+independent cases):
+
+```bash
+genai-evals power --rate 0.85 --delta 0.05 --half-width 0.05 --n 40 --discordant 0.1
+#   pass rate 85%, alpha 0.05, power 80%
+#     95% interval of ±5 points: 196 cases
+#     detect a change of +5 points: 686 cases per arm (independent samples)
+#       on the same cases, with 10% of verdicts differing: 312 cases (paired)
+#     with 40 cases: interval ±11 points; smallest detectable change 22 points unpaired, 14 paired
+#     for a safety claim, Anthropic suggests about 100 multi-turn or 1000 single-turn items
+```
+
+- **Paired designs need far fewer cases.** `delta()` compares the same cases, so what matters is the share of cases
+  whose verdict differs between baseline and candidate (`--discordant`; read it from a previous comparison).
+- **Repeats don't add cases.** They are averaged per case first.
+- For **safety claims**, Anthropic's guidance is roughly 100 items for complex multi-turn evals and 1,000 for simple
+  single-turn ones. The framework's minimums (30 representative cases, 5–10 per stress tag) are enough to start
+  measuring, not to make such a claim.
 - **Judges are measurement instruments.** A judge-graded mean is only as trustworthy as the judge's calibration.
 
 ## Gates and experiments

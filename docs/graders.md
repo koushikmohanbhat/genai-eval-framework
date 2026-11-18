@@ -72,6 +72,57 @@ and the conversation passes only if every turn passes:
 - It costs one judge call per assistant turn per judge (`max_turns`, default 20, keeps the last 20). Single-turn
   samples are judged once, as before.
 
+## Checklists: atomic pass/fail criteria
+
+One overall 1–5 score hides *why* an output fell short, and judges disagree most on overall scores. A `checklist`
+grader splits the rubric into criteria that are each met or not met, judged **one at a time** by separate judge
+calls, so one criterion can't colour another:
+
+```yaml
+- name: claim_reply
+  type: checklist
+  use_reference: true
+  criteria:
+    - "States which documents the customer still needs to send"
+    - {id: no_promise, text: "Makes no promise that the claim will be paid",
+       not_met: "Phrases like 'you will be covered' or 'this should be approved' count as promises, even with a caveat."}
+    - {id: next_step, text: "Gives one clear next step", not_met: "A list of options without a recommendation does not count."}
+```
+
+- `not_met` spells out what does **not** count, including the edge cases (a disclaimer instead of the content,
+  pseudocode instead of code, a partial answer). It is shown to the judge as `<does_not_count>`.
+- `require_all: true` (default): the output passes only if every criterion is met. `value` is the share met.
+  `require_all: false`: passes when the share met reaches `threshold` (default 0.75).
+- Each criterion can be met, not met or `unknown`. With `require_all`, one unmet criterion fails the output even
+  if others are unknown; otherwise an unknown makes the whole score `unknown`.
+- `details.criteria` holds each criterion's verdict and rationale; `details.not_met` lists the ids that failed, so
+  reports can say *which* criterion fails most.
+- Cost: one judge call per criterion per judge.
+
+## Is the result about the rubric?
+
+If rewording a rubric changes the verdicts, the eval measured the grader, not the system. `sensitivity` re-grades
+the same samples (the system is not re-run) with reworded rubrics, and compares:
+
+```bash
+genai-evals sensitivity out/run/result.json --suite suite.yaml --grader no_payout_promise \
+  --variant 'Never promise a payout amount or say "we will pay".' \
+  --variant 'Do not say "will be paid" or "covered".' --baseline baseline.json
+#   variant-1: 0/48 verdicts flipped (0%: 0 pass->fail, 0 fail->pass), kappa vs original 1.00, mean 1.00 -> 1.00
+#   variant-2: 0/48 verdicts flipped (0%: ...), kappa vs original 1.00, mean 1.00 -> 1.00
+#   robust: rewording didn't change the conclusion
+```
+
+- A one-line `--variant` replaces the grader's `rubric` (or `policy`). `--variants file.yaml` takes a list of
+  parameter dicts for anything else: `{name: tighter, rubric: ..., anchors: {...}}`, or new `criteria` for a checklist.
+- For each variant it reports the verdicts that flipped (pass→fail and fail→pass), Cohen's κ with the original
+  verdicts, the change in the mean, and **any gate whose outcome changed**.
+- **Robust** means no gate changed and at most `--max-flip-rate` (default 10%) of verdicts flipped; the command
+  exits 1 otherwise. Without `--baseline`, `delta()` gates can't be decided on the re-graded result, so they are
+  left out of the comparison and listed.
+- Cost: every unit is re-graded once per variant. Use it on the judge behind a release gate, when a rubric
+  changes, and before trusting a new judge.
+
 ## RAG context graders
 
 - `context_precision`: the judge marks each retrieved chunk useful or not for answering the question (using the

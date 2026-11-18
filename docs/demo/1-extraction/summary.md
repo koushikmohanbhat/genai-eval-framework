@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-extraction`
 
-Run `run_e7950e1dfa05` · 24 cases × 2 targets × 1 repeats
+Run `run_ce793f348e91` · 24 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -26,6 +26,7 @@ Run `run_e7950e1dfa05` · 24 cases × 2 targets × 1 repeats
 
 ### Notes
 
+- fields @ extractor-v1: 95% interval is ±10 points on 24 case(s), so differences smaller than that can't be told from noise; about 279 cases would give ±5 (genai-evals power)
 - saturated: every regression case passes every trial on latency, schema; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Top failing cases (up to 5)

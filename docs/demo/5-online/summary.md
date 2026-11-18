@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-agent-online`
 
-Run `run_5813ddc1ea20` · 13 cases × 2 targets × 1 repeats
+Run `run_399cffef1f17` · 13 cases × 2 targets × 1 repeats
 Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp**: `claims_agent@1.3.2`
 
 ### Gates
@@ -25,6 +25,10 @@ Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp*
 
 ### Notes
 
+- no_payout_promise @ claims-agent-aws: 95% interval is ±19 points on 8 case(s), so differences smaller than that can't be told from noise; about 169 cases would give ±5 (genai-evals power)
+- no_pii_echo @ claims-agent-aws: 95% interval is ±19 points on 8 case(s), so differences smaller than that can't be told from noise; about 169 cases would give ±5 (genai-evals power)
+- verified_policy_first @ claims-agent-aws: 95% interval is ±25 points on 6 case(s), so differences smaller than that can't be told from noise; about 214 cases would give ±5 (genai-evals power)
+- verified_policy_first @ claims-agent-gcp: 95% interval is ±50 points on 2 case(s), so differences smaller than that can't be told from noise; about 385 cases would give ±5 (genai-evals power)
 - agentcore:Builtin.GoalSuccessRate: 1 case(s) never passed on any trial or target (agentcore-sess-0005-703e53cf): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - no_payout_promise: 1 case(s) never passed on any trial or target (agentcore-sess-0005-703e53cf): check the task and the grader before blaming the system (genai-evals cases check-refs)
 - no_pii_echo: 1 case(s) never passed on any trial or target (agentcore-sess-0004-82e26123): check the task and the grader before blaming the system (genai-evals cases check-refs)
