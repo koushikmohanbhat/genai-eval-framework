@@ -25,7 +25,7 @@ The package is not on PyPI yet, so install it from a GitHub release tag ([releas
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.2"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.3"
 genai-evals --version
 ```
 

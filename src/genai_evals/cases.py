@@ -106,15 +106,24 @@ def sample_representative(result: dict[str, Any], n: int = 50, seed: int = 7, by
     Selection is by the unit (session / case and target), **not** by score, so the set reflects traffic rather than
     failures.
 
-    by_tag=False: a simple random sample. by_tag=True: proportional-allocation stratified sample by the first tag,
-    with each case weighted by stratum size / cases drawn, so the weighted mean estimates the whole population.
+    Each case's weight is the inverse of its probability of being included, end to end:
 
-    Returns (draft cases, provenance). The provenance (source, population, window, method, weights, drawn_at, plus the
-    telemetry sampling that produced the result) goes into the suite's `representative_sample:`."""
+        P(in set) = capture_rate (telemetry) x sampling (online run) x selection here (n / N, per stratum)
+
+    so sources captured or graded at different rates are weighted back to production proportions. by_tag=False is a
+    simple random sample of the captured units; by_tag=True is a proportional stratified sample by first tag.
+
+    When any source's telemetry capture rate is unknown (`capture_rate` not set in sources.yaml), the weights can only
+    correct for the online sampling and the selection here, and the provenance says the set **represents the captured
+    sample, not production traffic**.
+
+    Returns (draft cases, provenance) for the suite's `representative_sample:`."""
     import datetime as _dt
     import random as _random
     rng = _random.Random(seed)
     cases = {c["id"]: c for c in result.get("cases", [])}
+    srcs = result.get("sources") or []
+    by_name = {s.get("source"): s for s in srcs}
     units: dict[tuple[str, str], dict] = {}
     for smp in result.get("samples", []):
         units.setdefault((smp["case_id"], smp["target"]), smp)          # one sample per unit (first repeat)
@@ -122,6 +131,11 @@ def sample_representative(result: dict[str, Any], n: int = 50, seed: int = 7, by
     if not keys:
         raise ValueError("no samples in this result")
     n = min(n, len(keys))
+
+    def source_of(smp) -> dict:
+        origin = str(smp.get("origin") or "")
+        name = origin.split(":", 1)[1] if origin.startswith("source:") else None
+        return by_name.get(name) or (srcs[0] if len(srcs) == 1 else {})
     strata: dict[str, list] = {}
     for k in keys:
         tags = cases.get(k[0], {}).get("tags") or ["(untagged)"]
@@ -132,35 +146,64 @@ def sample_representative(result: dict[str, Any], n: int = 50, seed: int = 7, by
         take = max(1, round(n * len(ks) / total)) if by_tag else n
         take = min(take, len(ks))
         for k in rng.sample(ks, take):
-            picked.append((k, st, len(ks) / take))
-    tok = (lambda x: tokenizer.tokenize(x)) if tokenizer else (lambda x: x)
-    srcs = result.get("sources") or []
-    def _w(w):
-        return ", ".join(f"{k} {v}" for k, v in w.items()) if isinstance(w, dict) else str(w)
-    window = "; ".join(f"{s.get('source')}: {_w(s.get('window'))}" for s in srcs if s.get("window")) or result.get("created_at", "")
-    fixture = any(s.get("fixture") for s in srcs)
+            picked.append((k, st, take / len(ks)))
+    used = {}
+    unknown_capture = False
     out = []
-    for (cid, tgt), st, w in picked:
+    tok = (lambda x: tokenizer.tokenize(x)) if tokenizer else (lambda x: x)
+    for (cid, tgt), st, p_select in picked:
         smp = units[(cid, tgt)]
+        src = source_of(smp)
+        used[src.get("source", "?")] = src
+        p_online = float(src.get("sampling") or 1.0)
+        cap = src.get("capture_rate")
+        if cap is None:
+            unknown_capture = True
+        p = p_select * p_online * (float(cap) if cap is not None else 1.0)
         inp = smp.get("input")
         text = tok(inp if isinstance(inp, str) else json.dumps(inp, ensure_ascii=False))
         row = {"id": _id(prefix, result.get("run_id"), cid, tgt), "input": text,
-               "tags": ["typical", "sampled"], "critical": False, "source": "synthetic" if fixture else "production",
-               "split": "representative", "review_status": "draft", "reference": {},
+               "tags": ["typical", "sampled"], "critical": False,
+               "source": "synthetic" if src.get("fixture") else "production",
+               "split": "representative", "review_status": "draft", "reference": {}, "weight": round(1 / p, 6),
                "metadata": {"sampled_from": result.get("run_id"), "original_case_id": cid, "target": tgt,
-                            "trace_id": smp.get("trace_id"), "session_id": smp.get("session_id"), "stratum": st}}
-        if by_tag:
-            row["weight"] = round(w, 6)
+                            "telemetry_source": src.get("source"), "trace_id": smp.get("trace_id"),
+                            "session_id": smp.get("session_id"), "stratum": st,
+                            "inclusion": {"capture_rate": cap, "online_sampling": p_online, "selection": round(p_select, 6)}}}
         out.append(row)
+    fixture = any(s.get("fixture") for s in used.values())
+    rates = {(s.get("capture_rate"), s.get("sampling")) for s in used.values()}
+    # constant weights carry no information: drop them unless rates differ or the sample was stratified
+    if not by_tag and len(rates) <= 1:
+        for r in out:
+            r.pop("weight")
+
+    def _w(w):
+        return ", ".join(f"{k} {v}" for k, v in w.items()) if isinstance(w, dict) else str(w)
+    window = "; ".join(f"{s.get('source')}: {_w(s.get('window'))}" for s in used.values() if s.get("window")) or result.get("created_at", "")
+    if not srcs:
+        represents = f"the cases in run {result.get('run_id')} only (no telemetry source recorded)"
+    elif unknown_capture:
+        represents = ("the captured telemetry sample only: the telemetry capture rate of "
+                      + ", ".join(sorted(k for k, s in used.items() if s.get("capture_rate") is None))
+                      + " is unknown (set capture_rate in sources.yaml)")
+    else:
+        represents = "production traffic"
+    weights_desc = None
+    if any("weight" in r for r in out):
+        weights_desc = ("inverse inclusion probability: 1 / (telemetry capture rate x online sampling x selection"
+                        + (" within tag stratum" if by_tag else "") + ")"
+                        + ("; capture rate unknown for some sources, so treated as 1" if unknown_capture else ""))
     prov = {"source": "fixture (not production: recorded telemetry)" if fixture else "production",
-            "population": population or ", ".join(sorted({s.get("source", "?") for s in srcs})) or "samples in " + str(result.get("run_id")),
+            "population": population or ", ".join(sorted(used)) or "samples in " + str(result.get("run_id")),
             "window": window,
-            "method": (f"stratified random sample by first tag, proportional allocation, {len(out)} of {total} units"
-                       if by_tag else f"simple random sample of {len(out)} of {total} units (sessions / cases), seed {seed}"),
-            "weights": "inverse inclusion: units in the tag stratum / units drawn from it" if by_tag else None,
+            "method": (f"stratified random sample by first tag, proportional allocation, {len(out)} of {total} captured units"
+                       if by_tag else f"simple random sample of {len(out)} of {total} captured units (sessions / cases), seed {seed}"),
+            "weights": weights_desc, "represents": represents,
             "drawn_at": _dt.date.today().isoformat(), "sampled_from_run": result.get("run_id"),
-            "telemetry_sampling": [{k: s.get(k) for k in ("source", "type", "sampling", "sampling_method", "population",
-                                                           "samples", "window") if s.get(k) is not None} for s in srcs]}
+            "telemetry_sampling": [{k: s.get(k) for k in ("source", "type", "capture_rate", "sampling", "inclusion_probability",
+                                                           "sampling_method", "population", "samples", "window")
+                                    if s.get(k) is not None} for s in used.values()]}
     return out, prov
 
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.3 (2026-11-18)
+
+Review feedback: representative sets weighted for telemetry sampling, and a design-aware judge ladder.
+
+### Representative sets and telemetry sampling
+- New `capture_rate` per source in `sources.yaml`: the share of production traffic the telemetry captures (trace
+  sampling, content capture). Online runs record it and the source's inclusion probability (capture rate x sampling).
+- `cases sample` weights each case by the inverse of its end-to-end inclusion probability: telemetry capture rate x
+  online sampling x selection (per tag stratum with `--by-tag`). Sources captured or graded at different rates are
+  weighted back to production proportions. Each draft records the factors in `metadata.inclusion`.
+- Provenance gains `represents`: "production traffic" only when every source's capture rate is known; otherwise "the
+  captured telemetry sample only", naming the sources to fix. The CLI prints the same note.
+
+### Judge ladder
+- `calibrate --compare-to` respects the labels' sampling design: the interval on κ(cheap) − κ(strong) resamples within
+  the sheet's strata, and with inverse-inclusion weights compares production-weighted κ.
+- With `--validation-labels` (a random sample), **approval is decided on the validation sample**; the calibration
+  sample is reported alongside, with a note if the cheaper judge looks worse there. A stratified sheet without weights
+  and no validation sample is not approved.
+- Output records the `basis` of the decision and both samples' statistics.
+
 ## 0.4.2 (2026-11-18)
 
 Review feedback: a clearly defined calibration unit with design-aware intervals, evidence behind "representative",

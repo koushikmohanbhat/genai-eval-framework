@@ -41,6 +41,11 @@ def collect(sources: SourcesConfig, clients: dict[str, Any] | None = None) -> tu
         entry: dict[str, Any] = {"source": spec.name, "type": spec.type, "samples": len(got),
                                  "population": getattr(src, "population", len(got)), "sampling": spec.sampling,
                                  "window": spec.window, "sampling_method": "hash of session / trace id",
+                                 "capture_rate": spec.capture_rate,
+                                 # probability that a production session reaches this result (None when the
+                                 # telemetry capture rate is unknown)
+                                 "inclusion_probability": (spec.capture_rate * spec.sampling
+                                                           if spec.capture_rate is not None else None),
                                  "fixture": bool(spec.fixture)}
         for j in spec.join:
             js = build_source({"name": j.get("name", f"{spec.name}:{j['type']}"), "window": spec.window, **j}, sources.base_dir,

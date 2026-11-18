@@ -379,22 +379,26 @@ def cmd_calibrate(args) -> int:
     labels, _ = consensus(reviews, args.rule)
     human = reviewer_agreement(reviews, args.rule) if any(len(v) > 1 for v in reviews.values()) else None
     result = load_result(args.result)
+    validation = None
+    if args.validation_labels:
+        validation = consensus(read_reviews(args.validation_labels), args.rule)[0]
     if args.compare_to:
         strong = load_result(args.compare_result) if args.compare_result else result
         cmp = compare_judges((result, args.grader), (strong, args.compare_to), labels, margin=args.margin,
-                             min_kappa=args.min_kappa, min_n=args.min_n, info=read_sample_info(args.labels))
+                             min_kappa=args.min_kappa, min_n=args.min_n, info=read_sample_info(args.labels),
+                             validation=validation,
+                             validation_info=read_sample_info(args.validation_labels) if args.validation_labels else None)
         if args.out:
             Path(args.out).write_text(json.dumps(cmp, indent=1), encoding="utf-8")
         if "kappa_cheap" in cmp:
             lo, hi = cmp["kappa_diff_ci"]
-            print(f"{args.grader} vs {args.compare_to} on {cmp['n']} labelled items: kappa {cmp['kappa_cheap']:.2f} vs "
-                  f"{cmp['kappa_strong']:.2f} (difference {cmp['kappa_diff']:+.2f}, 95% CI {lo:+.2f} to {hi:+.2f}); "
-                  f"judge cost ${cmp['judge_cost_cheap']:.4f} vs ${cmp['judge_cost_strong']:.4f}")
+            print(f"{args.grader} vs {args.compare_to} on {cmp['n']} labelled units ({cmp['basis']}): kappa "
+                  f"{cmp['kappa_cheap']:.2f} vs {cmp['kappa_strong']:.2f} (difference {cmp['kappa_diff']:+.2f}, "
+                  f"95% CI {lo:+.2f} to {hi:+.2f}); judge cost ${cmp['judge_cost_cheap']:.4f} vs ${cmp['judge_cost_strong']:.4f}")
+        if cmp.get("note"):
+            print("note: " + cmp["note"])
         print(("approved: " if cmp["approved"] else "not approved: ") + cmp["reason"])
         return 0 if cmp["approved"] else 1
-    validation = None
-    if args.validation_labels:
-        validation = consensus(read_reviews(args.validation_labels), args.rule)[0]
     stress = list(result.get("stress_tags") or ["edge", "adversarial"])
     res = calibrate(result, args.grader, labels, human, sample_info=read_sample_info(args.labels), validation=validation,
                     validation_info=read_sample_info(args.validation_labels) if args.validation_labels else None,
@@ -539,6 +543,8 @@ def cmd_cases(args) -> int:
         print(f"wrote {len(rows)} draft representative case(s) to {out}, and their provenance to {pfile}.")
         if prov["source"] != "production":
             print("  note: sampled from recorded fixture telemetry, so `doctor` won't count these as production cases")
+        if prov["represents"] != "production traffic":
+            print(f"  note: this set represents {prov['represents']}")
         print("  next: an SME writes each reference, `genai-evals cases promote ... --into <dataset>`, then copy the "
               "provenance block into suite.yaml")
         return 0
@@ -798,7 +804,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--compare-result", help="result.json holding --compare-to, if it is a different run on the same cases")
     p.add_argument("--margin", type=float, default=0.05, help="largest acceptable drop in kappa for the cheaper judge (default 0.05)")
     p.add_argument("--validation-labels", help="labels on a representative random sample (`labels sheet --design random`), "
-                                               "reported separately; a trusted judge must clear --min-kappa on it too")
+                                               "reported separately; a trusted judge must clear --min-kappa on it too. "
+                                               "With --compare-to, the ladder's approval is decided on this sample")
     p.set_defaults(fn=cmd_calibrate)
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")

@@ -375,7 +375,9 @@ class SourceSpec(BaseModel):
     type: str
     fixture: str | None = None                       # read recorded records instead of calling the cloud API
     window: dict[str, Any] = Field(default_factory=lambda: {"last": "24h"})
-    sampling: float = 1.0
+    sampling: float = 1.0                            # share of captured sessions this source grades (hash of the id)
+    capture_rate: float | None = None                # share of production traffic the telemetry itself captures
+                                                     # (trace sampling, content capture); None = unknown
     filter: dict[str, Any] = Field(default_factory=dict)
     join: list[dict[str, Any]] = Field(default_factory=list)
     target: str | None = None                        # label used in reports (defaults to source name)

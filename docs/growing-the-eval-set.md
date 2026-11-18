@@ -56,13 +56,42 @@ genai-evals cases sample out/online/result.json --n 200 --by-tag --population "w
 ```
 
 `cases sample` draws units (sessions, or case and target), **not** scores, so the set reflects traffic rather than
-failures. With `--by-tag` it uses proportional stratified sampling and writes each case's weight. Every draft has
-`source: production`, `split: representative`, and its run, session and trace ids.
+failures. With `--by-tag` it uses proportional stratified sampling. Every draft has `source: production`,
+`split: representative`, and its run, session and trace ids.
+
+### Weights: from the sample back to production
+
+A session reaches the eval set through three filters, and each case's weight is the inverse of the chance it got
+through all of them:
+
+```
+P(in the set) = capture_rate      share of production sessions the telemetry captured (trace sampling, content capture)
+              x sampling          share of captured sessions the online run graded (sources.yaml)
+              x selection         share of graded units `cases sample` drew (n / N, per tag stratum with --by-tag)
+weight        = 1 / P(in the set)
+```
+
+So a source captured at 10% and one captured in full are weighted back to their production proportions, and the
+`representative` split's weighted mean estimates production. Each draft records the three factors in
+`metadata.inclusion`. When every unit has the same probability (one source, simple random sample) the weights carry no
+information and are left out.
+
+Set `capture_rate` per source in `sources.yaml` from the telemetry settings (the trace sampler ratio, or the share of
+invocations with content logging). If it is not set, the framework cannot know how much traffic the telemetry missed,
+and the provenance says so:
+
+```yaml
+represents: "the captured telemetry sample only: the telemetry capture rate of claims-agent-aws is unknown (set capture_rate in sources.yaml)"
+```
+
+The CLI prints the same note. A set like that still describes the captured traffic, but not production. Capture that
+drops sessions *non-randomly* (errors not traced, a channel without instrumentation) is selection bias that no weight
+can fix: see [what online scores mean](sources.md#what-online-scores-mean).
 
 The provenance file records:
 - the window;
-- the telemetry sampling rate and method that produced the online run;
-- the selection method, and how the weights were set.
+- each source's capture rate, online sampling rate and method, and their product (`inclusion_probability`);
+- the selection method, how the weights were set, and what the set `represents`.
 
 An SME writes each reference, `cases promote` adds the cases (they stay `typical`, not `edge`), and you copy the
 provenance block into `suite.yaml`. Sampling from recorded fixture telemetry is labelled as such and doesn't count

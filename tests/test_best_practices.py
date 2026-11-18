@@ -166,7 +166,8 @@ def test_compare_judges_ladder():
     bad = cal.compare_judges((_result({"cheap": cheap_bad}, n), "cheap"), (_result({"strong": strong}, n), "strong"), labels)
     assert not bad["approved"] and "may be worse" in bad["reason"]
     few = cal.compare_judges((_result({"cheap": cheap_ok}, 10), "cheap"), (_result({"strong": strong}, 10), "strong"), labels)
-    assert not few["approved"] and "shared labelled items" in few["reason"]
+    assert not few["approved"] and "shared labelled units" in few["reason"]
+    assert ok["basis"].startswith("calibration sample (design unknown)")
 
 
 def test_calibrate_reports_reviewer_agreement(tmp_path):
@@ -463,9 +464,83 @@ def test_cases_sample_draws_units_not_failures_with_provenance():
     rows, prov = cs.sample_representative(res, n=10, by_tag=True, population="claims chat")
     assert len(rows) == 10 and len({r["metadata"]["original_case_id"] for r in rows}) == 10
     assert all(r["split"] == "representative" and r["source"] == "production" and r["review_status"] == "draft" for r in rows)
-    assert sum(r["weight"] for r in rows) == pytest.approx(40)
+    assert sum(r["weight"] for r in rows) == pytest.approx(400)          # 40 graded units / 0.1 online sampling
+    assert "captured telemetry sample only" in prov["represents"] and "agentcore" in prov["represents"]
     assert prov["source"] == "production" and prov["window"] == "agentcore: last 7d" and prov["weights"]
     assert "stratified" in prov["method"] and prov["telemetry_sampling"][0]["sampling"] == 0.1
     res["sources"][0]["fixture"] = True
     rows, prov = cs.sample_representative(res, n=5)
     assert rows[0]["source"] == "synthetic" and prov["source"].startswith("fixture") and "weight" not in rows[0]
+
+
+def test_cases_sample_weights_by_capture_rate_and_online_sampling():
+    res = _rep_result(40, 1)
+    res["run_id"] = "run_y"
+    for smp in res["samples"]:                       # c0-c19 from web (all traffic captured), c20-c39 from app (10%)
+        smp["origin"] = "source:web" if int(smp["case_id"][1:]) < 20 else "source:app"
+    res["sources"] = [{"source": "web", "capture_rate": 1.0, "sampling": 0.5},
+                      {"source": "app", "capture_rate": 0.1, "sampling": 1.0}]
+    rows, prov = cs.sample_representative(res, n=40)
+    w = {r["metadata"]["telemetry_source"]: r["weight"] for r in rows}
+    assert w == {"web": pytest.approx(2.0), "app": pytest.approx(10.0)}   # 1/(1*0.5*1), 1/(0.1*1*1)
+    assert sum(r["weight"] for r in rows) == pytest.approx(240)           # 40 web + 200 app sessions in production
+    assert prov["represents"] == "production traffic" and "capture rate" in prov["weights"]
+    app = next(r for r in rows if r["metadata"]["telemetry_source"] == "app")
+    assert app["metadata"]["inclusion"] == {"capture_rate": 0.1, "online_sampling": 1.0, "selection": 1.0}
+
+
+def test_cases_sample_equal_known_rates_need_no_weights_and_unknown_rates_are_flagged():
+    res = _rep_result(20, 1)
+    res["sources"] = [{"source": "web", "capture_rate": 0.2, "sampling": 0.5}]
+    rows, prov = cs.sample_representative(res, n=10)
+    assert "weight" not in rows[0] and prov["represents"] == "production traffic"
+    res["sources"] = [{"source": "web", "sampling": 0.5}]
+    rows, prov = cs.sample_representative(res, n=10)
+    assert prov["represents"].startswith("the captured telemetry sample only") and "web" in prov["represents"]
+    res.pop("sources")
+    rows, prov = cs.sample_representative(res, n=10)
+    assert "no telemetry source recorded" in prov["represents"]
+
+
+def _ladder_fixture():
+    """200 labelled units in two strata: 'hard' (over-sampled, weight 1) and 'common' (weight 20 in production).
+    The strong judge errs on 5 hard units, the cheap judge on 5 common ones: equal on the sample, not in production."""
+    n = 200
+    human = [i % 3 != 0 for i in range(n)]
+    strat = ["hard" if i < 100 else "common" for i in range(n)]
+    strong = [not h if i in (3, 23, 43, 63, 83) else h for i, h in enumerate(human)]
+    cheap = [not h if i in (103, 123, 143, 163, 183) else h for i, h in enumerate(human)]
+    labels = {(f"c{i}", "t"): h for i, h in enumerate(human)}
+    info = {(f"c{i}", "t"): {"repeat": 0, "design": "stratified", "stratum": strat[i],
+                             "weight": 1.0 if strat[i] == "hard" else 20.0} for i in range(n)}
+    res = _result({"cheap": cheap, "strong": strong}, n)
+    return res, labels, info, human
+
+
+def test_compare_judges_uses_the_sampling_design():
+    res, labels, info, _ = _ladder_fixture()
+    plain = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
+    assert plain["approved"] and plain["kappa_diff"] == pytest.approx(0)             # looks equal on the sample
+    aware = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1, info=info)
+    assert aware["basis"].startswith("calibration sample, production-weighted")
+    assert aware["calibration_sample"]["stratified_interval"] and aware["calibration_sample"]["weighted"]
+    assert aware["kappa_diff"] < -0.05 and not aware["approved"] and "may be worse" in aware["reason"]
+    unweighted = {k: {kk: vv for kk, vv in v.items() if kk != "weight"} for k, v in info.items()}
+    uw = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1, info=unweighted)
+    assert not uw["approved"] and "--validation-labels" in uw["reason"]
+
+
+def test_compare_judges_approves_on_the_random_validation_sample():
+    res, labels, info, human = _ladder_fixture()
+    # a random sample of production: mostly 'common' units, where the cheap judge errs
+    val = {(f"c{i}", "t"): human[i] for i in range(100, 200)}
+    vinfo = {k: {"repeat": 0, "design": "random"} for k in val}
+    out = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1, info=info,
+                             validation=val, validation_info=vinfo)
+    assert out["basis"] == "validation sample" and out["n"] == 100 and out["validation_sample"]["design"] == "random"
+    assert not out["approved"] and "may be worse" in out["reason"]
+    # validation where both judges are equally good: approved on it, calibration sample still reported
+    val2 = {(f"c{i}", "t"): human[i] for i in list(range(0, 3)) + list(range(4, 103)) if i not in (23, 43, 63, 83)}
+    out2 = cal.compare_judges((res, "cheap"), (res, "strong"), val2 | {}, margin=0.1, validation=val2,
+                              validation_info={k: {"repeat": 0, "design": "random"} for k in val2})
+    assert out2["basis"] == "validation sample" and out2["approved"] and out2["calibration_sample"]["n"] == out2["n"]

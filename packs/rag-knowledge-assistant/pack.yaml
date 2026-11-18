@@ -8,7 +8,7 @@ summary: >-
   An assistant that answers questions from a document collection with citations. Measures retrieval and answer
   quality separately, checks citations and refusals, and runs privacy and prompt-injection safety cases.
 contract_version: "1"
-framework: ">=0.4.2"
+framework: ">=0.4.3"
 
 inputs:
   dataset:

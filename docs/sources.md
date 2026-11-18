@@ -29,7 +29,9 @@ show, per source, how many sessions were graded out of how many were read, the s
   half of one.
 - **Selection bias.** Only traffic the telemetry captured can be graded: sessions dropped by trace sampling, filtered
   by log settings, or without content capture (and no join to recover it) are missing, and they may differ from the
-  ones you see. Compare the graded population with the operational metrics in the same report.
+  ones you see. Compare the graded population with the operational metrics in the same report. Set `capture_rate`
+  when the capture is a known random share, so `cases sample` can weight back to production; it cannot correct
+  capture that drops sessions for a reason (errors, a channel without instrumentation).
 - **Window effects.** A 24-hour window over-represents the hours with most traffic. Compare like with like (same window
   length and weekday) when you look at trends.
 
@@ -80,6 +82,7 @@ sources:
     filter: {service_name: "${AGENT_SERVICE_NAME}", agent_arn: "${AGENTCORE_AGENT_ARN}"}
     window: {last: 24h}
     sampling: 0.05
+    capture_rate: 1.0          # the agent's trace sampler keeps every session (see growing-the-eval-set.md#weights-from-the-sample-back-to-production)
     group_by: session
     join:
       - {type: aws_bedrock_invocation_logs, log_group: "${BEDROCK_INVOCATION_LOG_GROUP}"}

@@ -267,44 +267,114 @@ def _pairs(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bo
     return out
 
 
+def _ladder_sample(pc: dict, ps: dict, info: dict[tuple[str, str], dict[str, Any]] | None, seed: int, b: int
+                   ) -> dict[str, Any]:
+    """Kappa of two judges against the same human labels on one labelled sample, and a design-aware 95% interval for
+    their difference: units are resampled within the sample's strata (when recorded), and when every unit has an
+    inverse-inclusion weight the kappas are weighted, so the difference estimates production rather than the sample."""
+    import random
+    info = info or {}
+
+    def info_for(k):
+        return info.get(k) or info.get((k[0], "*")) or {}
+    common = sorted(set(pc) & set(ps))
+    a, s_ = [pc[k] for k in common], [ps[k] for k in common]
+    n = len(common)
+    strata = [info_for(k).get("stratum") for k in common]
+    strata = strata if n and all(x is not None for x in strata) else None
+    weights = [info_for(k).get("weight") for k in common]
+    weights = [float(w) for w in weights] if n and all(w is not None for w in weights) else None
+    designs = sorted({info_for(k).get("design") for k in common if info_for(k).get("design")})
+    design = designs[0] if len(designs) == 1 else ("mixed" if designs else "unknown")
+    out: dict[str, Any] = {"n": n, "design": design, "stratified_interval": strata is not None, "weighted": weights is not None}
+    if n < 2:
+        return out
+
+    def kap(prs, idx=None):
+        idx = idx if idx is not None else range(n)
+        if weights:
+            return weighted_kappa([prs[i] for i in idx], [weights[i] for i in idx])
+        return cohen_kappa([prs[i] for i in idx])
+    kc, ks = kap(a), kap(s_)
+    rng = random.Random(seed)
+    diffs, cks = [], []
+    for _ in range(b):
+        idx = _resample(n, strata, rng)
+        c, st = kap(a, idx), kap(s_, idx)
+        if c == c:
+            cks.append(c)
+        if c == c and st == st:
+            diffs.append(c - st)
+    diffs.sort()
+    cks.sort()
+
+    def q(xs, p):
+        return xs[min(len(xs) - 1, int(p * len(xs)))] if xs else None
+    tot = sum(weights) if weights else n
+    w = weights or [1.0] * n
+    return out | {"kappa_cheap": kc, "kappa_strong": ks, "kappa_diff": kc - ks,
+                  "kappa_diff_ci": [q(diffs, 0.025), q(diffs, 0.975)] if diffs else None,
+                  "kappa_cheap_ci": [q(cks, 0.025), q(cks, 0.975)] if cks else None,
+                  "accuracy_cheap": sum(wi for (j, h), wi in zip(a, w) if j == h) / tot,
+                  "accuracy_strong": sum(wi for (j, h), wi in zip(s_, w) if j == h) / tot}
+
+
 def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, Any], str],
                    labels: dict[tuple[str, str], bool], margin: float = 0.05, min_kappa: float | None = None,
                    min_n: int = MIN_LABELS, seed: int = 7, b: int = 2000,
-                   info: dict[tuple[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Can a cheaper judge replace a stronger one? Both are scored against the same human labels on the items both
+                   info: dict[tuple[str, str], dict[str, Any]] | None = None,
+                   validation: dict[tuple[str, str], bool] | None = None,
+                   validation_info: dict[tuple[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Can a cheaper judge replace a stronger one? Both are scored against the same human labels on the units both
     graded. The cheaper judge is approved when (a) the 95% lower bound of kappa(cheap) - kappa(strong) is above
-    -margin (it is not meaningfully worse), (b) at least min_n items are shared, and (c) if min_kappa is given, its own
-    kappa lower bound clears it."""
-    import random
+    -margin (it is not meaningfully worse), (b) at least min_n units are shared, and (c) if min_kappa is given, its own
+    kappa lower bound clears it.
+
+    The comparison respects how the labels were drawn. On the calibration sample, the interval resamples within the
+    sheet's strata and, when units carry inverse-inclusion weights, compares production-weighted kappas. When a separate
+    random validation sample is given, **approval is decided on it** (it is the unbiased estimate of production
+    agreement) and the calibration sample is reported alongside."""
     pc, ps = _pairs(cheap[0], cheap[1], labels, info), _pairs(strong[0], strong[1], labels, info)
-    common = sorted(set(pc) & set(ps))
-    a = [pc[k] for k in common]
-    s_ = [ps[k] for k in common]
-    n = len(common)
-    out: dict[str, Any] = {"cheap": cheap[1], "strong": strong[1], "n": n, "margin": margin}
-    if n < 2:
-        return out | {"approved": False, "reason": f"only {n} items graded by both judges and labelled"}
-    kc, ks = cohen_kappa(a), cohen_kappa(s_)
-    rng = random.Random(seed)
-    diffs = []
-    for _ in range(b):
-        idx = [rng.randrange(n) for _ in range(n)]
-        diffs.append(cohen_kappa([a[i] for i in idx]) - cohen_kappa([s_[i] for i in idx]))
-    diffs = sorted(d for d in diffs if d == d)
-    lo, hi = diffs[int(0.025 * len(diffs))], diffs[min(len(diffs) - 1, int(0.975 * len(diffs)))]
-    cci = kappa_ci(a, seed)
+    cal_s = _ladder_sample(pc, ps, info, seed, b)
+    val_s = None
+    if validation:
+        vc = _pairs(cheap[0], cheap[1], validation, validation_info)
+        vs = _pairs(strong[0], strong[1], validation, validation_info)
+        val_s = _ladder_sample(vc, vs, validation_info, seed, b)
+    if val_s is not None:
+        basis, used = "validation sample", val_s
+        if val_s["design"] not in ("random", "unknown") and not val_s["weighted"]:
+            basis += f" (design {val_s['design']}, unweighted: may not estimate production)"
+    elif cal_s["design"] == "stratified" and cal_s["weighted"]:
+        basis, used = "calibration sample, production-weighted (stratified bootstrap)", cal_s
+    elif cal_s["design"] == "stratified":
+        basis, used = "calibration sample, stratified but unweighted: estimates the sample, not production", cal_s
+    else:
+        basis, used = f"calibration sample (design {cal_s['design']})", cal_s
+    out: dict[str, Any] = {"cheap": cheap[1], "strong": strong[1], "n": used["n"], "margin": margin, "basis": basis,
+                           "calibration_sample": cal_s, "validation_sample": val_s}
+    if used["n"] < 2:
+        return out | {"approved": False, "reason": f"only {used['n']} units graded by both judges and labelled ({basis})"}
     reasons = []
-    if n < min_n:
-        reasons.append(f"only {n} shared labelled items (min {min_n})")
+    lo, hi = used["kappa_diff_ci"] or (float("-inf"), float("inf"))
+    cci = used["kappa_cheap_ci"]
+    if used["n"] < min_n:
+        reasons.append(f"only {used['n']} shared labelled units in the {basis.split(' (')[0].split(',')[0]} (min {min_n})")
     if lo < -margin:
         reasons.append(f"cheaper judge may be worse: kappa difference 95% CI [{lo:.2f}, {hi:.2f}] goes below -{margin}")
     if min_kappa is not None and cci and cci[0] < min_kappa:
         reasons.append(f"cheaper judge's kappa lower bound {cci[0]:.2f} < {min_kappa}")
-    return out | {"kappa_cheap": kc, "kappa_strong": ks, "kappa_cheap_ci": list(cci) if cci else None,
-                  "kappa_diff": kc - ks, "kappa_diff_ci": [lo, hi],
-                  "accuracy_cheap": sum(j == h for j, h in a) / n, "accuracy_strong": sum(j == h for j, h in s_) / n,
+    if "unweighted" in basis and not reasons:
+        reasons.append("the labelled sample is stratified without weights, so agreement may not hold in production: "
+                       "label a random sample and pass it as --validation-labels")
+    if val_s is not None and cal_s.get("kappa_diff_ci") and cal_s["kappa_diff_ci"][0] < -margin and not reasons:
+        out["note"] = ("on the calibration sample (over-weighting hard cases) the cheaper judge may be worse "
+                       f"(difference CI lower bound {cal_s['kappa_diff_ci'][0]:.2f}): check the slices it misses")
+    return out | {k: used[k] for k in ("kappa_cheap", "kappa_strong", "kappa_cheap_ci", "kappa_diff", "kappa_diff_ci",
+                                         "accuracy_cheap", "accuracy_strong")} | {
                   "judge_cost_cheap": _judge_cost(cheap[0], cheap[1]), "judge_cost_strong": _judge_cost(strong[0], strong[1]),
-                  "approved": not reasons, "reason": "; ".join(reasons) or "not meaningfully worse than the stronger judge"}
+                  "approved": not reasons,
+                  "reason": "; ".join(reasons) or f"not meaningfully worse than the stronger judge ({basis})"}
 
 
 def _judge_cost(result: dict[str, Any], grader: str) -> float:

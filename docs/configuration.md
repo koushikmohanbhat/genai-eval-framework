@@ -203,6 +203,8 @@ sources:
     type: <connector>          # see sources.md
     window: {last: 24h}        # or {start: <ISO time>, end: <ISO time>}
     sampling: 0.05             # fraction of sessions to grade; a session is in or out by a hash of its id (seed: 7)
+    capture_rate: 0.2          # optional: share of production traffic the telemetry captures (trace sampling, content
+                               # capture). Used to weight `cases sample` back to production; unknown if omitted
     filter: {...}              # connector-specific, e.g. service_name, agent_arn, session_id
     join: [ {type: <connector>, ...}, ... ]    # enrich with prompts, history, managed scores, metrics
     fixture: <path>            # read recorded records instead of calling the API (tests, demos)

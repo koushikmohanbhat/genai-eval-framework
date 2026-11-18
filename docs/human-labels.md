@@ -122,16 +122,33 @@ graders:
 ```
 
 ```bash
-genai-evals calibrate out/live/result.json --grader quality_cheap --compare-to quality --labels reviews.csv
-#   quality_cheap vs quality on 120 labelled items: kappa 0.71 vs 0.74 (difference -0.03, 95% CI -0.09 to +0.03); judge cost ...
-#   approved: not meaningfully worse than the stronger judge
+genai-evals calibrate out/live/result.json --grader quality_cheap --compare-to quality \
+  --labels reviews.csv --validation-labels random-reviews.csv
+#   quality_cheap vs quality on 120 labelled units (validation sample): kappa 0.71 vs 0.74 (difference -0.03, 95% CI -0.09 to +0.03); judge cost ...
+#   approved: not meaningfully worse than the stronger judge (validation sample)
 ```
 
-The cheaper judge is approved when, on the same labelled items:
+The cheaper judge is approved when, on the same labelled units (case and target, one repeat each):
 
 - the 95% lower bound of κ(cheap) − κ(strong) is above −`--margin` (default 0.05), so it is not meaningfully worse;
-- at least `--min-n` items (default 30) are shared; and
+- at least `--min-n` units (default 30) are shared; and
 - with `--min-kappa`, its own κ lower bound clears that threshold.
+
+### Which sample decides
+
+The calibration sheet is usually stratified: it over-samples rare tags and failures. Two judges can tie on that
+sample and still differ on production traffic, if one is weaker on the common cases the sheet under-weights. So the
+comparison respects how the labels were drawn, and reports the basis it used (`basis` in the JSON output):
+
+| Labels given | Decided on |
+|---|---|
+| `--validation-labels` (a random sample, `labels sheet --design random`) | **the validation sample.** It is the unbiased estimate of production agreement. The calibration sample is reported alongside, with a note if the cheaper judge looks worse there |
+| a stratified sheet with weights (`labels sheet` writes them) | the calibration sample, with production-weighted κ and a bootstrap that resamples within each stratum |
+| a stratified sheet without weights | not approved: the sample can't estimate production; add `--validation-labels` |
+| no recorded design | the calibration sample, as is (treat with care if the items were hand-picked) |
+
+A random validation sample is the recommended basis: weights correct the sheet's proportions, but only a random
+sample checks the cases the strata didn't anticipate.
 
 The command exits 1 when it is not approved. Non-inferiority needs a decent label set: with 60 items the interval on
 the difference is usually wider than ±0.1, so plan for 150–200 labels if you want to switch judges. `--compare-result`
