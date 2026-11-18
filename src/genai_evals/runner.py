@@ -317,7 +317,7 @@ class Runner:
             result["pack"] = self.suite.pack
         result["adapters"] = self.adapter_status()
         from .health import result_health
-        result["health"] = result_health(result)
+        result["health"] = result_health(result, baseline=baseline)
         warns = [f"{g} @ {t}: {d['trial_drift']['warning']}" for t, sm in summary.items()
                  for g, d in sm["graders"].items() if (d.get("trial_drift") or {}).get("warning")]
         warns += [f"{g} @ {t}: {d['unknown']} verdict(s) the judge couldn't decide; review them (genai-evals labels queue)"

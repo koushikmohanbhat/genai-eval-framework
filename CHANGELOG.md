@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.6.1 (2026-11-18)
+
+Review feedback: seeding real knowledge bases, and visual proof.
+
+### `cases seed` on large repositories
+- **Cost bounded by cases, not repository size:** `--max-cases` (default 40), `--max-passages` (default 400),
+  `--budget-usd` (trims the plan to the estimate and stops before actual spend passes it; needs `pricing` on the
+  generator profile) and `--dry-run` (plan, calls, tokens and estimated cost; nothing sent or written).
+- **`--sample-strategy`:** `stratified` (default: an equal share per folder and file type, so a huge archive doesn't
+  crowd out a small policy folder), `per-doc` or `random`.
+- **Multi-passage questions** (about 15%): need two passages, usually from different documents; both are
+  `gold_passages`; tagged `multi_passage`. Questions tied to fewer than two real passages are dropped.
+- Passage ids and groups now come from the file's path (`hr/leave-policy-01`).
+
+### Fixed
+- A case that passed in the baseline was listed as "never passed: check the task and the grader" when a candidate
+  broke it. Such cases are regressions, not broken tasks: they're now reported as `regressed`, not as task problems.
+
+### Visual proof
+- A 45-second terminal recording in the README (animated SVG, and a player page on GitHub Pages): `init` → `run`
+  → `baseline promote` → `experiment run` → a gate blocking a bad prompt. Every command and output is real
+  (`scripts/record_terminal.py`).
+- README links straight to the hosted exec scorecard, case drill-down, gate failure vs baseline, experiment
+  comparison and security gates. The demo site gains the security overlay (guarded and vulnerable agent) and a
+  "start here" strip.
+
 ## 0.6.0 (2026-11-18)
 
 Day-1 datasets and security sign-off.

@@ -620,21 +620,48 @@ def cmd_cases(args) -> int:
             raise SystemExit("cases seed needs --docs <folder or file>")
         if not args.generator:
             raise SystemExit("cases seed needs --generator <provider profile> (a strong model; in-region for customer data)")
+        from .seed import plan, sample_passages
+        n = args.max_cases or args.n_seed
         passages = chunk(read_docs(args.docs), words=args.chunk_words)
+        docs = len({p.get("source") for p in passages})
+        groups = len({(p.get("folder"), p.get("type")) for p in passages})
+        use = sample_passages(passages, args.max_passages, args.sample_strategy, args.seed)
+        providers = load_providers(_providers_path(args, args.path))
+        est = plan(use, providers, args.generator, n=n, seed_=args.seed)
+        cost = f"${est['estimated_cost_usd']:.2f}" if est["estimated_cost_usd"] is not None else "unknown (no pricing on the profile)"
+        print(f"{len(passages)} passage(s) from {docs} document(s) in {groups} folder/type group(s); seeding from "
+              f"{len(use)} ({args.sample_strategy}). Plan: {est['cases']} case(s) in {est['calls']} generator call(s), "
+              f"~{est['input_tokens'] + est['output_tokens']:,} tokens, estimated {cost}")
+        if args.budget_usd is not None and est["estimated_cost_usd"] is not None and est["estimated_cost_usd"] > args.budget_usd:
+            print(f"  the plan is over the ${args.budget_usd:.2f} budget: it will be trimmed to fit")
+        if args.dry_run:
+            print("  dry run: nothing sent to the generator")
+            return 0
         corpus = Path(args.corpus_out or "corpus.jsonl")
         corpus.parent.mkdir(parents=True, exist_ok=True)
         cs.write_jsonl([{k: p[k] for k in ("id", "title", "text")} for p in passages], corpus, append=False)
         tok = None if args.no_tokenize else cs.default_tokenizer()
-        rows = seed(passages, load_providers(_providers_path(args, args.path)), args.generator, n=args.n_seed,
-                    tokenizer=tok, seed_=args.seed)
+        rep: dict = {}
+        try:
+            rows = seed(use, providers, args.generator, n=n, tokenizer=tok, seed_=args.seed, budget_usd=args.budget_usd,
+                        report=rep)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
         out = cs.write_jsonl(rows, args.out or "drafts.jsonl", append=args.append)
         kinds: dict[str, int] = {}
         for r in rows:
             kinds[r["metadata"]["kind"]] = kinds.get(r["metadata"]["kind"], 0) + 1
-        print(f"read {len(passages)} passage(s) into {corpus}; wrote {len(rows)} draft case(s) to {out} ("
-              + ", ".join(f"{n} {k}" for k, n in kinds.items()) + ")")
-        if len(rows) < args.n_seed:
-            print(f"  note: asked for {args.n_seed}, got {len(rows)} (duplicates dropped); add documents or run again with --append")
+        spent = f", spent ${rep['spent_usd']:.2f}" if rep.get("spent_usd") is not None else ""
+        print(f"wrote all {len(passages)} passage(s) to {corpus}; wrote {len(rows)} draft case(s) to {out} ("
+              + ", ".join(f"{k} {kd}" for kd, k in kinds.items()) + f") in {rep.get('calls')} call(s){spent}")
+        if args.budget_usd is not None and rep.get("planned_calls", est["calls"]) < est["calls"]:
+            print(f"  the ${args.budget_usd:.2f} budget allowed {rep['planned_calls']} of {est['calls']} planned call(s)")
+        if rep.get("stopped_by_budget"):
+            print(f"  stopped at the ${args.budget_usd:.2f} budget (actual spend reached it)")
+        if len(rows) < n:
+            print(f"  note: asked for {n}, got {len(rows)} (duplicates and unusable rows dropped, or the budget); "
+                  "add documents or run again with --append")
         print("  next: genai-evals cases review-sheet " + str(out) + " --out review.csv   (an expert marks keep / fix / drop)")
         print("        genai-evals cases promote " + str(out) + " --sheet review.csv --into data/cases.jsonl")
         print("  seeded cases are synthetic and written from the documents: a starting point, not the representative "
@@ -1108,7 +1135,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--docs", help="seed: folder or file of the customer's documents (txt, md, html; pdf, docx with the docs extra)")
     p.add_argument("--corpus-out", help="seed: where to write the passages (default corpus.jsonl; the RAG pack reads data/corpus.jsonl)")
     p.add_argument("--chunk-words", type=int, default=180, help="seed: passage size in words (default 180)")
-    p.add_argument("--n-seed", type=int, default=40, help="seed: draft cases to write (default 40: ~60%% answerable, 20%% edge, 20%% unanswerable)")
+    p.add_argument("--n-seed", type=int, default=40, help=argparse.SUPPRESS)
+    p.add_argument("--max-cases", type=int, help="seed: draft cases to write (default 40: ~50%% answerable, 15%% multi-passage, "
+                                                 "15%% edge, 20%% unanswerable); generator calls scale with this, not the repository")
+    p.add_argument("--max-passages", type=int, default=400, help="seed: passages to sample from (default 400)")
+    p.add_argument("--sample-strategy", choices=["stratified", "per-doc", "random"], default="stratified",
+                   help="seed: stratified across folders and file types (default), round-robin per document, or random")
+    p.add_argument("--budget-usd", type=float, help="seed: stop before this spend (needs pricing on the generator profile)")
+    p.add_argument("--dry-run", action="store_true", help="seed: show the plan and estimated cost, send nothing")
     p.add_argument("--sheet", help="promote: a filled-in review sheet (cases review-sheet): keep / fix / drop per draft")
     p.add_argument("--also", action="append", help="graduate: more result files that must also show the case passing")
     p.add_argument("--apply", action="store_true", help="graduate: set purpose: regression on ready cases in --into")

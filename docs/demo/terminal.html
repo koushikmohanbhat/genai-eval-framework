@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>GenAI Eval Framework: terminal demo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.css">
+<style>body{font-family:Inter,system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:0 20px;color:#1f2328}
+.sub{color:#59636e}</style></head><body>
+<h1 style="font-size:22px">Terminal demo: init → run → experiment → gate blocked</h1>
+<p class="sub">Recorded by <code>scripts/record_terminal.py</code>: every command runs offline (the tool-agent pack's
+simulated agent and mock judges) and its output is real; only the typing speed is synthetic.
+<a href="./">Sample reports</a></p>
+<div id="player"></div>
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.min.js"></script>
+<script>AsciinemaPlayer.create("terminal.cast", document.getElementById("player"),
+  {autoPlay: true, loop: false, fit: "width", terminalFontSize: "13px", idleTimeLimit: 2});</script>
+</body></html>

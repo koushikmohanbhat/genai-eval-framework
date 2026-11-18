@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.0"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.1"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -53,10 +53,23 @@ system prompt leakage and actions beyond the user's permissions, mapped to the O
 
 ## See it in action
 
+<a href="https://koushikmohanbhat.github.io/genai-eval-framework/demo/terminal.html"><img src="docs/img/terminal-demo.svg" alt="Terminal demo: init a pack, run it, promote a baseline, run an experiment, and a release gate blocking a prompt that lost its refund-limit rule"></a>
+
+<sub>45 seconds, all offline: `init` → `run` (every gate passes) → `baseline promote` → `experiment run` (both candidate
+changes regress) → a prompt that lost its refund-limit rule is **blocked** by the critical-cases gate (exit code 1).
+Every command and output is real ([`scripts/record_terminal.py`](scripts/record_terminal.py)); only the typing speed
+is set. [Play it with controls](https://koushikmohanbhat.github.io/genai-eval-framework/demo/terminal.html).</sub>
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/koushikmohanbhat/genai-eval-framework)
 
-- **[Browse the sample reports](https://koushikmohanbhat.github.io/genai-eval-framework/demo/)**: real output from the
-  offline demo, nothing to install.
+- **Click through real reports** (the framework's own output from the offline demo, hosted on GitHub Pages, nothing
+  to install):
+  [Exec scorecard](https://koushikmohanbhat.github.io/genai-eval-framework/demo/1-extraction/scorecard.html) ·
+  [Case drill-down](https://koushikmohanbhat.github.io/genai-eval-framework/demo/2-rag/report.html) ·
+  [Gate failure vs baseline](https://koushikmohanbhat.github.io/genai-eval-framework/demo/3-agent-candidate/report.html) ·
+  [Experiment comparison](https://koushikmohanbhat.github.io/genai-eval-framework/demo/3-experiment/comparison.html) ·
+  [Security gates](https://koushikmohanbhat.github.io/genai-eval-framework/demo/6-security-vulnerable/report.html) ·
+  [all scenarios](https://koushikmohanbhat.github.io/genai-eval-framework/demo/)
 - **[5-minute walkthrough](docs/demo-walkthrough.md)**: six scenarios, what each shows and where to look.
 - **Open in Codespaces** (badge above): installs, runs the demo and opens the reports in your browser.
 
@@ -251,7 +264,7 @@ sources:
 
 ## Project status
 
-v0.6.0. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.6.1. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

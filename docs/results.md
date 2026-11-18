@@ -7,7 +7,7 @@ particular cloud database or a particular CI system.
 ## Versioning
 
 ```json
-{"schema": "genai-evals/result", "schema_version": "1.0", "framework_version": "0.6.0", "run_id": "...", ...}
+{"schema": "genai-evals/result", "schema_version": "1.0", "framework_version": "0.6.1", "run_id": "...", ...}
 ```
 
 - **Minor versions only add optional fields**, so any 1.x reader reads any 1.x result.

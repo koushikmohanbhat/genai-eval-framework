@@ -125,10 +125,17 @@ def check_references(suite: Any, providers: Any, judges: bool = False, graders: 
     return asyncio.run(_check_references(suite, providers, judges, graders))
 
 
-def result_health(result: dict[str, Any], min_cases: int = 5) -> dict[str, Any]:
-    """Cases that never pass (every trial, every target, value 0): likely broken task or grader. Graders that every
+def result_health(result: dict[str, Any], min_cases: int = 5, baseline: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Cases that never pass (every trial, every target, value 0): likely broken task or grader. A case that passed
+    in the baseline is a regression, not a broken task, so it isn't listed (`regressed` has those). Graders that every
     regression case passes on every trial: saturated. Also lists capability cases ready to graduate."""
     summ = result.get("summary") or {}
+    passed_before: dict[str, set[str]] = defaultdict(set)
+    for t in ((baseline or {}).get("summary") or {}).values():
+        for g, d in (t.get("graders") or {}).items():
+            for cid, v in (d.get("per_case") or {}).items():
+                if v and v > 0:
+                    passed_before[g].add(cid)
     never: dict[str, list[str]] = defaultdict(list)        # grader -> cases
     per_g_vals: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     per_g_pass: dict[str, dict[str, list[bool]]] = defaultdict(lambda: defaultdict(list))
@@ -138,10 +145,11 @@ def result_health(result: dict[str, Any], min_cases: int = 5) -> dict[str, Any]:
                 per_g_vals[g][cid].append(v)
             for cid, ok in (d.get("per_case_pass") or {}).items():
                 per_g_pass[g][cid].append(bool(ok))
+    regressed: dict[str, list[str]] = defaultdict(list)
     for g, cases in per_g_vals.items():
         for cid, vs in cases.items():
             if vs and all(v == 0 for v in vs):
-                never[g].append(cid)
+                (regressed if cid in passed_before[g] else never)[g].append(cid)
     saturated = []
     for g, cases in per_g_pass.items():
         if len(cases) >= min_cases and all(all(oks) for oks in cases.values()):
@@ -158,7 +166,8 @@ def result_health(result: dict[str, Any], min_cases: int = 5) -> dict[str, Any]:
     if ready:
         notes.append(f"{len(ready)} capability case(s) passed every trial: candidates to graduate to regression "
                      "(genai-evals cases graduate)")
-    return {"never_pass": {g: sorted(v) for g, v in never.items()}, "saturated": sorted(saturated),
+    return {"never_pass": {g: sorted(v) for g, v in never.items()},
+            "regressed": {g: sorted(v) for g, v in regressed.items()}, "saturated": sorted(saturated),
             "ready_to_graduate": ready, "notes": notes}
 
 

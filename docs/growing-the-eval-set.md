@@ -10,20 +10,38 @@ documents themselves:
 
 ```bash
 pip install 'genai-eval-framework[docs]'      # for PDF and Word; txt, md and html need nothing extra
-genai-evals cases seed --docs ./customer-kb/ --generator judge-openai --n-seed 40 \
+genai-evals cases seed --docs ./customer-kb/ --generator judge-openai --max-cases 40 --max-passages 60 --dry-run
+#   1507 passage(s) from 1505 document(s) in 3 folder/type group(s); seeding from 60 (stratified). Plan: 40 case(s)
+#   in 15 generator call(s), ~11,287 tokens, estimated $0.08
+#     dry run: nothing sent to the generator
+genai-evals cases seed --docs ./customer-kb/ --generator judge-openai --max-cases 40 --budget-usd 0.50 \
   --corpus-out data/corpus.jsonl --out drafts.jsonl
-#   read 128 passage(s) into data/corpus.jsonl; wrote 40 draft case(s) to drafts.jsonl (24 answerable, 8 edge, 8 unanswerable)
 ```
+
+**Cost is bounded by the cases, not the repository.** A 10,000-page knowledge base and a 20-page one cost the same
+to seed: the passages are read and split locally, then a sample is drafted from.
+
+| Flag | Default | What it does |
+|---|---|---|
+| `--max-cases` | 40 | cases to draft; generator calls scale with this (about one call per 3 cases) |
+| `--max-passages` | 400 | passages to sample before drafting |
+| `--sample-strategy` | `stratified` | `stratified`: an equal share for every folder and file type, capped at the group's size, the rest spread over the bigger groups, so a 9,000-page archive doesn't crowd out the 20-page policy folder. `per-doc`: round-robin across documents. `random`: uniform |
+| `--budget-usd` | none | trims the plan to the estimate, and stops before actual spend (token usage × the profile's `pricing`) passes it. Needs `pricing` on the generator profile |
+| `--dry-run` | | prints the plan and estimated cost, sends nothing, writes nothing |
 
 1. **Read and split.** Text, Markdown, HTML, PDF and Word files are split into passages of about `--chunk-words`
    (default 180), each titled with its nearest heading. They're written as a corpus (`id`, `title`, `text`): the RAG
    pack's offline retriever reads `data/corpus.jsonl`, and you can load the same passages into a test index.
    An existing corpus file (`.jsonl` of `{id, title, text}`) is used as it is.
-2. **Draft.** The generator model (a strong one) writes about 60% **answerable** questions, each with a draft
-   answer, an evidence quote and the passage it comes from (`gold_passages`). It writes 20% **edge** variants,
-   tagged with the standard coverage tags (`typos`, `multi_intent`, `very_short`, `multilingual`,
-   `format_request`). The other 20% are **unanswerable** questions on the same topics, which the system should
-   decline (`answerable: false`, `no_answer`), listed with the three closest passages for the reviewer to check.
+2. **Draft.** The generator model (a strong one) writes four kinds of case:
+   - about 50% **answerable**: a draft answer, an evidence quote and the passage it comes from (`gold_passages`);
+   - 15% **multi-passage**: questions that need two passages, usually from different documents (a rule from one, a
+     limit or exception from another), with both as `gold_passages` and tagged `multi_passage`. A question the
+     generator ties to fewer than two real passages is dropped;
+   - 15% **edge** variants, tagged with the standard coverage tags (`typos`, `multi_intent`, `very_short`,
+     `multilingual`, `format_request`);
+   - 20% **unanswerable**: questions on the same topics that the system should decline (`answerable: false`,
+     `no_answer`), listed with the three closest passages for the reviewer to check.
 3. **Review.** Every row is a draft and counts for nothing until an expert signs it off:
 
 ```bash

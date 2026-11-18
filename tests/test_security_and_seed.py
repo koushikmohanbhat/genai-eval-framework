@@ -125,7 +125,7 @@ def _docs(tmp_path):
 
 def test_read_and_chunk_documents(tmp_path):
     docs = sd.read_docs(_docs(tmp_path))
-    assert {n for n, _ in docs} == {"travel", "it", "notes"}
+    assert {n for n, _ in docs} == {"travel::md", "it::html", "notes::txt"}
     assert all("x()" not in t for _, t in docs)                               # scripts stripped from HTML
     ps = sd.chunk(docs)
     titles = {p["title"] for p in ps}
@@ -153,13 +153,15 @@ def test_seed_writes_answerable_edge_and_unanswerable_drafts(tmp_path):
     ps = sd.chunk(sd.read_docs(_docs(tmp_path)))
     rows = sd.seed(ps, ProvidersConfig(**MOCK_PROVIDERS), "judge-a", n=15)
     kinds = {r["metadata"]["kind"] for r in rows}
-    assert kinds == {"answerable", "edge", "unanswerable"}
+    assert kinds == {"answerable", "multi_passage", "edge", "unanswerable"}
     assert all(r["review_status"] == "draft" and r["source"] == "synthetic" for r in rows)
     ids = {p["id"] for p in ps}
     for r in rows:
         ref = r["reference"]
         if r["metadata"]["kind"] == "unanswerable":
             assert ref == {"answerable": False} and "no_answer" in r["tags"] and r["metadata"]["closest_passages"]
+        elif r["metadata"]["kind"] == "multi_passage":
+            assert len(set(ref["gold_passages"])) >= 2 and set(ref["gold_passages"]) <= ids and "multi_passage" in r["tags"]
         else:
             assert ref["answerable"] and set(ref["gold_passages"]) <= ids and ref["answer"] and "answerable" in r["tags"]
     edge_tags = {t for r in rows if r["metadata"]["kind"] == "edge" for t in r["tags"]}
@@ -233,3 +235,70 @@ def test_seeded_corpus_works_with_the_rag_pack(tmp_path):
     res = Runner(suite, load_providers(str(dest / "providers.yaml")), use_cache=False).run()
     rec = [s for s in res["scores"] if s["grader"] == "recall_at_4" and not s.get("skipped")]
     assert rec and sum(1 for s in rec if s["passed"]) / len(rec) >= 0.5
+
+
+# ---- v0.6.1: seeding large repositories ----------------------------------------------------------------------------
+
+def _passages(groups):
+    """groups: {(folder, type): count}"""
+    return [{"id": f"{f}-{t}-{i}", "title": f"{f} {i}", "text": f"The {f} rule number {i} applies to {t} files.",
+             "source": f"{f}/doc{i}", "folder": f, "type": t} for (f, t), n in groups.items() for i in range(n)]
+
+
+def test_stratified_sampling_keeps_small_folders():
+    ps = _passages({("archive", "md"): 1500, ("policies", "md"): 4, ("it", "html"): 3})
+    got = sd.sample_passages(ps, 60, "stratified")
+    by = {}
+    for p in got:
+        by[p["folder"]] = by.get(p["folder"], 0) + 1
+    assert len(got) == 60 and by == {"archive": 53, "policies": 4, "it": 3}
+    rnd = sd.sample_passages(ps, 60, "random")
+    assert len(rnd) == 60 and sum(1 for p in rnd if p["folder"] != "archive") < 7     # what stratified fixes
+    per_doc = sd.sample_passages(_passages({("a", "md"): 10}), 4, "per-doc")
+    assert len({p["source"] for p in per_doc}) == 4
+    assert sd.sample_passages(ps[:5], 60, "stratified") == ps[:5]
+    with pytest.raises(ValueError, match="sample_strategy"):
+        sd.sample_passages(ps, 10, "clustered")
+
+
+def test_plan_estimates_cost_without_calling_the_model():
+    prov = ProvidersConfig(**{"profiles": {**MOCK_PROVIDERS["profiles"],
+                                           "gen": {"provider": "mock", "model": "heuristic-judge-a", "options": {"mode": "judge"},
+                                                   "pricing": {"input_per_mtok": 2.5, "output_per_mtok": 10.0}}}})
+    ps = _passages({("hr", "md"): 20})
+    p = sd.plan(ps, prov, "gen", n=40)
+    assert p["cases"] == 40 and p["priced"] and p["estimated_cost_usd"] > 0
+    assert set(p["kinds"]) == {"answerable", "multi_passage", "edge", "unanswerable"}
+    assert sd.plan(ps, prov, "judge-a", n=40)["estimated_cost_usd"] is None   # no pricing on that profile
+
+
+def test_budget_trims_the_plan_and_needs_pricing():
+    gen = {"provider": "mock", "model": "heuristic-judge-a", "options": {"mode": "judge"},
+           "pricing": {"input_per_mtok": 2.5, "output_per_mtok": 10.0}}
+    prov = ProvidersConfig(**{"profiles": {**MOCK_PROVIDERS["profiles"], "gen": gen}})
+    ps = _passages({("hr", "md"): 20, ("it", "md"): 20})
+    full = sd.plan(ps, prov, "gen", n=40)
+    rep = {}
+    rows = sd.seed(ps, prov, "gen", n=40, budget_usd=full["estimated_cost_usd"] / 4, report=rep)
+    assert rep["planned_calls"] < full["calls"] and rep["spent_usd"] <= full["estimated_cost_usd"] / 4 * 1.5
+    kinds = {r["metadata"]["kind"] for r in rows}
+    assert len(kinds) >= 2                                                    # trimming keeps the mix, not one kind
+    with pytest.raises(ValueError, match="needs pricing"):
+        sd.seed(ps, prov, "judge-a", n=10, budget_usd=1.0)
+
+
+def test_seed_cli_dry_run_sends_nothing(tmp_path, capsys, monkeypatch):
+    from genai_evals.cli import main
+    d = _docs(tmp_path)
+    (tmp_path / "providers.yaml").write_text(
+        "profiles:\n  gen: {provider: mock, model: heuristic-judge-a, options: {mode: judge}, "
+        "pricing: {input_per_mtok: 2.5, output_per_mtok: 10.0}}\n")
+    called = []
+    from genai_evals.providers import mock
+    monkeypatch.setattr(mock.MockProvider, "judge", lambda self, p: called.append(p) or {})
+    monkeypatch.chdir(tmp_path)
+    rc = main(["cases", "seed", "--docs", str(d), "--generator", "gen", "--providers", "providers.yaml", "--max-cases", "12",
+               "--dry-run"])
+    out = capsys.readouterr().out
+    assert rc == 0 and "dry run" in out and "estimated $" in out and not called
+    assert not (tmp_path / "drafts.jsonl").exists() and not (tmp_path / "corpus.jsonl").exists()

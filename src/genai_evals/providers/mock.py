@@ -129,6 +129,15 @@ class MockProvider(Provider):
                 key = [w for w in re.findall(r"[A-Za-z][a-z]+", first) if len(w) > 3][:4]
                 q = f"What is the rule on {' '.join(key).lower()}?"
                 ans = " ".join(first.split()[:15])
+                if kind == "multi_passage" and len(ps) >= 2:
+                    pid2, title2, text2 = ps[(i + 1) % len(ps)]
+                    first2 = (sentences(text2) or [text2])[0]
+                    key2 = [w for w in re.findall(r"[A-Za-z][a-z]+", first2) if len(w) > 3][:3]
+                    cases.append({"question": f"What is the rule on {' '.join(key[:3]).lower()}, and how does it relate to "
+                                              f"{' '.join(key2).lower()}?",
+                                  "answer": f"{' '.join(first.split()[:10])}; {' '.join(first2.split()[:10])}",
+                                  "evidence": first[:80], "passage_ids": [pid, pid2]})
+                    continue
                 if kind == "unanswerable":
                     q = f"Does the {title.lower()} guidance apply to contractors working from another country?"
                     cases.append({"question": q, "answer": "the passages don't cover contractors abroad", "evidence": "",

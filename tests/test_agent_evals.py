@@ -464,3 +464,12 @@ def test_safety_claim_requires_enough_cases():
     cov = tx.coverage(multi, workflow="agent", safety_claim=True)
     assert cov["safety_claim"]["needed"] == 100 and not any(p.startswith("safety_claim") for p in cov["problems"])
     assert tx.coverage(few, workflow="agent")["safety_claim"] is None
+
+
+def test_a_case_that_passed_in_the_baseline_is_a_regression_not_a_broken_task():
+    cur = {"summary": {"t": {"graders": {"g": {"per_case": {"a": 0.0, "b": 0.0, "c": 1.0},
+                                                "per_case_pass": {"a": False, "b": False, "c": True}}}}}}
+    base = {"summary": {"t": {"graders": {"g": {"per_case": {"a": 1.0, "b": 0.0, "c": 1.0}}}}}}
+    h = hl.result_health(cur, baseline=base)
+    assert h["never_pass"] == {"g": ["b"]} and h["regressed"] == {"g": ["a"]}
+    assert hl.result_health(cur)["never_pass"] == {"g": ["a", "b"]}
