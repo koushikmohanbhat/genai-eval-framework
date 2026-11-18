@@ -66,6 +66,12 @@ class Runner:
         enabled = explicit if explicit is not None else (t.spec.kind in CACHEABLE_KINDS and not self.tokenizer)
         if not self.cache_dir or not enabled:
             return None
+        if t.spec.reset and not (t.spec.reset or {}).get("cache"):
+            # a cached output skips the reset, so the trial wouldn't start from a clean environment
+            if explicit:
+                _warn_once(f"target '{t.name}' has a per-trial reset, so its cache is off (set reset.cache: true only "
+                           "if outputs don't depend on the environment)")
+            return None
         if self.tokenizer and explicit:
             _warn_once(f"target '{t.name}' caches raw outputs in {self.cache_dir} (tokenisation is on); "
                        "restrict access to that directory and clear it after use")
@@ -264,8 +270,10 @@ class Runner:
         summary = {t["name"]: summarise(t["name"], cases, samples, scores, self.suite.seed, self.suite.on_error, self.suite.stress_tags) for t in targets}
         base_summaries = baseline_summaries(baseline, list(summary), baseline_map)
         untrusted = untrusted_graders(gctx.calibration, self.suite.min_judge_kappa, self.suite.min_calibration_n)
+        judge_changed = judge_prompts_changed(baseline, self.suite)
         gate_results = evaluate_gates(self.suite.gates, summary, samples, base_summaries, self.suite.seed, untrusted,
-                                      min_n=self.suite.min_n, correction=self.suite.gate_correction)
+                                      min_n=self.suite.min_n, correction=self.suite.gate_correction,
+                                      not_comparable=judge_changed)
         comparisons = {}
         for tname, base in base_summaries.items():
             comparisons[tname] = {g: paired_delta(d["per_case"], base["graders"][g]["per_case"], self.suite.seed,
@@ -326,6 +334,10 @@ class Runner:
                     warns.append(f"{g} @ {t}: 95% interval is ±{(hi - lo) / 2 * 100:.0f} points on {d.get('n')} case(s), so "
                                  "differences smaller than that can't be told from noise; about "
                                  f"{n_for_interval(mean, 0.05)} cases would give ±5 (genai-evals power)")
+        if judge_changed:
+            warns.insert(0, f"the baseline was graded with different judge prompts ({', '.join(sorted(judge_changed))}): "
+                            "judge-graded deltas aren't comparable, so delta gates on them are invalid. Re-baseline: run "
+                            "the baseline system again with this version, then genai-evals baseline promote")
         result["warnings"] = warns + result["health"]["notes"]
         from .results import stamp
         stamp(result)
@@ -403,6 +415,19 @@ def _grader_info(g) -> dict[str, Any]:
     if g.type in JUDGE_GRADER_TYPES:
         info["judge_prompt_hash"] = judge_prompts_hash()
     return info
+
+
+def judge_prompts_changed(baseline: dict[str, Any] | None, suite) -> set[str]:
+    """Model-graded graders whose judge prompts differ between the baseline and this framework version (e.g. v0.4 ->
+    v0.5 added the "unknown" verdict). Their scores aren't comparable, so delta() on them can't be decided."""
+    if not baseline:
+        return set()
+    from .graders.base import REGISTRY
+    from .graders.judges import judge_prompts_hash
+    then = (baseline.get("judge_provenance") or {}).get("prompt_templates")
+    if not then or then == judge_prompts_hash():
+        return set()
+    return {g.name for g in suite.graders if getattr(REGISTRY.get(g.type), "uses_model", False)}
 
 
 def baseline_summaries(baseline: dict[str, Any] | None, targets: list[str], mapping: dict[str, str] | None = None) -> dict[str, dict]:

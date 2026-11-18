@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.2 (2026-11-18)
+
+Review fixes.
+
+- **Per-turn grading never truncates silently.** Every turn is graded by default (`max_turns` had defaulted to 20 and
+  dropped earlier turns, so an unsafe early turn could escape). With `max_turns` set, a longer conversation is
+  `unknown` by default (`over_max_turns: unknown`), or `fail`, or `grade_last`, which records the original numbers of
+  the graded and ungraded turns. Turn numbers are now always the conversation's own.
+- **A per-trial reset turns the response cache off** for that target, since a cached output skips the reset
+  (`reset.cache: true` opts back in).
+- **Baselines graded with different judge prompts** (e.g. v0.4.x after the v0.5.0 "unknown" change) make `delta()`
+  and `significant()` gates on judge-graded graders invalid, with a note to re-baseline. Deterministic graders still
+  compare.
+- **`safety_claim: true`** on a suite makes fewer than ~100 multi-turn or ~1,000 single-turn cases a coverage and
+  `doctor` problem (Anthropic's guidance for safety claims).
+
 ## 0.5.1 (2026-11-18)
 
 The rest of Anthropic's agent and safety eval guidance ([mapping](docs/agent-evals.md#added-in-v051)). No change to

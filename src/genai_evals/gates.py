@@ -101,10 +101,12 @@ class GateResult:
 
 class _Evaluator:
     def __init__(self, summary: dict, samples: list, baseline: dict | None, seed: int, untrusted: dict[str, str],
-                 min_n: int = 1, allow_missing_baseline: bool = False, adjusted: dict[str, float] | None = None):
+                 min_n: int = 1, allow_missing_baseline: bool = False, adjusted: dict[str, float] | None = None,
+                 not_comparable: set[str] | None = None):
         self.s, self.samples, self.base, self.seed, self.untrusted = summary, samples, baseline, seed, untrusted
         self.min_n, self.allow_missing_baseline = min_n, allow_missing_baseline
         self.adjusted = adjusted                    # {"target|grader": Holm-adjusted p} when gate_correction is on
+        self.not_comparable = not_comparable or set()   # graders whose baseline used different judge prompts
         self.values: dict[str, Any] = {}
         self.invalid: list[str] = []
 
@@ -154,6 +156,9 @@ class _Evaluator:
                 v = g[fn]
         elif fn in DELTA_FUNCS:
             g = self._g(args[0])
+            if args[0] in self.not_comparable:
+                raise GateError(f"the baseline graded '{args[0]}' with different judge prompts, so {fn}() can't be decided: "
+                                "re-baseline with this version")
             bg = (self.base or {}).get("graders", {}).get(args[0])
             if not bg:
                 if not self.allow_missing_baseline:
@@ -246,7 +251,7 @@ def significance_family(gates: list, summaries: dict[str, dict], baselines: dict
 
 def evaluate_gates(gates: list, summaries: dict[str, dict], samples: list, baselines: dict[str, dict] | None = None,
                    seed: int = 7, untrusted: dict[str, str] | None = None, min_n: int = 1,
-                   correction: str = "none") -> list[GateResult]:
+                   correction: str = "none", not_comparable: set[str] | None = None) -> list[GateResult]:
     """correction: "none" (default: each significant() at its own alpha) or "holm" (significant() decided on
     Holm-adjusted p-values across every (target, grader) the gates test, so the chance of any false regression or
     improvement call stays at alpha however many gates there are)."""
@@ -263,7 +268,8 @@ def evaluate_gates(gates: list, summaries: dict[str, dict], samples: list, basel
                 continue
             ev = _Evaluator(summary, samples, (baselines or {}).get(tname), seed, untrusted or {},
                             min_n=g.min_n if getattr(g, "min_n", None) is not None else min_n,
-                            allow_missing_baseline=getattr(g, "allow_missing_baseline", False), adjusted=adjusted)
+                            allow_missing_baseline=getattr(g, "allow_missing_baseline", False), adjusted=adjusted,
+                            not_comparable=not_comparable)
             try:
                 ok = bool(ev.eval(_parse(g.rule)))
                 if ev.invalid:

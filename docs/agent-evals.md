@@ -38,7 +38,7 @@ the ones in [Added in v0.5.1](#added-in-v051). What's left is under [Not covered
 
 | Recommendation | In the framework |
 |---|---|
-| **In multi-turn evals, one bad turn fails the conversation** | **new:** `per_turn: true` on `rubric` and `policy` graders judges every assistant turn, with the earlier turns as context, and passes only if all pass. The grader's pass rate is the share of conversations that stayed acceptable throughout. The first failing turn is recorded |
+| **In multi-turn evals, one bad turn fails the conversation** | **new:** `per_turn: true` on `rubric` and `policy` graders judges every assistant turn, with the earlier turns as context, and passes only if all pass. The grader's pass rate is the share of conversations that stayed acceptable throughout. The first failing turn is recorded. A `max_turns` cap never passes a longer conversation silently (v0.5.2) |
 | **Send items where the grader is unsure to human review** | **new:** `genai-evals labels queue result.json` writes a reviewer sheet of unknown verdicts, panel splits (judges disagreeing on pass / fail) and persistent judge errors. It is a *targeted* sample, kept out of calibration |
 | Measure harmful compliance and over-refusal together | `refusal_appropriate` / `correct_refusal` grade both directions; **new** balance check and `benign_sensitive` tag |
 | A risk-specific rubric written by domain experts, not a generic refusal metric | `policy` graders take the customer's own policy text; the labelling guide gives examples per level |
@@ -59,7 +59,7 @@ the ones in [Added in v0.5.1](#added-in-v051). What's left is under [Not covered
 |---|---|
 | Make criteria atomic and binary rather than one overall score; say what doesn't count | `checklist` grader: each criterion judged separately (met / not met / unknown), with `not_met` edge cases ([checklists](graders.md#checklists-atomic-passfail-criteria)) |
 | Re-grade with a different model or rubric wording; if conclusions change, you measured the grader | `genai-evals sensitivity`: re-grades the same samples with reworded rubrics and reports flips, κ and changed gates ([details](graders.md#is-the-result-about-the-rubric)) |
-| Enough items for the claim; intervals wider than about ±10 points may hide real differences | `genai-evals power` (interval width, detectable change, paired vs unpaired) and a run note when a gated grader's interval is wider than ±10 points ([how many cases](gates.md#how-many-cases)) |
+| Enough items for the claim; intervals wider than about ±10 points may hide real differences | `genai-evals power` (interval width, detectable change, paired vs unpaired), a run note when a gated grader's interval is wider than ±10 points, and `safety_claim: true`, which makes too few cases a coverage problem (v0.5.2) ([how many cases](gates.md#how-many-cases)) |
 | Vary scenario dimensions independently | `genai-evals cases grid`: full, sampled or pairwise designs, tagged by dimension ([scenario grids](growing-the-eval-set.md#scenario-grids)) |
 | Correct for multiple comparisons | `gate_correction: holm` across every `significant()` in the run ([gates](gates.md#statistical-assumptions)) |
 

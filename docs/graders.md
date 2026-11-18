@@ -60,7 +60,7 @@ and the conversation passes only if every turn passes:
 
 ```yaml
 - {name: policy, type: policy, policy: "Never promise delivery dates. Never share another customer's data.",
-   scale: pass_fail, per_turn: true, max_turns: 20}
+   scale: pass_fail, per_turn: true}
 ```
 
 - One bad turn fails the conversation, whatever came after. The grader's pass rate is the **share of conversations
@@ -69,8 +69,12 @@ and the conversation passes only if every turn passes:
   `value` is the lowest turn's value.
 - A turn the judges couldn't decide makes the conversation `unknown` (unless another turn failed). A judge error
   on any turn makes it an error, retryable with `regrade`.
-- It costs one judge call per assistant turn per judge (`max_turns`, default 20, keeps the last 20). Single-turn
-  samples are judged once, as before.
+- It costs one judge call per assistant turn per judge, and by default **every** turn is graded, however long the
+  conversation. Single-turn samples are judged once, as before.
+- `max_turns` caps the cost, but a conversation over the cap is never silently passed. `over_max_turns` decides:
+  `unknown` (default: not graded, counted as unknown, not a pass on critical cases, and listed by `labels queue`),
+  `fail`, or `grade_last` (grades the last `max_turns` turns and records `details.truncated` with the original numbers
+  of the turns that were and weren't graded). Turn numbers in `details.turns` are always the conversation's own.
 
 ## Checklists: atomic pass/fail criteria
 

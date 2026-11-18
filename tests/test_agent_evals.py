@@ -391,3 +391,76 @@ def test_sensitivity_reports_flips_and_gate_changes(tmp_path, monkeypatch):
 
 async def _all(prompt):
     return [{"judge": "judge-a", "data": {"rationale": "r", "pass": "Harsh" not in prompt}}]
+
+
+# ---- v0.5.2 review fixes -------------------------------------------------------------------------------------------
+
+LONG = [m for i in range(5) for m in (Message(role="user", content=f"q{i}"),
+                                      Message(role="assistant", content="BAD early" if i == 0 else f"fine {i}"))]
+
+
+def test_per_turn_grades_every_turn_by_default(monkeypatch):
+    _fake_panel(monkeypatch, lambda out: "BAD" not in out)
+    s = Sample(case_id="c1", target="t", output="fine 4", messages=LONG)
+    r = grade({"name": "p", "type": "policy", "policy": "x", "per_turn": True}, s, Case(id="c1", input="q"))
+    assert r.passed is False and r.details["first_failing_turn"] == 1 and r.details["n_turns"] == 5
+
+
+def test_per_turn_over_max_turns_never_passes_silently(monkeypatch):
+    _fake_panel(monkeypatch, lambda out: "BAD" not in out)
+    s = Sample(case_id="c1", target="t", output="fine 4", messages=LONG)
+    case = Case(id="c1", input="q")
+    spec = {"name": "p", "type": "policy", "policy": "x", "per_turn": True, "max_turns": 3}
+    unk = grade(spec, s, case)                                        # default: not graded, counted as unknown
+    assert unk.skipped and unk.label == "unknown" and unk.details["over_max_turns"] and "5 assistant turns" in unk.skip_reason
+    assert grade(spec | {"over_max_turns": "fail"}, s, case).passed is False
+    last = grade(spec | {"over_max_turns": "grade_last"}, s, case)    # explicit truncation, original turn numbers
+    assert last.passed is True and [t["turn"] for t in last.details["turns"]] == [3, 4, 5]
+    assert last.details["truncated"] == {"graded_turns": [3, 4, 5], "not_graded_turns": [1, 2]}
+    assert "turns 1-2 not graded" in last.reasoning
+
+
+def test_reset_turns_the_cache_off(tmp_path):
+    from genai_evals.config import ProvidersConfig
+    from genai_evals.runner import Runner
+    data = write_jsonl(tmp_path / "d.jsonl", [{"id": "a", "input": "x"}])
+    (tmp_path / "rs.py").write_text("def reset(case, repeat, trial):\n    return {}\n")
+    suite = SuiteSpec(name="c", dataset=str(data), base_dir=str(tmp_path), tokenize=False,
+                      targets=[{"name": "echo", "kind": "model", "profile": "echo", "reset": {"python": "rs:reset"}},
+                               {"name": "plain", "kind": "model", "profile": "echo"}],
+                      graders=[{"name": "e", "type": "contains", "value": "x"}])
+    r = Runner(suite, ProvidersConfig(**MOCK_PROVIDERS), cache_dir=tmp_path / "cache")
+    from genai_evals.targets import build_target
+    t_reset, t_plain = build_target(suite.targets[0], r.ctx), build_target(suite.targets[1], r.ctx)
+    case = Case(id="a", input="x")
+    assert r._cache_key(t_reset, case, 0) is None and r._cache_key(t_plain, case, 0) is not None
+    suite.targets[0].reset = {"python": "rs:reset", "cache": True}       # explicit opt-in
+    assert r._cache_key(build_target(suite.targets[0], r.ctx), case, 0) is not None
+
+
+def test_changed_judge_prompts_make_judge_deltas_invalid():
+    from genai_evals.config import GateSpec, GraderSpec
+    from genai_evals.gates import evaluate_gates
+    from genai_evals.runner import judge_prompts_changed
+    suite = SuiteSpec(name="b", judges=["judge-a"], graders=[GraderSpec(name="q", type="rubric"), GraderSpec(name="e", type="exact")])
+    old = {"judge_provenance": {"prompt_templates": "sha256:0123456789abcdef"}}
+    assert judge_prompts_changed(old, suite) == {"q"}
+    assert judge_prompts_changed({"judge_provenance": {"prompt_templates": judges.judge_prompts_hash()}}, suite) == set()
+    assert judge_prompts_changed(None, suite) == set()
+    ids = [f"c{i}" for i in range(10)]
+    g = {"n": 10, "per_case": {c: 1.0 for c in ids}}
+    summ = {"t": {"target": "t", "graders": {"q": g, "e": g}, "slices": {}, "critical": {}}}
+    res = evaluate_gates([GateSpec(name="dq", rule="delta(q) > -0.05"), GateSpec(name="de", rule="delta(e) > -0.05")],
+                         summ, [], {"t": {"graders": {"q": g, "e": g}}}, not_comparable={"q"})
+    assert [r.status for r in res] == ["invalid", "pass"] and "different judge prompts" in res[0].message
+
+
+def test_safety_claim_requires_enough_cases():
+    few = [Case(id=f"c{i}", input="x", tags=["typical"]) for i in range(50)]
+    cov = tx.coverage(few, workflow="agent", safety_claim=True)
+    assert cov["safety_claim"] == {"kind": "single_turn", "cases": 50, "needed": 1000}
+    assert any(p.startswith("safety_claim: 50 single-turn cases") for p in cov["problems"])
+    multi = [Case(id=f"c{i}", input="x", goal="get a refund", tags=["typical"]) for i in range(120)]
+    cov = tx.coverage(multi, workflow="agent", safety_claim=True)
+    assert cov["safety_claim"]["needed"] == 100 and not any(p.startswith("safety_claim") for p in cov["problems"])
+    assert tx.coverage(few, workflow="agent")["safety_claim"] is None

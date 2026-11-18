@@ -3,7 +3,7 @@
     from genai_evals import Runner, load_suite, load_providers
     result = Runner(load_suite("suite.yaml"), load_providers("providers.yaml")).run()
 """
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 from .config import load_cases, load_providers, load_sources, load_suite  # noqa: E402
 from .models import Case, Message, Sample, Score, ToolCall, Usage  # noqa: E402

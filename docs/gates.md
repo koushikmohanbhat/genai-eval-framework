@@ -111,7 +111,18 @@ genai-evals power --rate 0.85 --delta 0.05 --half-width 0.05 --n 40 --discordant
 - **Repeats don't add cases.** They are averaged per case first.
 - For **safety claims**, Anthropic's guidance is roughly 100 items for complex multi-turn evals and 1,000 for simple
   single-turn ones. The framework's minimums (30 representative cases, 5–10 per stress tag) are enough to start
-  measuring, not to make such a claim.
+  measuring, not to make such a claim. Set `safety_claim: true` on a suite whose results will back one: coverage and
+  `doctor` then report it as a problem until the dataset has that many cases (multi-turn if at least half the cases
+  have `turns` or a `goal`).
+
+## After upgrading the framework
+
+Judge prompts are part of the measurement. When they change (v0.5.0 added the "unknown" verdict), judge-graded
+scores from before and after aren't comparable. Every result records a hash of the judge prompts
+(`judge_provenance.prompt_templates`). If the baseline's hash differs from the current version's, `delta()` and
+`significant()` gates on judge-graded graders are **invalid**, with a note saying why, rather than reporting a change
+that came from the prompts. Deterministic graders still compare normally. Re-baseline: run the baseline system with
+the new version and `genai-evals baseline promote` the result.
 - **Judges are measurement instruments.** A judge-graded mean is only as trustworthy as the judge's calibration.
 
 ## Gates and experiments

@@ -178,6 +178,8 @@ class SuiteSpec(BaseModel):
     targets_from: str | None = None                  # YAML file with `targets:` (lets a pack switch systems by env var)
     dataset_schema: str | None = None                # JSON Schema every case must satisfy (checked when cases load)
     gate_correction: Literal["none", "holm"] = "none"   # multiple-comparison correction for significant() across gates
+    safety_claim: bool = False                       # results will back a safety claim: coverage requires ~100 multi-turn
+                                                     # or ~1,000 single-turn cases (Anthropic's guidance)
     extra_datasets: list[str] = Field(default_factory=list)   # more case files (overlays add theirs here)
     report: dict[str, Any] = Field(default_factory=dict)      # report template: title, intro, headline, failure_categories
     base_dir: str = "."

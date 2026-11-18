@@ -329,9 +329,26 @@ class Rubric(Grader):
                 return self.score(sample, 0.0, reasoning="empty output")
             msgs = [Message(role="user", content=case.input_text()), Message(role="assistant", content=sample.output)]
             turns = [1]
-        lim = int(self.p.get("max_turns", 20))
-        if len(turns) > lim:
-            turns = turns[-lim:]
+        number = {i: n + 1 for n, i in enumerate(turns)}     # the turn numbers of the original conversation
+        n_all = len(turns)
+        truncated = None
+        lim = self.p.get("max_turns")                          # default: every turn, however long the conversation
+        if lim is not None and n_all > int(lim):
+            mode = self.p.get("over_max_turns", "unknown")
+            if mode not in ("unknown", "fail", "grade_last"):
+                raise ValueError(f"over_max_turns must be unknown, fail or grade_last (got {mode})")
+            info = {"n_turns": n_all, "max_turns": int(lim), "per_turn": True}
+            if mode == "unknown":
+                # nothing silently passes: not graded, counted as unknown, and queued for human review
+                return Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                             skipped=True, label=UNKNOWN, details=info | {"unknown": True, "over_max_turns": True},
+                             skip_reason=f"conversation has {n_all} assistant turns, more than max_turns {lim}: not graded")
+            if mode == "fail":
+                return self.score(sample, 0.0, passed=False, details=info | {"over_max_turns": True},
+                                  reasoning=f"conversation has {n_all} assistant turns, more than max_turns {lim}")
+            truncated = {"graded_turns": [number[i] for i in turns[-int(lim):]],
+                         "not_graded_turns": [number[i] for i in turns[:-int(lim)]]}
+            turns = turns[-int(lim):]
 
         async def one(i: int) -> Score:
             convo = "\n".join(f"{m.role.upper()}: {tok(m.content or '')}" for m in msgs[:i])
@@ -341,12 +358,14 @@ class Rubric(Grader):
                                         rules=JUDGE_RULES, schema=schema)
             return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, scale))
         res = await asyncio.gather(*[one(i) for i in turns])
-        per_turn = [{"turn": n + 1, "value": r.value, "passed": r.passed, "unknown": r.label == UNKNOWN,
-                     "error": r.error, "reasoning": r.reasoning} for n, r in enumerate(res)]
+        per_turn = [{"turn": number[i], "value": r.value, "passed": r.passed, "unknown": r.label == UNKNOWN,
+                     "error": r.error, "reasoning": r.reasoning} for i, r in zip(turns, res)]
         cost = sum(r.cost_usd for r in res)
         failed = [t for t in per_turn if t["passed"] is False]
-        details = {"per_turn": True, "turns": per_turn, "n_turns": len(per_turn),
+        details = {"per_turn": True, "turns": per_turn, "n_turns": n_all,
                    "first_failing_turn": failed[0]["turn"] if failed else None}
+        if truncated:                                    # grade_last: say exactly which turns were not graded
+            details["truncated"] = truncated
         if failed:                                       # one bad turn fails the conversation, whatever else happened
             return self.score(sample, min(t["value"] for t in failed if t["value"] is not None), passed=False,
                               reasoning=f"turn {failed[0]['turn']}: {failed[0]['reasoning'] or ''}"[:2000],
@@ -363,8 +382,10 @@ class Rubric(Grader):
             return Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
                          skipped=True, label=UNKNOWN, skip_reason="judge could not decide on at least one turn",
                          details=details | {"unknown": True}, cost_usd=cost)
-        return self.score(sample, min(t["value"] for t in per_turn), passed=True,
-                          reasoning=f"all {len(per_turn)} turns acceptable", details=details, cost_usd=cost)
+        return self.score(sample, min(t["value"] for t in per_turn), passed=True, details=details, cost_usd=cost,
+                          reasoning=(f"all {len(per_turn)} turns acceptable" if not truncated else
+                                     f"last {len(per_turn)} of {n_all} turns acceptable; turns "
+                                     f"{truncated['not_graded_turns'][0]}-{truncated['not_graded_turns'][-1]} not graded"))
 
 
 @register("checklist")

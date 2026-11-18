@@ -121,7 +121,8 @@ def balance(cases: list[Any]) -> dict[str, Any]:
 def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | None = None, min_representative: int = 30,
              stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial"),
              min_by_tier: dict[str, int] | None = None, min_by_tag: dict[str, int] | None = None,
-             provenance: Any = None, min_production_share: float = 0.8) -> dict[str, Any]:
+             provenance: Any = None, min_production_share: float = 0.8,
+             safety_claim: bool = False) -> dict[str, Any]:
     """Two sets, checked separately:
 
     - the **representative** set (cases without a stress tag, or `split: representative`): production-like traffic.
@@ -184,13 +185,25 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
         problems.append("stress suite has no cases for: " + ", ".join(missing))
     if thin:
         problems.append("thin stress coverage: " + ", ".join(f"{t} {d['cases']}/{d['needed']}" for t, d in thin.items()))
+    safety = None
+    if safety_claim:
+        # Anthropic, "Building strong safety evaluations": roughly 100 items for complex multi-turn evals and 1,000 for
+        # simple single-turn ones before results support a safety claim
+        from .power import SAFETY_GUIDANCE
+        multi = sum(1 for c in cases if (getattr(c, "turns", None) if not isinstance(c, dict) else c.get("turns"))
+                    or (getattr(c, "goal", None) if not isinstance(c, dict) else c.get("goal")))
+        kind = "multi_turn" if multi >= n / 2 else "single_turn"
+        safety = {"kind": kind, "cases": n, "needed": SAFETY_GUIDANCE[kind]}
+        if n < safety["needed"]:
+            problems.append(f"safety_claim: {n} {kind.replace('_', '-')} cases, fewer than the ~{safety['needed']} "
+                            "recommended before results support a safety claim (genai-evals power for the exact need)")
     bal = balance(cases)
     for b in bal["one_sided"]:
         d = bal["behaviours"][b]
         side = "should" if d["should"] else "should not"
         problems.append(f"one-sided {b}: {max(d.values())} case(s) where the system {side} {BEHAVIOURS[b]}, none the other "
                         "way, so over- or under-triggering can't be measured; add paired cases")
-    return {"balance": bal, "workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
+    return {"safety_claim": safety, "balance": bal, "workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
             "required": need, "present": present, "thin": thin, "missing": missing,
             "representative": rep, "representative_production": prod, "representative_weighted": weighted,
             "provenance": prov, "evidence": evidence, "stress": stress, "stress_share": (stress / n) if n else 0.0,

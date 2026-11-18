@@ -134,6 +134,7 @@ profiles:
 | `min_calibration_n` | 30 | human labels a judge needs before it can be trusted |
 | `min_n` | 5 | scored cases a gate needs (overall, per slice and in the baseline overlap); fewer makes the gate `invalid` |
 | `on_error` | `fail` | `fail`: target and grader errors count as failed scores (value 0). `exclude`: left out of means (diagnosis only) |
+| `safety_claim` | `false` | results will back a safety claim: coverage and `doctor` require about 100 multi-turn or 1,000 single-turn cases ([how many cases](gates.md#how-many-cases)) |
 | `gate_correction` | `none` | `holm`: decide every `significant()` across the run's gates on Holm-adjusted p-values ([gates](gates.md#statistical-assumptions)) |
 | `tokenize`, `tokenizer` | `true`, `{}` | DPDP tokenisation of inputs and outputs before judges and storage ([DPDP](dpdp.md)) |
 
@@ -171,6 +172,8 @@ as an order already refunded by an earlier repeat, a cache, or a sandbox left di
   is POSTed (`{{ case_id }}`, `{{ repeat }}`, `{{ trial_id }}` in the body). Whatever dict it returns (for example
   `{"sandbox_id": "sb-42"}`) is merged into the trial, available as `{{ trial.sandbox_id }}` in HTTP bodies and
   `ctx["trial"]` in Python. If the reset fails, that trial is recorded as a target error and isn't graded.
+- **A reset turns the response cache off** for that target: a cached output would skip the reset, so the trial
+  wouldn't start clean. Set `reset: {..., cache: true}` only if the target's output doesn't depend on the environment.
 - With a **shared** sandbox, a reset in one trial wipes another trial running at the same time. Either have the hook
   hand out a separate sandbox per trial (the returned id), or set `concurrency: 1`.
 - **Order drift.** When a grader's pass rate on the first trial differs from later trials by 15 points or more (at
