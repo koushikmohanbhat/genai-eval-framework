@@ -9,19 +9,22 @@ next engagement comes before more connectors.
 - **More packs:** contact-centre QA (transcripts), summarisation, classification / routing; agent pack overlays
   (insurance claims, banking service requests).
 
-- **v0.5 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
+- **v0.7 voice / realtime:** OpenAI Realtime API and Gemini Live targets, user simulator over TTS, turn latency
   p50 / p95, barge-in, silence / overlap, ASR word error rate, recorded fixtures plus live mode
 - **Live integration tests** on AWS and GCP sandbox accounts for every connector and target
 - **Industry eval packs (catalog 4.2):** BFSI document extraction, insurance claims, contact-centre QA, medical summary
   hallucination, Indic-language quality
-- **Red-teaming (4.3):** Promptfoo red-team plugins through the framework; OWASP LLM Top 10 mapping in reports
+- **Red-teaming (4.3):** the security-guardrails overlays (v0.6) are the curated part; next, more cases per threat,
+  security overlays for the extraction pack, OWASP categories as a report section, and a Promptfoo red-team config
+  generated from a suite
 - **DPDP compliance pack (4.5):** cross-user leakage, refusal after consent withdrawal, "erased person is forgotten" tests
 - **More targets:** Azure OpenAI / Foundry, Strands, CrewAI, LlamaIndex, MCP servers as tools under test
 - **More sources:** Azure Monitor / Application Insights, AgentCore Gateway tool-call logs, Model Armor, LangSmith,
   Datadog LLM Observability, Arize, Kafka
-- **Statistics:** cluster bootstrap, sequential testing for online A/B, power analysis helper ("how many cases to detect a 5-point change?"), Holm correction for experiments
+- **Statistics:** cluster bootstrap, sequential testing for online A/B (`power` and Holm across gates shipped in v0.5.1)
 - **Experiments:** variants across suites (e.g. retriever and prompt together as a grid), experiment history and trend view, link from a production prompt version back to the experiment that justified it
 - **Active learning:** pick the most informative samples for human review; label UI
+- **Seeding:** OCR and table extraction for scanned PDFs (with catalog 3.3), seeding agent goals from SOPs
 - **Prompt optimisation loop** and gating for fine-tunes / distillation (catalog 7.2)
 - **Streaming online evals** from collectors, with drift alerts (shared with 6.3)
 - PyPI release; Helm / CDK packaging

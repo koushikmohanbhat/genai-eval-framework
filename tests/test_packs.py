@@ -45,7 +45,7 @@ def test_init_scaffolds_a_runnable_project(name, tmp_path, monkeypatch, capsys):
     assert r["passed"] and r["pack"].startswith(name) and r["report"]["failure_categories"]
     if overlays:
         assert f"overlays/{overlays[0]}" in (root / "suite.yaml").read_text()
-        assert any(c["id"] for c in r["cases"] if c["id"].split("-")[0] in ("ins", "gst"))
+        assert any(c["id"] for c in r["cases"] if c["id"].split("-")[0] in ("ins", "gst", "sec"))
     assert "Failure categories" in (root / "out/offline/report.html").read_text()
     monkeypatch.chdir(root)
     assert cli(["run", "suite.yaml", "--out", "out/again", "--no-cache", "--allow-missing-baseline"]) == 0

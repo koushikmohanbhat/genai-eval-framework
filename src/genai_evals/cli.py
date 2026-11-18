@@ -614,6 +614,37 @@ def cmd_cases(args) -> int:
         for d in tx.describe(args.workflow):
             print(f"  {d['tag']:<22} {d['group']:<10} {d['description']}")
         return 0
+    if args.action == "seed":
+        from .seed import chunk, read_docs, seed
+        if not args.docs:
+            raise SystemExit("cases seed needs --docs <folder or file>")
+        if not args.generator:
+            raise SystemExit("cases seed needs --generator <provider profile> (a strong model; in-region for customer data)")
+        passages = chunk(read_docs(args.docs), words=args.chunk_words)
+        corpus = Path(args.corpus_out or "corpus.jsonl")
+        corpus.parent.mkdir(parents=True, exist_ok=True)
+        cs.write_jsonl([{k: p[k] for k in ("id", "title", "text")} for p in passages], corpus, append=False)
+        tok = None if args.no_tokenize else cs.default_tokenizer()
+        rows = seed(passages, load_providers(_providers_path(args, args.path)), args.generator, n=args.n_seed,
+                    tokenizer=tok, seed_=args.seed)
+        out = cs.write_jsonl(rows, args.out or "drafts.jsonl", append=args.append)
+        kinds: dict[str, int] = {}
+        for r in rows:
+            kinds[r["metadata"]["kind"]] = kinds.get(r["metadata"]["kind"], 0) + 1
+        print(f"read {len(passages)} passage(s) into {corpus}; wrote {len(rows)} draft case(s) to {out} ("
+              + ", ".join(f"{n} {k}" for k, n in kinds.items()) + ")")
+        if len(rows) < args.n_seed:
+            print(f"  note: asked for {args.n_seed}, got {len(rows)} (duplicates dropped); add documents or run again with --append")
+        print("  next: genai-evals cases review-sheet " + str(out) + " --out review.csv   (an expert marks keep / fix / drop)")
+        print("        genai-evals cases promote " + str(out) + " --sheet review.csv --into data/cases.jsonl")
+        print("  seeded cases are synthetic and written from the documents: a starting point, not the representative "
+              "set. Replace them with production samples (cases sample) as traffic arrives.")
+        return 0
+    if args.action == "review-sheet":
+        n = cs.write_review_sheet(args.path, args.out or "review.csv")
+        print(f"wrote {args.out or 'review.csv'}: {n} draft(s). Fill in decision (keep / fix / drop), the corrected_* "
+              "columns for fixes, and reviewer; then cases promote --sheet.")
+        return 0
     if args.action == "grid":
         import yaml
 
@@ -695,6 +726,8 @@ def cmd_cases(args) -> int:
             for t in cov["thin_gates"]:
                 if t["severity"] != "block":
                     print(f"  note: {t['severity']} gate {t['gate']} will be invalid ({t['slice']}: {t['cases']} < min_n {t['min_n']})")
+            for nt in cov.get("notes") or []:
+                print(f"  note: {nt}")
             for pr in cov["problems"]:
                 print(f"  to do: {pr}")
         return 1 if (args.strict and cov["problems"]) else 0
@@ -740,8 +773,18 @@ def cmd_cases(args) -> int:
     if not args.into:
         raise SystemExit("cases promote needs --into <dataset.jsonl>")
     ids = [i.strip() for i in (args.ids or "").split(",") if i.strip()] or None
+    reviewers = None
+    if args.sheet:
+        rs = cs.apply_review_sheet(args.path, args.sheet, reviewer=args.reviewer)
+        print(f"review sheet: {len(rs['kept'])} kept, {len(rs['fixed'])} fixed, {len(rs['dropped'])} dropped")
+        for pr in rs["problems"]:
+            print(f"  not applied: {pr}")
+        ids, reviewers = rs["promote"], rs["reviewers"]
+        if not ids:
+            print("nothing to promote")
+            return 1 if rs["problems"] else 0
     done, refused = cs.promote(args.path, args.into, ids=ids, reviewer=args.reviewer,
-                               allow_empty_reference=args.allow_empty_reference, schema=args.schema)
+                               allow_empty_reference=args.allow_empty_reference, schema=args.schema, reviewers=reviewers)
     print(f"promoted {len(done)} case(s) into {args.into}" + (f": {', '.join(done)}" if done else ""))
     for r in refused:
         print(f"  not promoted: {r}")
@@ -1032,10 +1075,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
     p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote", "check-refs",
-                                      "health", "graduate", "grid"],
+                                      "health", "graduate", "grid", "seed", "review-sheet"],
                    help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
                         "harvest <result.json> | promote <drafts.jsonl> | check-refs <suite.yaml> | health <result.json> | "
-                        "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl] | grid <grid.yaml>")
+                        "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl] | grid <grid.yaml> | "
+                        "seed [suite.yaml] --docs <folder> --generator <profile> | review-sheet <drafts.jsonl>")
     p.add_argument("path", nargs="?", default="suite.yaml")
     p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
     p.add_argument("--json", action="store_true")
@@ -1061,6 +1105,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--design", choices=["full", "pairwise"], default="full",
                    help="grid: every combination (full) or every pair of values across two dimensions (pairwise)")
     p.add_argument("--sample", type=int, help="grid: a random sample of this many combinations")
+    p.add_argument("--docs", help="seed: folder or file of the customer's documents (txt, md, html; pdf, docx with the docs extra)")
+    p.add_argument("--corpus-out", help="seed: where to write the passages (default corpus.jsonl; the RAG pack reads data/corpus.jsonl)")
+    p.add_argument("--chunk-words", type=int, default=180, help="seed: passage size in words (default 180)")
+    p.add_argument("--n-seed", type=int, default=40, help="seed: draft cases to write (default 40: ~60%% answerable, 20%% edge, 20%% unanswerable)")
+    p.add_argument("--sheet", help="promote: a filled-in review sheet (cases review-sheet): keep / fix / drop per draft")
     p.add_argument("--also", action="append", help="graduate: more result files that must also show the case passing")
     p.add_argument("--apply", action="store_true", help="graduate: set purpose: regression on ready cases in --into")
     p.add_argument("--providers")

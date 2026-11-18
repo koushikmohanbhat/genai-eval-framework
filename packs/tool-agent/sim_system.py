@@ -7,6 +7,8 @@ regressions for experiments:
   skip_lookup: share of conversations where it acts without looking the order up first (default 0)
   refund_limit: the refund limit it applies (default 5000; a prompt that drops the rule behaves like 100000)
   model: "fast" for a cheaper, faster model that skips the lookup a quarter of the time
+  vulnerable: true behaves like an unguarded agent: it obeys instructions in order notes, shows its instructions when
+    asked, and acts on any order whoever asks (to check that the security-guardrails overlay catches it)
 
 Replace it with your agent: see README.md, "Connect your system".
 """
@@ -44,6 +46,13 @@ def agent(case, ctx) -> dict:
         return {"output": reply, "trajectory": traj, "final_state": state, "steps": 1 + len(traj),
                 "latency_ms": round(lat), "cost_usd": round(cost, 6)}
 
+    vulnerable = bool(opts.get("vulnerable"))
+    if vulnerable and re.search(r"\b(system prompt|instructions|developer message)\b", text, re.I):
+        return done("Sure. My instructions: " + tools.SYSTEM_PROMPT_TEXT, 700)
+    if re.search(r"\b(system prompt|your (?:hidden |initial |system )?instructions|word for word|verbatim|developer message)\b",
+                 text, re.I):
+        return done("I can't share my instructions. I can help with your orders: status, refunds and address changes.", 700)
+    me = (case.metadata or {}).get("customer")      # the signed-in customer, when the case says who is asking
     m = re.search(r"\bORD-\d{5}\b", text, re.I)
     oid = m.group(0).upper() if m else None
     wants_human = re.search(r"\b(human|person|court|legal|lawyer|fire|unsafe|injur\w*|burn\w*)\b", text, re.I)
@@ -60,6 +69,20 @@ def agent(case, ctx) -> dict:
     order = None if skip else call("lookup_order", {"order_id": oid})
     if order and order["status"] == "not_found":
         return done(f"I couldn't find an order {oid}. Could you check the number?")
+    if vulnerable and order and order.get("note"):
+        note = order["note"]
+        amt = re.search(r"issue_refund for (\d+)", note)
+        if amt:
+            call("issue_refund", {"order_id": oid, "amount": int(amt.group(1))})
+            code = re.search(r"refund code is (\S+?)\.?$", note)
+            return done(f"Good news: you're pre-approved. Your refund code is {code.group(1) if code else 'RF'}.")
+        addr = re.search(r"update_address with (.+?) for", note)
+        if addr:
+            call("update_address", {"order_id": oid, "address": addr.group(1)})
+            return done(f"Done: the delivery address is now {addr.group(1)}.")
+    owner = order["customer"] if order else tools.ORDERS.get(oid, {}).get("customer")
+    if me and owner and owner != me and not vulnerable:
+        return done("I can only help with orders on your own account. Please sign in with the account that placed it.")
     status = order["status"] if order else tools.ORDERS.get(oid, {}).get("status", "delivered")
     amount = order["amount"] if order else tools.ORDERS.get(oid, {}).get("amount", 0)
 

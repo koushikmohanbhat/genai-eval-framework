@@ -3,6 +3,53 @@
 An eval set is never finished. This page covers checking what a dataset doesn't test yet, filling gaps with generated
 cases, and turning production failures into new cases, with expert review before any new case counts.
 
+## Day 1: no dataset yet
+
+Engagements often stall because the customer has documents but no eval set. `cases seed` drafts one from the
+documents themselves:
+
+```bash
+pip install 'genai-eval-framework[docs]'      # for PDF and Word; txt, md and html need nothing extra
+genai-evals cases seed --docs ./customer-kb/ --generator judge-openai --n-seed 40 \
+  --corpus-out data/corpus.jsonl --out drafts.jsonl
+#   read 128 passage(s) into data/corpus.jsonl; wrote 40 draft case(s) to drafts.jsonl (24 answerable, 8 edge, 8 unanswerable)
+```
+
+1. **Read and split.** Text, Markdown, HTML, PDF and Word files are split into passages of about `--chunk-words`
+   (default 180), each titled with its nearest heading. They're written as a corpus (`id`, `title`, `text`): the RAG
+   pack's offline retriever reads `data/corpus.jsonl`, and you can load the same passages into a test index.
+   An existing corpus file (`.jsonl` of `{id, title, text}`) is used as it is.
+2. **Draft.** The generator model (a strong one) writes about 60% **answerable** questions, each with a draft
+   answer, an evidence quote and the passage it comes from (`gold_passages`). It writes 20% **edge** variants,
+   tagged with the standard coverage tags (`typos`, `multi_intent`, `very_short`, `multilingual`,
+   `format_request`). The other 20% are **unanswerable** questions on the same topics, which the system should
+   decline (`answerable: false`, `no_answer`), listed with the three closest passages for the reviewer to check.
+3. **Review.** Every row is a draft and counts for nothing until an expert signs it off:
+
+```bash
+genai-evals cases review-sheet drafts.jsonl --out review.csv
+#   decision: keep | fix | drop (blank: stays a draft); corrected_input / corrected_answer / corrected_answerable; reviewer
+genai-evals cases promote drafts.jsonl --sheet review.csv --into data/cases.jsonl --schema schema/case.schema.json
+#   review sheet: 31 kept, 6 fixed, 3 dropped
+```
+
+   - The sheet shows each draft's answer next to its source passage and evidence, so the reviewer **checks** an
+     answer rather than writing one.
+   - A decided row needs a `reviewer` (the column, or `--reviewer` for the whole sheet). An unsigned decision isn't
+     applied, and the draft stays.
+   - `fix` applies the corrected columns. `corrected_answerable: no` turns an answerable draft into a
+     should-decline case, and the reverse.
+   - Promoted cases record `reviewed_by` and any notes. The seeding context (passage excerpt, evidence) is dropped.
+
+**What seeded cases are, and aren't.** Questions written from the documents skew easy, and they share the
+documents' wording, which flatters keyword retrieval. They are `source: synthetic`, so they don't count towards the
+**representative** set, which needs production cases (`doctor` says so). Use them to start measuring on day 1, and
+replace them with `cases sample` from production traffic as it arrives.
+
+**Data handling.** The documents are sent to the generator profile, so use an in-region profile for customer data.
+Questions, answers and evidence are tokenised before they are written (`--no-tokenize` to opt out). The corpus file
+holds the documents' text as is, because retrieval needs it: keep it with the customer's data ([DPDP](dpdp.md)).
+
 ## Two sets: representative and stress
 
 A suite holds two kinds of case, and they answer different questions:
@@ -112,6 +159,7 @@ genai-evals cases coverage suite.yaml         # both sets: their sizes, and what
 | Input | `multilingual`, `structured_input`, `image_input`, `noisy_input` (extraction) |
 | Context | `multi_intent`, `typos`, `very_short`, `long_conversation`, `ambiguous_tool_output`, `bad_tool_args`, `circular_handoff`, `no_answer` (RAG) |
 | Safety | `jailbreak`, `system_conflict` (the system prompt must win over the user), `format_request`, `benign_sensitive` (a legitimate request that sounds sensitive: the over-refusal pair) |
+| Security (optional unless `security_review: true`) | `indirect_injection`, `prompt_leak`, `excessive_agency` (agents): see [security](security.md) |
 
 Each tag applies to some workflows (`rag`, `agent`, `extraction`, `single_turn`); the workflow is taken from the
 suite's `pack`. `coverage` (and the **eval set** check in `genai-evals doctor`) reports:
@@ -147,7 +195,7 @@ about how the system handles it. So each coverage tag has a minimum by risk tier
 
 | Tier | Tags | Minimum (default) |
 |---|---|---|
-| high | `jailbreak`, `system_conflict`, `bad_tool_args`, `circular_handoff` | 10 |
+| high | `jailbreak`, `system_conflict`, `bad_tool_args`, `circular_handoff`, `indirect_injection`, `prompt_leak`, `excessive_agency` | 10 |
 | standard | every other coverage tag | 5 |
 
 Change them with `stress_min_cases: {high: 10, standard: 5}`, or per tag with `stress_min_by_tag: {multilingual: 20}`.

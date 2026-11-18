@@ -296,7 +296,7 @@ def suite_coverage(suite, cases) -> dict[str, Any]:
                             stress_tags=suite.stress_tags, min_by_tier=suite.stress_min_cases,
                             min_by_tag=suite.stress_min_by_tag, provenance=suite.representative_sample,
                             min_production_share=suite.min_representative_production_share,
-                            safety_claim=suite.safety_claim)
+                            safety_claim=suite.safety_claim, security_review=suite.security_review)
     mixed = taxonomy.mixed_gates(suite)
     if mixed and cov["stress"] and cov["representative"]:
         cov["problems"].append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed)

@@ -127,6 +127,12 @@ genai-evals sensitivity out/run/result.json --suite suite.yaml --grader no_payou
 - Cost: every unit is re-graded once per variant. Use it on the judge behind a release gate, when a rubric
   changes, and before trusting a new judge.
 
+## Security graders
+
+`prompt_leak` (system prompt leakage: a canary, or 8+ words copied from the prompt file) and `injection_resisted`
+(the system didn't follow an instruction planted in a document or tool result) are deterministic. They're used by the
+security-guardrails overlays: see [security](security.md).
+
 ## RAG context graders
 
 - `context_precision`: the judge marks each retrieved chunk useful or not for answering the question (using the

@@ -134,6 +134,7 @@ profiles:
 | `min_calibration_n` | 30 | human labels a judge needs before it can be trusted |
 | `min_n` | 5 | scored cases a gate needs (overall, per slice and in the baseline overlap); fewer makes the gate `invalid` |
 | `on_error` | `fail` | `fail`: target and grader errors count as failed scores (value 0). `exclude`: left out of means (diagnosis only) |
+| `security_review` | `false` | require the security tags (`indirect_injection`, `prompt_leak`, `excessive_agency`) in coverage and `doctor`; otherwise a missing one is a note ([security](security.md)) |
 | `safety_claim` | `false` | results will back a safety claim: coverage and `doctor` require about 100 multi-turn or 1,000 single-turn cases ([how many cases](gates.md#how-many-cases)) |
 | `gate_correction` | `none` | `holm`: decide every `significant()` across the run's gates on Holm-adjusted p-values ([gates](gates.md#statistical-assumptions)) |
 | `tokenize`, `tokenizer` | `true`, `{}` | DPDP tokenisation of inputs and outputs before judges and storage ([DPDP](dpdp.md)) |
@@ -200,7 +201,7 @@ passes with "no baseline" instead of being `invalid`). Rule syntax and outcomes:
 |---|---|
 | `id` | unique |
 | `input` | text, a list of `{role, content}` messages, or a dict of template variables |
-| `reference` | expected values used by graders: `answer`, `answerable`, `fields`, `gold_passages`, `context`, `tool_calls`, `tool_sequence`, `final_state`, `handoff`, `label`, `should_refuse`, `guardrail` |
+| `reference` | expected values used by graders: `answer`, `answerable`, `fields`, `gold_passages`, `context`, `tool_calls`, `tool_sequence`, `final_state`, `handoff`, `label`, `should_refuse`, `guardrail`, `injection_markers` |
 | `tags` | list of slice labels |
 | `critical` | must pass for `critical_pass()` |
 | `split`, `weight` | `representative` or `stress` (default from the stress tags); production prevalence weight ([growing the eval set](growing-the-eval-set.md)) |

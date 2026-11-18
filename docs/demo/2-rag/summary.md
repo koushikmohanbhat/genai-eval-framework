@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `policy-qa`
 
-Run `run_57b343926106` · 20 cases × 2 targets × 1 repeats
+Run `run_d1c5ec0fd2ce` · 20 cases × 2 targets × 1 repeats
 
 ### Gates
 

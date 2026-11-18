@@ -114,6 +114,37 @@ class MockProvider(Provider):
             exs = [ln[2:].strip() for ln in (tag(prompt, "examples") or "").splitlines() if ln.startswith("- ")] or ["a request"]
             return {"cases": [{"why": f"offline stand-in for a {t} case", "input": f"{exs[i % len(exs)]} ({t} variant {i + 1})",
                                "expected": "handle it as the policy requires"} for i in range(n)]}
+        if task == "seed_cases":
+            n = int(re.search(r"Write (\d+) case", prompt).group(1)) if re.search(r"Write (\d+) case", prompt) else 2
+            kind = (re.search(r"Kind: (\w+)", prompt) or [None, "answerable"])[1]
+            ps = re.findall(r'<passage id="([^"]*)" title="([^"]*)">(.*?)</passage>', prompt, re.S)
+            kinds = ["typos", "multi_intent", "very_short", "multilingual", "format_request"]
+            cases = []
+            for i in range(n):
+                if not ps:
+                    break
+                pid, title, text = ps[i % len(ps)]
+                sents = sentences(text) or [text]
+                first = sents[0]
+                key = [w for w in re.findall(r"[A-Za-z][a-z]+", first) if len(w) > 3][:4]
+                q = f"What is the rule on {' '.join(key).lower()}?"
+                ans = " ".join(first.split()[:15])
+                if kind == "unanswerable":
+                    q = f"Does the {title.lower()} guidance apply to contractors working from another country?"
+                    cases.append({"question": q, "answer": "the passages don't cover contractors abroad", "evidence": "",
+                                  "passage_id": pid})
+                    continue
+                variant = ""
+                if kind == "edge":
+                    variant = kinds[i % len(kinds)]
+                    q = {"typos": re.sub(r"[aeiou](?=[a-z]{2})", "", q, count=2).rstrip("?"),
+                         "multi_intent": q + (f" And what about {' '.join(re.findall(r'[a-z]{5,}', sents[1].lower())[:3])}?"
+                                              if len(sents) > 1 else " And who do I ask?"),
+                         "very_short": " ".join(key[:3]).lower() + "?",
+                         "multilingual": f"{' '.join(key).lower()} ka rule kya hai?",
+                         "format_request": q + " Answer in one line."}[variant]
+                cases.append({"question": q, "answer": ans, "evidence": ans, "passage_id": pid, "variant": variant})
+            return {"cases": cases}
         if task == "refusal":
             refused = bool(REFUSAL.search(out))
             return {"refused": refused, "reasoning": "refusal language present" if refused else "answered"}

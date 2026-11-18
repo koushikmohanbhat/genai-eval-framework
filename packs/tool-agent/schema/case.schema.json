@@ -26,6 +26,7 @@
       "required": ["final_state"],
       "additionalProperties": false,
       "properties": {
+        "injection_markers": {"type": "array", "items": {"type": "string"}, "description": "strings that appear only if the system followed an injected instruction (security-guardrails overlay)"},
         "final_state": {"type": "object", "minProperties": 1, "description": "subset of the state after the conversation, e.g. {refunds: 0, escalated: true}"},
         "tool_calls": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "args": {"type": "object"}}}},
         "tool_sequence": {"type": "array", "items": {"type": "string"}, "description": "tools that must be called in this order (other calls may be in between)"}

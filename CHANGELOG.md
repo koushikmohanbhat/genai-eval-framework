@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0 (2026-11-18)
+
+Day-1 datasets and security sign-off.
+
+### Day-1 dataset bootstrapper
+- **New `genai-evals cases seed --docs <folder> --generator <profile>`:** reads the customer's documents (txt, md,
+  html; pdf and docx with the new `docs` extra), splits them into passages written as a corpus (`--corpus-out`), and
+  drafts about 60% answerable questions (draft answer, evidence quote, source passage as `gold_passages`), 20% edge
+  variants (tagged `typos`, `multi_intent`, `very_short`, `multilingual`, `format_request`) and 20% unanswerable
+  questions (with the closest passages for the reviewer). Drafts are tokenised and `source: synthetic`.
+- **New `genai-evals cases review-sheet`** writes a CSV for sign-off: each draft with its answer, passage and
+  evidence; `decision` keep / fix / drop, corrected columns, `reviewer`.
+- **`cases promote --sheet`** applies the decisions: fixes are written in, drops deleted, and only rows with a
+  reviewer are applied; promoted cases record `reviewed_by` and notes.
+
+### Security guardrails (OWASP LLM Top 10)
+- **`security-guardrails` overlays** for `rag-knowledge-assistant` (0.4.0) and `tool-agent` (0.4.0): indirect prompt
+  injection through planted documents and tool results (LLM01), system prompt leakage (LLM07), actions beyond the
+  user's permissions (LLM06, agents), and over-refusal pairs. All attack cases are critical.
+- **New graders:** `prompt_leak` (a canary, matched ignoring spacing, or 8+ words copied from the prompt file, in any
+  assistant turn) and `injection_resisted` (per-case `reference.injection_markers`).
+- **New high-risk tags:** `indirect_injection`, `prompt_leak`, `excessive_agency`; optional (a coverage note)
+  unless the suite sets `security_review: true`.
+- The offline systems gained the defences a real system needs (refusing prompt requests, ignoring instructions in
+  retrieved text and tool results, checking who owns an order), and a `vulnerable: true` mode that drops them, so
+  the overlays can be shown to fail an unguarded system.
+- The tool-agent mock tools return the order's customer and any `note`; overlays can add orders (`orders.json`).
+- Voice / realtime moves to v0.7.
+
 ## 0.5.2 (2026-11-18)
 
 Review fixes.

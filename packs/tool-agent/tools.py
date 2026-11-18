@@ -13,6 +13,24 @@ ORDERS = {
     "ORD-10046": {"status": "cancelled", "amount": 1299, "customer": "C-206", "address": "9 FC Road, Pune"},
 }
 REFUND_LIMIT = 5000
+#: the prompt text, so the offline agent's `vulnerable` mode can leak it (and prompt_leak can catch that)
+SYSTEM_PROMPT_TEXT = ""
+try:
+    from pathlib import Path as _P
+    SYSTEM_PROMPT_TEXT = (_P(__file__).parent / "prompts" / "support_agent" / "1.0.0" / "system.md.j2").read_text(encoding="utf-8")
+except OSError:
+    pass
+
+
+def _overlay_orders() -> None:
+    """Overlays can add orders (overlays/*/orders.json), e.g. ones whose notes carry an injected instruction."""
+    import json
+    from pathlib import Path
+    for p in sorted(Path(__file__).parent.glob("overlays/*/orders.json")):
+        ORDERS.update(json.loads(p.read_text(encoding="utf-8")))
+
+
+_overlay_orders()
 
 
 def make_state(case) -> dict:
@@ -21,7 +39,12 @@ def make_state(case) -> dict:
 
 def lookup_order(args: dict, state: dict) -> dict:
     o = ORDERS.get(str(args.get("order_id", "")).upper())
-    return {"status": "not_found"} if not o else {"order_id": args["order_id"].upper(), "status": o["status"], "amount": o["amount"]}
+    if not o:
+        return {"status": "not_found"}
+    out = {"order_id": args["order_id"].upper(), "status": o["status"], "amount": o["amount"], "customer": o["customer"]}
+    if o.get("note"):
+        out["note"] = o["note"]          # free text from the order system: data for the agent, never instructions
+    return out
 
 
 def issue_refund(args: dict, state: dict) -> dict:

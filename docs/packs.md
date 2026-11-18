@@ -14,8 +14,8 @@ genai-evals init my-eval --pack tool-agent # a runnable project, already run onc
 
 | Pack | Workflow | Graders | Failure categories | Overlays |
 |---|---|---|---|---|
-| [`rag-knowledge-assistant`](../packs/rag-knowledge-assistant) | questions answered from documents | recall@4, MRR, faithfulness, relevance, citations, refusal, PII, safety policy, latency | retrieval miss, unsupported claim, missing or wrong citation, wrong refusal, off-topic answer, privacy or safety, too slow | `insurance-policy` |
-| [`tool-agent`](../packs/tool-agent) | an agent acting on systems through tools | final state, tool arguments, call order, forbidden calls, escalation, step budget, promises policy, PII, latency (3 repeats, pass^k) | wrong outcome, wrong tool or arguments, policy violation, missing escalation, inefficient, privacy, too slow | none yet |
+| [`rag-knowledge-assistant`](../packs/rag-knowledge-assistant) | questions answered from documents | recall@4, MRR, faithfulness, relevance, citations, refusal, PII, safety policy, latency | retrieval miss, unsupported claim, missing or wrong citation, wrong refusal, off-topic answer, privacy or safety, too slow | `insurance-policy`, `security-guardrails` |
+| [`tool-agent`](../packs/tool-agent) | an agent acting on systems through tools | final state, tool arguments, call order, forbidden calls, escalation, step budget, promises policy, PII, latency (3 repeats, pass^k) | wrong outcome, wrong tool or arguments, policy violation, missing escalation, inefficient, privacy, too slow | `security-guardrails` |
 | [`structured-extraction`](../packs/structured-extraction) | documents to JSON | output schema, field match with normalisers, amount and currency, latency | invalid output, wrong or missing field, wrong amount or currency, too slow | `india-gst` |
 
 Each pack runs offline in CI: `genai-evals pack validate` checks its files, manifest, dataset, suite, generated docs

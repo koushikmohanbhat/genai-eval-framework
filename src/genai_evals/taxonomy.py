@@ -36,13 +36,23 @@ TAGS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "jailbreak": ("safety", "an attempt to get around the instructions", ALL),
     "system_conflict": ("safety", "the user asks for something the system prompt forbids; the system prompt must win", ALL),
     "format_request": ("safety", "the user asks for a specific output format or style", ("rag", "agent", "single_turn")),
+    "indirect_injection": ("safety", "instructions planted in a retrieved document or a tool result; the system must not "
+                           "follow them (OWASP LLM01)", ("rag", "agent")),
+    "prompt_leak": ("safety", "the user tries to get the system prompt or hidden instructions (OWASP LLM07)", ALL),
+    "excessive_agency": ("safety", "a request for an action beyond the user's permissions or the system's remit: another "
+                         "customer's data, bulk or admin actions (OWASP LLM06)", ("agent",)),
     "benign_sensitive": ("safety", "a legitimate request that sounds sensitive; the system should help, not refuse "
                          "(the over-refusal pair of jailbreak and system_conflict)", ("rag", "agent", "single_turn")),
 }
 
 GROUPS = ("difficulty", "input", "context", "safety")
 # risk tier per coverage tag: a high-risk tag needs more cases before its slice supports a conclusion
-HIGH_RISK = {"jailbreak", "system_conflict", "bad_tool_args", "circular_handoff"}
+#: security tags (the security-guardrails overlays): optional unless the suite sets `security_review: true`. A
+#: missing one is a note, not a problem; once a case uses one, its minimum applies like any other tag.
+SECURITY_TAGS = {"indirect_injection", "prompt_leak", "excessive_agency"}
+
+HIGH_RISK = {"jailbreak", "system_conflict", "bad_tool_args", "circular_handoff", "indirect_injection", "prompt_leak",
+             "excessive_agency"}
 
 
 def tier_of(tag: str) -> str:
@@ -122,7 +132,7 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
              stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial"),
              min_by_tier: dict[str, int] | None = None, min_by_tag: dict[str, int] | None = None,
              provenance: Any = None, min_production_share: float = 0.8,
-             safety_claim: bool = False) -> dict[str, Any]:
+             safety_claim: bool = False, security_review: bool = False) -> dict[str, Any]:
     """Two sets, checked separately:
 
     - the **representative** set (cases without a stress tag, or `split: representative`): production-like traffic.
@@ -150,7 +160,8 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
     need = {t: (min_per_tag if min_per_tag is not None else required_count(t, min_by_tier, min_by_tag)) for t in app}
     present = {t: counts[t] for t in app if counts[t] >= need[t]}
     thin = {t: {"cases": counts[t], "needed": need[t], "tier": tier_of(t)} for t in app if 0 < counts[t] < need[t]}
-    missing = [t for t in app if counts[t] == 0]
+    optional_missing = [] if security_review else [t for t in app if counts[t] == 0 and t in SECURITY_TAGS]
+    missing = [t for t in app if counts[t] == 0 and t not in optional_missing]
     n = len(cases)
     reps = [c for c in cases if split_of(c) == "representative"]
     rep, stress = len(reps), n - len(reps)
@@ -183,6 +194,10 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
         problems.append("no stress cases (edge / adversarial)")
     if missing:
         problems.append("stress suite has no cases for: " + ", ".join(missing))
+    notes = []
+    if optional_missing:
+        notes.append("no security cases for: " + ", ".join(optional_missing) + " (add the pack's security-guardrails "
+                     "overlay; set security_review: true on the suite to require them)")
     if thin:
         problems.append("thin stress coverage: " + ", ".join(f"{t} {d['cases']}/{d['needed']}" for t, d in thin.items()))
     safety = None
@@ -203,7 +218,8 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
         side = "should" if d["should"] else "should not"
         problems.append(f"one-sided {b}: {max(d.values())} case(s) where the system {side} {BEHAVIOURS[b]}, none the other "
                         "way, so over- or under-triggering can't be measured; add paired cases")
-    return {"safety_claim": safety, "balance": bal, "workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
+    return {"notes": notes, "optional_missing": optional_missing, "safety_claim": safety, "balance": bal,
+            "workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
             "required": need, "present": present, "thin": thin, "missing": missing,
             "representative": rep, "representative_production": prod, "representative_weighted": weighted,
             "provenance": prov, "evidence": evidence, "stress": stress, "stress_share": (stress / n) if n else 0.0,

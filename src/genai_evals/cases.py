@@ -255,7 +255,8 @@ def generate(suite: Any, providers: Any, generator: str, tags: list[str] | None 
 # ---- promote -------------------------------------------------------------------------------------------------------
 
 def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = None, reviewer: str | None = None,
-            allow_empty_reference: bool = False, schema: str | Path | None = None) -> tuple[list[str], list[str]]:
+            allow_empty_reference: bool = False, schema: str | Path | None = None,
+            reviewers: dict[str, str] | None = None) -> tuple[list[str], list[str]]:
     """Move reviewed drafts into a dataset: mark them `review_status: reviewed` (with the reviewer), drop the
     `harvested` / `generated` working tags' draft-only metadata, and append them. Refuses drafts with an empty
     reference unless allow_empty_reference (a reference-free grader suite). Returns (promoted ids, refused messages).
@@ -281,8 +282,11 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
         d["review_status"] = "reviewed"
         meta = dict(d.get("metadata") or {})
         meta.pop("output", None)                       # the failing output was review context, not test data
-        if reviewer:
-            meta["reviewed_by"] = reviewer
+        for k in ("evidence", "passage_excerpt", "closest_passages"):   # seeding context, not test data
+            meta.pop(k, None)
+        rv = (reviewers or {}).get(d["id"]) or reviewer
+        if rv:
+            meta["reviewed_by"] = rv
         d["metadata"] = meta
         promoted.append(d["id"])
         target.append(d)
@@ -293,6 +297,93 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
         write_jsonl(target, into)
         write_jsonl(keep, drafts_path)
     return promoted, refused
+
+
+# ---- review sheet for drafts --------------------------------------------------------------------------------------
+
+REVIEW_COLUMNS = ["id", "kind", "tags", "input", "draft_answer", "answerable", "gold_passages", "evidence",
+                  "passage_excerpt", "closest_passages", "decision", "corrected_input", "corrected_answer",
+                  "corrected_answerable", "reviewer", "notes"]
+
+
+def write_review_sheet(drafts_path: str | Path, out: str | Path) -> int:
+    """A CSV an expert fills in to sign drafts off: one row per draft with the draft answer, its source passage and
+    evidence. decision: keep (promote as drafted), fix (promote with the corrected_* columns), drop (delete), or
+    blank (leave as a draft)."""
+    import csv
+    rows = read_jsonl(drafts_path)
+    with Path(out).open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=REVIEW_COLUMNS)
+        w.writeheader()
+        for d in rows:
+            ref, meta = d.get("reference") or {}, d.get("metadata") or {}
+            ans = ref.get("answerable")
+            w.writerow({"id": d["id"], "kind": meta.get("kind", ""), "tags": ";".join(d.get("tags") or []),
+                        "input": d.get("input") if isinstance(d.get("input"), str) else json.dumps(d.get("input")),
+                        "draft_answer": ref.get("answer", ""), "answerable": "" if ans is None else ("yes" if ans else "no"),
+                        "gold_passages": ";".join(ref.get("gold_passages") or []), "evidence": meta.get("evidence", ""),
+                        "passage_excerpt": meta.get("passage_excerpt", ""),
+                        "closest_passages": ";".join(meta.get("closest_passages") or []), "decision": "",
+                        "corrected_input": "", "corrected_answer": "", "corrected_answerable": "", "reviewer": "",
+                        "notes": ""})
+    return len(rows)
+
+
+def apply_review_sheet(drafts_path: str | Path, sheet: str | Path, reviewer: str | None = None) -> dict[str, Any]:
+    """Apply an expert's decisions to the drafts file: fixes are written into the drafts, drops removed. Returns the
+    ids to promote (keep and fix), with the reviewer per id. A decided row needs a reviewer (the column, or the
+    `reviewer` argument): that's the sign-off."""
+    import csv
+    drafts = {d["id"]: d for d in read_jsonl(drafts_path)}
+    keep, fixed, dropped, problems, who = [], [], [], [], {}
+    with Path(sheet).open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            did, dec = (r.get("id") or "").strip(), (r.get("decision") or "").strip().lower()
+            if not dec:
+                continue
+            if did not in drafts:
+                problems.append(f"{did}: not in {Path(drafts_path).name}")
+                continue
+            rv = (r.get("reviewer") or "").strip() or reviewer
+            if not rv:
+                problems.append(f"{did}: decided ({dec}) but no reviewer signed it off")
+                continue
+            if dec == "drop":
+                dropped.append(did)
+                del drafts[did]
+                continue
+            if dec not in ("keep", "fix"):
+                problems.append(f"{did}: decision must be keep, fix or drop (got {dec})")
+                continue
+            d = drafts[did]
+            ref = dict(d.get("reference") or {})
+            if dec == "fix":
+                if (r.get("corrected_input") or "").strip():
+                    d["input"] = r["corrected_input"].strip()
+                ca = (r.get("corrected_answerable") or "").strip().lower()
+                if ca in ("yes", "no"):
+                    ref["answerable"] = ca == "yes"
+                    if ca == "no":
+                        ref.pop("answer", None)
+                        ref.pop("gold_passages", None)
+                        d["tags"] = [t for t in d.get("tags") or [] if t != "answerable"] + ["out-of-scope", "no_answer"]
+                    elif "answerable" not in (d.get("tags") or []):
+                        d["tags"] = ["answerable"] + [t for t in d.get("tags") or [] if t not in ("out-of-scope", "no_answer")]
+                if (r.get("corrected_answer") or "").strip():
+                    ref["answer"] = r["corrected_answer"].strip()
+                fixed.append(did)
+            else:
+                keep.append(did)
+            notes = (r.get("notes") or "").strip()
+            meta = dict(d.get("metadata") or {})
+            if notes:
+                meta["review_notes"] = notes
+            d["metadata"] = meta
+            d["reference"] = ref
+            who[did] = rv
+    write_jsonl(list(drafts.values()), drafts_path)
+    return {"promote": keep + fixed, "kept": keep, "fixed": fixed, "dropped": dropped, "problems": problems,
+            "reviewers": who}
 
 
 def default_tokenizer() -> Any:

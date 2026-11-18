@@ -1,4 +1,4 @@
-# Limitations (v0.5.2)
+# Limitations (v0.6.0)
 
 Read this before using the framework in production.
 
@@ -48,6 +48,11 @@ please open an issue with what you find.
 - **The judge ladder needs labels.** Non-inferiority on κ with a 0.05 margin usually needs 150–200 labelled units on
   the sample that decides (the random validation sample, when given); with fewer the cheaper judge is (correctly)
   not approved.
+- **Security overlays are starter sets.** 3 cases per threat show the shape; a sign-off needs more, on the
+  customer's own documents and records, plus a broad red-team scan (Promptfoo) and an application security review.
+  Indirect-injection cases only test a live system if it can read planted test data ([security](security.md)).
+- **Seeded cases are synthetic.** `cases seed` questions come from the documents, so they skew easy and share their
+  wording; they don't count as the representative set. PDF tables and scans are read as plain text only.
 - **Sample-size numbers are planning estimates.** `genai-evals power` uses the normal approximation for pass/fail
   rates and assumes independent cases; it doesn't account for clustering or partial-credit scores.
 - **Holm correction covers `significant()` only.** Thresholds on means and CI bounds are not p-values and aren't
@@ -65,7 +70,7 @@ please open an issue with what you find.
 - The mock judge's heuristics for the context graders and case generation exist so packs run offline; they say
   nothing about how a real judge or generator would score.
 
-- **Voice / realtime** evaluation is not included yet (planned for v0.5).
+- **Voice / realtime** evaluation is not included yet (planned for v0.7).
 - The mock judge is a heuristic for demos and CI (for policy graders it only flags the example phrases quoted in the
   policy). It is **not** a substitute for real judges.
 - Bootstrap CIs assume cases are exchangeable. Clustered datasets (many cases per customer) need cluster-aware

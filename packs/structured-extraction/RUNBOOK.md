@@ -37,6 +37,7 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 genai-evals validate suite.yaml          # schema errors name the case id and the field
 genai-evals cases coverage suite.yaml    # the representative set (size, provenance) and the stress suite (cases per tag)
 genai-evals cases check-refs suite.yaml  # every reference must pass the graders: a rejected one is a broken task or grader
+genai-evals cases seed --docs <customer documents> --generator <strong model profile>   # day 1, no dataset: drafts to review
 genai-evals cases sample out/online/result.json --n 200 --by-tag --out rep.jsonl   # representative set from production
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```

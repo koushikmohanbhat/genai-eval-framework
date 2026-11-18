@@ -1,6 +1,6 @@
 # Eval pack manifest. `genai-evals pack info tool-agent` shows it with live adapter statuses.
 name: tool-agent
-version: 0.3.0
+version: 0.4.0
 title: Tool-using agent
 workflow: agent
 summary: >-
@@ -8,7 +8,7 @@ summary: >-
   refunds, address changes, escalation). Measures the business outcome, tool choice and arguments, policy edges,
   escalation, reliability across repeats (pass^k), efficiency and privacy.
 contract_version: "1"
-framework: ">=0.5.0"
+framework: ">=0.6.0"
 
 inputs:
   dataset:
@@ -58,7 +58,8 @@ validation:
   online_offline: "online checks run on fixtures/telemetry.otlp.json and raise the no-promises alert they are built to show"
   live: "not yet run against a live agent: record it with `genai-evals adapters record` when you do"
 
-overlays: []
+overlays:
+  - {name: security-guardrails, description: "OWASP LLM01 / LLM06 / LLM07: instructions planted in tool results, actions beyond the user's permissions, system prompt leakage, and benign pairs"}
 
 handover:
   - "A test sandbox (or mock tools) for the agent's systems is owned by the customer and reset before every run; outcome graders read its state."

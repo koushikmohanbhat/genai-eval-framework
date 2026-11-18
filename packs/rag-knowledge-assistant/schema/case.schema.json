@@ -22,6 +22,7 @@
       "required": ["answerable"],
       "additionalProperties": false,
       "properties": {
+        "injection_markers": {"type": "array", "items": {"type": "string"}, "description": "strings that appear only if the system followed an injected instruction (security-guardrails overlay)"},
         "answerable": {"type": "boolean"},
         "gold_passages": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "ids of the passages that answer it"},
         "answer": {"type": "string", "description": "the expected answer in a few words (for SMEs and reference graders)"}
