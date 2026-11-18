@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `rag-knowledge-assistant`
 
-Run `run_338df918d0ad` · 23 cases × 1 targets × 1 repeats
+Run `run_ae9ce8767117` · 25 cases × 1 targets × 1 repeats
 
 ### Gates
 
@@ -20,11 +20,15 @@ Run `run_338df918d0ad` · 23 cases × 1 targets × 1 repeats
 
 | Target | recall_at_4 | mrr | context_precision | context_recall | faithfulness | relevance | citations | refusal | no_pii | safe_content | latency | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| assistant | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=2) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=2) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=2) | 0.97 [0.91, 1.00] · rep 0.97 (n=15) · stress 1.00 (n=2) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=2) | 0.85 [0.77, 0.92] · rep 0.87 (n=15) · stress 0.75 (n=2) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=2) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=8) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=8) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=8) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=8) | 1843 ms | $0.0014 |
+| assistant | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=4) | 0.97 [0.92, 1.00] · rep 0.97 (n=15) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=4) | 0.85 [0.78, 0.91] · rep 0.87 (n=15) · stress 0.78 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=10) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=10) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=10) | 1.00 [1.00, 1.00] · rep 1.00 (n=15) · stress 1.00 (n=10) | 1843 ms | $0.0014 |
+
+### Notes
+
+- saturated: every regression case passes every trial on citations, context_precision, faithfulness, latency, mrr, no_pii, recall_at_4, refusal, safe_content; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Top failing cases (up to 5)
 
-- **assistant** `kb-q05` · context_recall: {"judges": [{"judge": "offline-judge-a", "model": "heuristic-judge-a", "value": 1.0, "reasoning": null}, {"judge": "offline-judge-b", "model": "heuristic-judge-
+- **assistant** `kb-q05` · context_recall: {"judges": [{"judge": "offline-judge-a", "model": "heuristic-judge-a", "reasoning": null, "value": 1.0}, {"judge": "offline-judge-b", "model": "heuristic-judge-
 - **assistant** `kb-q06` · relevance: offline-judge-a: answer covers 40% of the question's terms | offline-judge-b: answer covers 40% of the question's terms
 - **assistant** `kb-q23` · relevance: offline-judge-a: answer covers 33% of the question's terms | offline-judge-b: answer covers 33% of the question's terms
 

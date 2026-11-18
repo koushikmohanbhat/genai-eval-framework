@@ -1,6 +1,6 @@
 # Runbook: Tool-using agent
 
-The path from a clean project to a customer-owned evaluation, for the `tool-agent` pack (0.2.2).
+The path from a clean project to a customer-owned evaluation, for the `tool-agent` pack (0.3.0).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -40,6 +40,7 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
 genai-evals cases coverage suite.yaml    # the representative set (size, provenance) and the stress suite (cases per tag)
+genai-evals cases check-refs suite.yaml  # every reference must pass the graders: a rejected one is a broken task or grader
 genai-evals cases sample out/online/result.json --n 200 --by-tag --out rep.jsonl   # representative set from production
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```

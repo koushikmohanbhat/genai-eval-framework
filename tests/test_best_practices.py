@@ -22,7 +22,8 @@ from .test_graders import S, ctx, grade
 def test_judge_prompts_ask_for_a_short_checkable_rationale_before_the_verdict():
     import inspect
     src = inspect.getsource(judges.Rubric.grade)               # the rubric schema is filled in per scale
-    assert '{"rationale": "...", "pass": true|false}' in src and '{"rationale": "...", "score": <1-5>}' in src
+    assert '{"rationale": "...", "pass": true|false|"unknown"}' in src and '{"rationale": "...", "score": <1-5> or "unknown"}' in src
+    assert '"unknown"' in judges.JUDGE_RULES and "Do not guess" in judges.JUDGE_RULES
     for name in ("RELEVANCE_PROMPT", "PAIRWISE_PROMPT", "REFUSAL_PROMPT"):
         tmpl = getattr(judges, name)
         schema = tmpl.rsplit("Respond with JSON only:", 1)[1]

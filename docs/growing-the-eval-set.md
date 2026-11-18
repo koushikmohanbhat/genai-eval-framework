@@ -111,7 +111,7 @@ genai-evals cases coverage suite.yaml         # both sets: their sizes, and what
 | Difficulty | `typical`, `edge`, `adversarial` (`edge` / `adversarial` put a case in the stress suite) |
 | Input | `multilingual`, `structured_input`, `image_input`, `noisy_input` (extraction) |
 | Context | `multi_intent`, `typos`, `very_short`, `long_conversation`, `ambiguous_tool_output`, `bad_tool_args`, `circular_handoff`, `no_answer` (RAG) |
-| Safety | `jailbreak`, `system_conflict` (the system prompt must win over the user), `format_request` |
+| Safety | `jailbreak`, `system_conflict` (the system prompt must win over the user), `format_request`, `benign_sensitive` (a legitimate request that sounds sensitive: the over-refusal pair) |
 
 Each tag applies to some workflows (`rag`, `agent`, `extraction`, `single_turn`); the workflow is taken from the
 suite's `pack`. `coverage` (and the **eval set** check in `genai-evals doctor`) reports:
@@ -121,7 +121,23 @@ suite's `pack`. `coverage` (and the **eval set** check in `genai-evals doctor`) 
 - for the stress suite, per coverage tag: enough cases, **thin** (some, but fewer than needed), or missing;
 - blocking gates that mix the two sets;
 - gates whose tag or split slice has fewer cases than their `min_n`, so they will be invalid. A blocking one is a
-  problem; `warn` and `info` ones are listed as notes.
+  problem; `warn` and `info` ones are listed as notes;
+- **behaviours tested in one direction only** (below).
+
+**Both sides of every behaviour.** A system that refuses everything passes every "should refuse" case; one that
+escalates everything passes every "should escalate" case. So `coverage` reads the references and counts, for each
+behaviour, the cases that expect it and the cases that expect it *not* to happen:
+
+| Behaviour | Read from the reference |
+|---|---|
+| refusal | `should_refuse`, or `answerable` (inverted) |
+| escalation | `final_state.escalated` |
+| tool use | `tool_calls` / `tool_sequence`: non-empty, or an explicit `[]` |
+| handoff | `handoff_to` set or empty |
+
+A behaviour with cases on one side only is a problem ("one-sided tool_use"). Pair each `jailbreak` or
+`system_conflict` case with a `benign_sensitive` one: a legitimate request on the same topic that the system should
+answer.
 
 The starter packs fail most of these on purpose. Their representative cases are synthetic and few, and their stress
 cases are one or two per tag, to show the shape. A real engagement fills both from the customer's data.
@@ -198,6 +214,59 @@ genai-evals cases harvest out/online/result.json --grader no_promises --below 0.
   - Harvested cases come from real users. Keep the drafts file out of version control until it has been reviewed.
   - With the DPDP framework, register promoted rows so an erasure request reaches them ([DPDP](dpdp.md)).
 
+## Capability and regression cases
+
+A **regression** case is something the system already does and must keep doing: it should pass close to 100% of
+the time, and gates guard it. A **capability** case is a target the system can't reach yet: it starts with a low
+pass rate and shows progress. Mixing them makes gates useless, because they either fail on the capability cases
+or are set so low that they miss regressions.
+
+```json
+{"id": "claim-77", "input": "...", "purpose": "capability", "reference": {"final_state": {...}}}
+```
+
+- `purpose: regression` is the default. Capability cases are run and graded like any other, but they are reported
+  in their own section, **left out of every gate** and the headline numbers, and don't count towards critical cases.
+- **Graduation.** Once a capability case passes every trial reliably, move it to regression:
+
+```bash
+genai-evals cases graduate out/run-a/result.json --also out/run-b/result.json --also out/run-c/result.json
+#   2 of 9 capability case(s) passed every trial in all 3 run(s): claim-77, claim-81
+genai-evals cases graduate out/run-a/result.json --also ... --apply --into data/cases.jsonl
+```
+
+  A case is ready only if it passed every trial of every grader on every target in **all** the runs given. Use
+  several runs, so one lucky run doesn't graduate a case.
+
+## Task health
+
+A failing case is evidence about the system only if the task is fair. Three checks catch the cases that aren't:
+
+**1. Does a known-good answer pass?** `check-refs` grades each case's *reference* as if it were the system's
+output: the reference answer with its gold passages as context and citations, the extracted fields, the expected
+final state, and the expected tool calls in `tool_sequence` order.
+
+```bash
+genai-evals cases check-refs suite.yaml             # deterministic graders only
+genai-evals cases check-refs suite.yaml --judges    # judges too (costs judge calls)
+#   graded 22 case references with 10 grader(s): 106 passed, 0 rejected
+#     not checkable from a reference: lookup_first (12), no_handoff_loop (22)
+```
+
+A **rejected** reference means the task or the grader is broken. The spec may not say what is checked (a file
+name, a format), the matching may be too strict, or a threshold may be wrong. Fix it before reading results. Graders
+that need data a reference can't supply (latency, retrieved context beyond the gold passages, trace details) are
+listed as not checkable. The command exits 1 if anything is rejected, so it can run in CI after dataset changes.
+
+**2. Cases that never pass.** Every result lists cases that scored 0 on every trial and every target, with the
+grader. A persistent zero usually means a broken task or grader, not an incapable system. Check those first.
+
+**3. Saturated graders.** If every regression case passes every trial on a grader, the grader can only catch
+regressions now; it can't show improvement. Add harder cases, or capability cases.
+
+All three appear as notes in the run output and reports. `genai-evals cases health result.json` prints them for an
+existing result. (The starter packs are saturated on purpose: they are small and synthetic.)
+
 ## A monthly loop
 
 1. Refresh the representative set with `cases sample` from recent production traffic, so its proportions follow
@@ -207,5 +276,8 @@ genai-evals cases harvest out/online/result.json --grader no_promises --below 0.
    failures go in the **stress** suite (tag them `edge`): they were selected because they failed, so they would bias
    the production estimate.
 4. `cases promote` into the dataset, then `cases coverage` and `cases generate` for anything still missing.
-5. Re-run the suite against the baseline and update it if the system improved.
-6. Every few months, re-label a sample and re-run `calibrate` ([human labels](human-labels.md)).
+5. `cases check-refs` on the updated dataset, and fix any rejected reference.
+6. Re-run the suite against the baseline and update it if the system improved. Read the run's notes: never-passing
+   cases, saturated graders, capability cases ready to graduate (`cases graduate`).
+7. Every few months, re-label a sample and re-run `calibrate` ([human labels](human-labels.md)). Work through
+   `labels queue` (items the judges were unsure about) after every run.

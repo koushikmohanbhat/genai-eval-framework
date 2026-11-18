@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `policy-qa`
 
-Run `run_dda19fb70079` · 20 cases × 2 targets × 1 repeats
+Run `run_c1f01a644632` · 20 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -21,6 +21,12 @@ Run `run_dda19fb70079` · 20 cases × 2 targets × 1 repeats
 |---|---|---|---|---|---|---|---|---|---|
 | rag-v1 | 0.88 [0.69, 1.00] | 0.84 [0.66, 1.00] | 0.82 [0.72, 0.93] | 0.56 [0.42, 0.69] | 0.91 [0.81, 1.00] | 0.80 [0.60, 0.95] | 1.00 [1.00, 1.00] | 1739 ms | $0.0011 |
 | rag-v2 | 0.94 [0.81, 1.00] | 0.86 [0.71, 1.00] | 1.00 [1.00, 1.00] | 0.60 [0.44, 0.73] | 0.94 [0.84, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2234 ms | $0.0018 |
+
+### Notes
+
+- mrr: 1 case(s) never passed on any trial or target (qa-19): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- recall_at_4: 1 case(s) never passed on any trial or target (qa-19): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- saturated: every regression case passes every trial on no_pii; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Top failing cases (up to 5)
 

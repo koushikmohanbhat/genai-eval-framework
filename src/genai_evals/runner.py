@@ -81,11 +81,27 @@ class Runner:
                 s = Sample.model_validate_json(p.read_text(encoding="utf-8"))
                 s.metadata["cached"] = True
                 return s
+        import uuid
+
+        from .targets.base import CURRENT_TRIAL, reset_trial
+        trial = {"trial_id": f"{t.name}-{case.id}-{repeat}-{uuid.uuid4().hex[:8]}"}
         async with sem:
             try:
-                s = await t.run(case, repeat)
+                if t.spec.reset:
+                    try:
+                        trial |= await reset_trial(t.spec, case, repeat, trial, self.suite.base_dir)
+                    except Exception as e:  # noqa: BLE001
+                        raise RuntimeError(f"per-trial reset failed: {type(e).__name__}: {e}") from e
+                token = CURRENT_TRIAL.set(trial)
+                try:
+                    s = await t.run(case, repeat)
+                finally:
+                    CURRENT_TRIAL.reset(token)
             except Exception as e:  # noqa: BLE001 - a failing system is a result, not a crash
                 s = Sample(case_id=case.id, target=t.name, repeat=repeat, input=case.input, error=f"{type(e).__name__}: {e}")
+        s.metadata.setdefault("trial_id", trial["trial_id"])
+        if t.spec.reset:
+            s.metadata["reset"] = True
         if key and not s.error:
             self.cache_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             p = self.cache_dir / f"{key}.json"
@@ -288,6 +304,13 @@ class Runner:
         if self.suite.pack:
             result["pack"] = self.suite.pack
         result["adapters"] = self.adapter_status()
+        from .health import result_health
+        result["health"] = result_health(result)
+        warns = [f"{g} @ {t}: {d['trial_drift']['warning']}" for t, sm in summary.items()
+                 for g, d in sm["graders"].items() if (d.get("trial_drift") or {}).get("warning")]
+        warns += [f"{g} @ {t}: {d['unknown']} verdict(s) the judge couldn't decide; review them (genai-evals labels queue)"
+                  for t, sm in summary.items() for g, d in sm["graders"].items() if d.get("unknown")]
+        result["warnings"] = warns + result["health"]["notes"]
         from .results import stamp
         stamp(result)
         if self.telemetry:

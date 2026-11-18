@@ -279,6 +279,7 @@ def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, 
       `genai-evals regrade`);
     - persistent_error: the judge call failed in a way retrying won't fix (unparseable verdict, schema, auth, bad
       request);
+    - unknown: the judge answered "unknown" (it couldn't decide from the texts given);
     - skipped: the grader skipped it (e.g. data it needs is missing);
     - missing: no score at all (the grader didn't run on it, or the result doesn't hold it);
     - target_error: the system under test failed, so there was nothing to judge. Not the judge's fault, and left out
@@ -322,6 +323,8 @@ def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, 
             status[u] = "target_error"
         elif sc is None:
             status[u] = "missing"
+        elif sc.get("skipped") and sc.get("label") == "unknown":
+            status[u] = "unknown"
         elif sc.get("skipped"):
             status[u] = "skipped"
         elif sc.get("passed") is None:
@@ -331,10 +334,10 @@ def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, 
         else:
             status[u] = "scored"
     counts = {k: sum(1 for v in status.values() if v == k)
-              for k in ("scored", "transient_error", "persistent_error", "skipped", "missing", "target_error")}
+              for k in ("scored", "transient_error", "persistent_error", "unknown", "skipped", "missing", "target_error")}
     counts["judge_error"] = counts["transient_error"] + counts["persistent_error"]
     gradable = len(status) - counts["target_error"]
-    failed = counts["judge_error"] + counts["skipped"] + counts["missing"]
+    failed = counts["judge_error"] + counts["unknown"] + counts["skipped"] + counts["missing"]
     settled = gradable - counts["transient_error"]
     return {"grader": grader, "labelled_units": len(status), "gradable": gradable, **counts,
             "not_in_result": not_in_result,
@@ -487,7 +490,7 @@ def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, An
     if cf is not None and cf > max_judge_failure:
         reasons.append(f"cheaper judge failed to grade {cf:.0%} of gradable units (max {max_judge_failure:.0%}: "
                        f"{c['transient_error']} transient errors, {c['persistent_error']} persistent errors, "
-                       f"{c['skipped']} skipped, {c['missing']} missing of {c['gradable']})")
+                       f"{c['unknown']} unknown, {c['skipped']} skipped, {c['missing']} missing of {c['gradable']})")
     if used["n"] < 2:
         reasons.append(f"only {used['n']} units graded by both judges and labelled ({basis})")
         return out | {"approved": False, "decision": "not_approved", "reason": "; ".join(reasons)}
@@ -622,7 +625,7 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     coverage = _public(judge_coverage(result, grader, labels, sample_info))
     if coverage["failure_rate"] and coverage["failure_rate"] > MAX_JUDGE_FAILURE:
         warnings.append(f"judge failed to grade {coverage['failure_rate']:.0%} of labelled units ({coverage['transient_error']} "
-                        f"transient errors, {coverage['persistent_error']} persistent errors, {coverage['skipped']} skipped, "
+                        f"transient errors, {coverage['persistent_error']} persistent errors, {coverage['unknown']} unknown, {coverage['skipped']} skipped, "
                         f"{coverage['missing']} missing of {coverage['gradable']}): agreement is measured only on the units "
                         "it graded, which may be the easier ones")
     if coverage["transient_error"]:

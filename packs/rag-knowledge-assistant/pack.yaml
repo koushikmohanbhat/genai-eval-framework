@@ -1,14 +1,14 @@
 # Eval pack manifest. `genai-evals pack info rag-knowledge-assistant` shows it with live adapter statuses;
 # `genai-evals pack validate <dir>` checks it.
 name: rag-knowledge-assistant
-version: 0.2.2
+version: 0.3.0
 title: RAG knowledge assistant
 workflow: rag
 summary: >-
   An assistant that answers questions from a document collection with citations. Measures retrieval and answer
   quality separately, checks citations and refusals, and runs privacy and prompt-injection safety cases.
 contract_version: "1"
-framework: ">=0.4.5"
+framework: ">=0.5.0"
 
 inputs:
   dataset:

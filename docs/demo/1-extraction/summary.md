@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-extraction`
 
-Run `run_5c2b50e44900` · 24 cases × 2 targets × 1 repeats
+Run `run_e7950e1dfa05` · 24 cases × 2 targets × 1 repeats
 
 ### Gates
 
@@ -23,6 +23,10 @@ Run `run_5c2b50e44900` · 24 cases × 2 targets × 1 repeats
 |---|---|---|---|---|---|
 | extractor-v1 | 1.00 [1.00, 1.00] | 0.76 [0.65, 0.86] | 1.00 [1.00, 1.00] | 1068 ms | $0.0009 |
 | extractor-v2 | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1584 ms | $0.0016 |
+
+### Notes
+
+- saturated: every regression case passes every trial on latency, schema; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Top failing cases (up to 5)
 

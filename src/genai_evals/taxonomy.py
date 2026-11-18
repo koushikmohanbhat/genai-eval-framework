@@ -36,6 +36,8 @@ TAGS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "jailbreak": ("safety", "an attempt to get around the instructions", ALL),
     "system_conflict": ("safety", "the user asks for something the system prompt forbids; the system prompt must win", ALL),
     "format_request": ("safety", "the user asks for a specific output format or style", ("rag", "agent", "single_turn")),
+    "benign_sensitive": ("safety", "a legitimate request that sounds sensitive; the system should help, not refuse "
+                         "(the over-refusal pair of jailbreak and system_conflict)", ("rag", "agent", "single_turn")),
 }
 
 GROUPS = ("difficulty", "input", "context", "safety")
@@ -65,6 +67,55 @@ def workflow_of(suite: Any) -> str:
 def applicable(workflow: str | None) -> list[str]:
     wf = WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn")
     return [t for t, (_g, _d, wfs) in TAGS.items() if wf in wfs]
+
+
+#: behaviours that can go wrong in both directions. Each needs cases where it should happen and cases where it should
+#: not, or the eval can't tell a system that over-triggers (refuses everything, escalates everything) from a good one.
+BEHAVIOURS = {
+    "refusal": "refuse or say it can't answer",
+    "escalation": "hand over to a human",
+    "tool_use": "call a tool",
+    "handoff": "hand off to another agent",
+}
+
+
+def _side(behaviour: str, ref: dict[str, Any]) -> bool | None:
+    """True: the case expects the behaviour; False: it expects the behaviour NOT to happen; None: not stated."""
+    fs = ref.get("final_state") if isinstance(ref.get("final_state"), dict) else {}
+    if behaviour == "refusal":
+        if isinstance(ref.get("should_refuse"), bool):
+            return ref["should_refuse"]
+        if isinstance(ref.get("answerable"), bool):
+            return not ref["answerable"]
+        return None
+    if behaviour == "escalation":
+        return fs["escalated"] if isinstance(fs.get("escalated"), bool) else None
+    if behaviour == "tool_use":
+        calls = ref.get("tool_calls") if "tool_calls" in ref else ref.get("tool_sequence")
+        return bool(calls) if isinstance(calls, list) else None
+    if behaviour == "handoff":
+        if "handoff_to" in ref:
+            return bool(ref["handoff_to"])
+        return None
+    return None
+
+
+def balance(cases: list[Any]) -> dict[str, Any]:
+    """For each behaviour the references state: how many cases expect it and how many expect it not to happen.
+    One-sided behaviours (only one direction tested) are listed in `one_sided`."""
+    out: dict[str, dict[str, int]] = {}
+    for c in cases:
+        ref = getattr(c, "reference", None) if not isinstance(c, dict) else c.get("reference")
+        if not isinstance(ref, dict):
+            continue
+        for b in BEHAVIOURS:
+            side = _side(b, ref)
+            if side is None:
+                continue
+            d = out.setdefault(b, {"should": 0, "should_not": 0})
+            d["should" if side else "should_not"] += 1
+    one_sided = sorted(b for b, d in out.items() if not d["should"] or not d["should_not"])
+    return {"behaviours": out, "one_sided": one_sided}
 
 
 def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | None = None, min_representative: int = 30,
@@ -133,7 +184,13 @@ def coverage(cases: list[Any], workflow: str | None = None, min_per_tag: int | N
         problems.append("stress suite has no cases for: " + ", ".join(missing))
     if thin:
         problems.append("thin stress coverage: " + ", ".join(f"{t} {d['cases']}/{d['needed']}" for t, d in thin.items()))
-    return {"workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
+    bal = balance(cases)
+    for b in bal["one_sided"]:
+        d = bal["behaviours"][b]
+        side = "should" if d["should"] else "should not"
+        problems.append(f"one-sided {b}: {max(d.values())} case(s) where the system {side} {BEHAVIOURS[b]}, none the other "
+                        "way, so over- or under-triggering can't be measured; add paired cases")
+    return {"balance": bal, "workflow": WORKFLOW_ALIASES.get(str(workflow or ""), "single_turn"), "cases": n, "counts": dict(counts),
             "required": need, "present": present, "thin": thin, "missing": missing,
             "representative": rep, "representative_production": prod, "representative_weighted": weighted,
             "provenance": prov, "evidence": evidence, "stress": stress, "stress_share": (stress / n) if n else 0.0,

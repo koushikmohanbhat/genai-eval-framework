@@ -7,6 +7,7 @@ import inspect
 import json
 import re
 import sys
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,54 @@ from ..config import ProvidersConfig, SuiteSpec, TargetSpec
 from ..models import Case, Message, Sample
 from ..prompts import PromptStore, RenderedPrompt
 from ..providers import ProviderPool
+
+#: the current trial (one case x repeat on one target): {"trial_id": ..., plus anything the reset hook returned}.
+#: HTTP bodies can use {{ trial_id }} / {{ trial }}; Python targets get it as ctx["trial"].
+CURRENT_TRIAL: ContextVar[dict[str, Any] | None] = ContextVar("genai_evals_trial", default=None)
+
+
+def current_trial() -> dict[str, Any]:
+    return CURRENT_TRIAL.get() or {}
+
+
+async def reset_trial(spec: TargetSpec, case: Case, repeat: int, trial: dict[str, Any], base_dir: str | None) -> dict[str, Any]:
+    """Run the target's per-trial reset hook, so every trial starts from a clean environment.
+
+    reset: {python: "module:function"}  -> function(case, repeat, trial), sync or async; may return a dict merged into
+                                           the trial (e.g. {"sandbox_id": ...}) for the target to use
+    reset: {url: ..., body: {...}, headers_env: {...}, timeout_s: 30}  -> POST (Jinja-templated with case_id, repeat,
+                                           trial_id); a JSON object in the response is merged into the trial"""
+    r = spec.reset or {}
+    if r.get("python"):
+        out = await maybe_await(import_ref(r["python"], base_dir)(case, repeat, dict(trial)))
+        return out if isinstance(out, dict) else {}
+    if r.get("url"):
+        import os
+        import urllib.request
+
+        from jinja2.sandbox import SandboxedEnvironment
+        env = SandboxedEnvironment()
+
+        def render(x):
+            if isinstance(x, str):
+                return env.from_string(x).render(case_id=case.id, repeat=repeat, trial_id=trial["trial_id"])
+            if isinstance(x, dict):
+                return {k: render(v) for k, v in x.items()}
+            return x
+        body = render(r.get("body", {"case_id": "{{ case_id }}", "repeat": "{{ repeat }}", "trial_id": "{{ trial_id }}"}))
+        headers = {"Content-Type": "application/json", **{h: os.environ.get(e, "") for h, e in r.get("headers_env", {}).items()}}
+        req = urllib.request.Request(r["url"], data=json.dumps(body).encode(), headers=headers, method=r.get("method", "POST"))
+
+        def _do():
+            with urllib.request.urlopen(req, timeout=float(r.get("timeout_s", 30))) as resp:  # noqa: S310 - operator-configured URL
+                raw = resp.read()
+            try:
+                data = json.loads(raw or b"{}")
+            except ValueError:
+                data = {}
+            return data if isinstance(data, dict) else {}
+        return await asyncio.to_thread(_do)
+    return {}
 
 
 @dataclass

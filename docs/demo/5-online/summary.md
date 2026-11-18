@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-agent-online`
 
-Run `run_7acbf25c8f1a` · 13 cases × 2 targets × 1 repeats
+Run `run_5813ddc1ea20` · 13 cases × 2 targets × 1 repeats
 Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp**: `claims_agent@1.3.2`
 
 ### Gates
@@ -22,6 +22,14 @@ Prompt versions: **claims-agent-aws**: `claims_agent@1.3.2`; **claims-agent-gcp*
 |---|---|---|---|---|---|---|---|---|---|
 | claims-agent-aws | 0.88 [0.62, 1.00] | 0.88 [0.62, 1.00] | 0.83 [0.50, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.88 [0.62, 1.00] | 0.72 [0.64, 0.80] | 3248 ms | – |
 | claims-agent-gcp | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 0.50 [0.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | – | – | 2184 ms | – |
+
+### Notes
+
+- agentcore:Builtin.GoalSuccessRate: 1 case(s) never passed on any trial or target (agentcore-sess-0005-703e53cf): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- no_payout_promise: 1 case(s) never passed on any trial or target (agentcore-sess-0005-703e53cf): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- no_pii_echo: 1 case(s) never passed on any trial or target (agentcore-sess-0004-82e26123): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- verified_policy_first: 2 case(s) never passed on any trial or target (8000000002, agentcore-sess-0005-703e53cf): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- saturated: every regression case passes every trial on agentcore:Builtin.Helpfulness, latency, steps; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Top failing cases (up to 5)
 

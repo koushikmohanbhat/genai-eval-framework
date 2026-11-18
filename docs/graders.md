@@ -40,10 +40,37 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
   `length_bias`: `longer_win_rate` (share of decided comparisons won by the longer answer), the mean length ratio,
   how many comparisons were `length_confounded` (ratio above `max_length_ratio`), and position consistency. A
   longer-answer win rate far above 50% when lengths differ a lot means the judge is rewarding length.
+- **"unknown" instead of a guess.** Rubric and policy judges may answer `"unknown"` when the texts given don't let
+  them decide. If every judge that answered says unknown, the score is neither pass nor fail. It is recorded as a
+  skip labelled `unknown`, left out of means, counted per grader (`unknown`), and listed by `labels queue` for a
+  person to decide. On a critical case it counts as not passing. If one judge of a panel says unknown, the others
+  decide (`unknown_judges` records who abstained).
+- **Split verdicts.** When the panel's judges land on different sides of the threshold, the score records
+  `split_verdict: true`; `labels queue` picks these up.
 - `judge_policy.require_different_family: true` drops judges from the same model family as the target, to avoid
   self-preference.
 - `judge_policy.aggregate`: `mean` (default), `min` or `majority`.
 - Judge inputs are tokenised (DPDP) before they leave the process.
+
+## Grading every turn of a conversation
+
+For multi-turn agents, judging only the final answer misses a harmful or off-policy turn in the middle. With
+`per_turn: true`, a `rubric` or `policy` grader judges **every assistant turn**, with the earlier turns as context,
+and the conversation passes only if every turn passes:
+
+```yaml
+- {name: policy, type: policy, policy: "Never promise delivery dates. Never share another customer's data.",
+   scale: pass_fail, per_turn: true, max_turns: 20}
+```
+
+- One bad turn fails the conversation, whatever came after. The grader's pass rate is the **share of conversations
+  that stayed acceptable throughout**.
+- `details.turns` has each turn's verdict and rationale; `details.first_failing_turn` says where it went wrong.
+  `value` is the lowest turn's value.
+- A turn the judges couldn't decide makes the conversation `unknown` (unless another turn failed). A judge error
+  on any turn makes it an error, retryable with `regrade`.
+- It costs one judge call per assistant turn per judge (`max_turns`, default 20, keeps the last 20). Single-turn
+  samples are judged once, as before.
 
 ## RAG context graders
 

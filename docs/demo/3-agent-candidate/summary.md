@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `fnol-agent`
 
-Run `run_6ae91edd9922` · 16 cases × 1 targets × 3 repeats · baseline `run_008618b1dff9`
+Run `run_2b0644974939` · 16 cases × 1 targets × 3 repeats · baseline `run_ecf136f7dc78`
 Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 
 ### Gates
@@ -19,6 +19,13 @@ Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 | Target | task_success | verified_policy | no_claim_on_inactive_policy | escalated_injury | no_payout_promise | steps | no_pii_echo | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|---|---|
 | fnol-agent | 0.75 [0.50, 0.94] | 0.00 [0.00, 0.00] | 0.25 [0.00, 0.75] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2945 ms | $0.0051 |
+
+### Notes
+
+- no_claim_on_inactive_policy: 3 case(s) never passed on any trial or target (ag-03, ag-06, ag-09): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- task_success: 4 case(s) never passed on any trial or target (ag-03, ag-06, ag-09, ag-10): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- verified_policy: 11 case(s) never passed on any trial or target (ag-01, ag-02, ag-03, ag-05, ag-06, ...): check the task and the grader before blaming the system (genai-evals cases check-refs)
+- saturated: every regression case passes every trial on no_payout_promise, no_pii_echo, steps; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 ### Change vs baseline (paired)
 

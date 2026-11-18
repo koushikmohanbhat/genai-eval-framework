@@ -1,7 +1,7 @@
 {
  "experiment": "fnol-injury-escalation",
- "created_at": "2026-11-18T04:59:20.318274+00:00",
- "run_id": "run_f6b9c4074037",
+ "created_at": "2026-11-18T10:07:20.623095+00:00",
+ "run_id": "run_78808b5949ed",
  "experiment_path": "examples/insurance/fnol_experiment.yaml",
  "files": {
   "experiment": {
@@ -51,7 +51,8 @@
     "retriever": null,
     "max_steps": 12,
     "output": "text",
-    "options": {}
+    "options": {},
+    "reset": null
    },
    "prompt-1.4.0": {
     "name": "prompt-1.4.0",
@@ -67,7 +68,8 @@
     "retriever": null,
     "max_steps": 12,
     "output": "text",
-    "options": {}
+    "options": {},
+    "reset": null
    },
    "fast-model": {
     "name": "fast-model",
@@ -85,7 +87,8 @@
     "output": "text",
     "options": {
      "model": "fast"
-    }
+    },
+    "reset": null
    }
   }
  },
@@ -129,7 +132,7 @@
    "judge-b"
   ],
   "provenance": {
-   "prompt_templates": "sha256:d4385bb5915be4c8",
+   "prompt_templates": "sha256:d44660d530d6f1f3",
    "temperature": 0.0,
    "response_format": "json",
    "policy": {},
@@ -187,7 +190,7 @@
     "name": "no_payout_promise",
     "type": "policy",
     "config_hash": "sha256:19f0ca602f108fcb",
-    "judge_prompt_hash": "sha256:d4385bb5915be4c8"
+    "judge_prompt_hash": "sha256:d44660d530d6f1f3"
    },
    {
     "name": "steps",
@@ -214,9 +217,9 @@
   ]
  },
  "environment": {
-  "framework": "0.4.5",
+  "framework": "0.5.0",
   "python": "3.11.18",
-  "git_sha": "f1b0379298f2c6ec0c0f21641119d08a8c67b7a6",
+  "git_sha": "b0f060ee80ce7827079666c32a294cb4ce8689b6",
   "git_dirty": true
  },
  "not_captured": [

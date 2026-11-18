@@ -164,6 +164,20 @@ and the worst-case comparison, so a judge can't pass by failing on the cases it 
 judge) reports the same `coverage`, warns when more than 5% of labelled units weren't graded, and points to
 `regrade` when any failed transiently.
 
+### Items the judges were unsure about
+
+A judge that says `unknown`, a panel whose judges disagree on pass / fail, and a judge that fails persistently are
+all signs that a person should look. Collect them after a run:
+
+```bash
+genai-evals labels queue out/run/result.json --reviewers ana,raj --out review-queue.csv
+#   wrote review-queue.csv: 7 item(s) the judges were unsure about (3 unknown, 3 split, 1 persistent error)
+```
+
+The sheet has the same columns as `labels sheet`, with `sample_design: targeted` and the reason in `stratum`. Use it
+to decide those cases, and to find rubric wording that leaves judges unsure. It is chosen for uncertainty, so it is
+**not** a calibration or validation sample: keep it out of `calibrate`.
+
 ### Retry transient failures before deciding
 
 Provider calls already retry transient errors a few times (`retries` in the profile). A long rate-limit window can

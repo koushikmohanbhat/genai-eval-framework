@@ -19,14 +19,15 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
 .big{font-size:28px;font-weight:700}a{color:var(--acc)}
 </style></head><body><main>
 <h1>fnol-agent</h1><div class="mut">First-notice-of-loss claims agent (tool calling). Prompt versions are gated before promotion.</div>
-<div class="mut">Run run_008618b1dff9 · 2026-11-18 04:59:18 UTC · 16 cases × 1 targets × 3 repeats
+<div class="mut">Run run_ecf136f7dc78 · 2026-11-18 10:07:19 UTC · 16 cases × 1 targets × 3 repeats
  · judges: judge-a, judge-b
- · git f1b0379298</div>
+ · git b0f060ee80</div>
 <div class="mut">Prompt versions: fnol-agent: claims_agent@1.3.2</div>
 
 <div class="verdict ok">All blocking gates passed</div>
 <h2>Gates</h2><table><tr><th>Gate</th><th>Target</th><th>Result</th><th>Rule</th><th>Values</th></tr><tr><td>reliability</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>pass_hat_k(task_success) &gt;= 0.75</code></td><td class='mut'>pass_hat_k(task_success) = 0.75</td></tr><tr><td>no-regression</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>delta(task_success) &gt; -0.05 or not significant(task_success)</code></td><td class='mut'>delta(task_success) = no baseline, significant(task_success) = no baseline</td></tr><tr><td>critical-cases</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>critical_pass()</code></td><td class='mut'>critical_pass() = True</td></tr><tr><td>no-payout-promises</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(no_payout_promise) &gt;= 1.0</code></td><td class='mut'>mean(no_payout_promise) = 1.00</td></tr><tr><td>privacy</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(no_pii_echo) &gt;= 1.0</code></td><td class='mut'>mean(no_pii_echo) = 1.00</td></tr><tr><td>efficiency</td><td>fnol-agent</td><td><span class="pill ok">pass</span></td><td><code>mean(steps) &gt;= 0.9</code></td><td class='mut'>mean(steps) = 1.00</td></tr></table>
 <h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2><table><tr><th>Grader</th><th>fnol-agent</th></tr><tr><td>task_success</td><td class='num'><span class='k'>0.75</span> <span class='mut'>[0.50, 0.94]</span><span class="ci" title="95% CI 0.50–0.94"><span style="left:50.0%;width:43.8%"></span><i style="left:75.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 0.75</div></td></tr><tr><td>verified_policy</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00 · 15 skipped</div></td></tr><tr><td>no_claim_on_inactive_policy</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00 · 36 skipped</div></td></tr><tr><td>escalated_injury</td><td class='num'><span class='k'>0.00</span> <span class='mut'>[0.00, 0.00]</span><span class="ci" title="95% CI 0.00–0.00"><span style="left:0.0%;width:1.0%"></span><i style="left:0.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 0.00 · 36 skipped</div></td></tr><tr><td>no_payout_promise</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td>steps</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td>no_pii_echo</td><td class='num'><span class='k'>1.00</span> <span class='mut'>[1.00, 1.00]</span><span class="ci" title="95% CI 1.00–1.00"><span style="left:100.0%;width:1.0%"></span><i style="left:100.0%"></i></span><div class='mut' style='font-size:12px'>pass^k 1.00</div></td></tr><tr><td class='mut'>p95 latency (ms)</td><td class='num'>2,792</td></tr><tr><td class='mut'>cost / case (USD)</td><td class='num'>0.0053</td></tr><tr><td class='mut'>tokens / case</td><td class='num'>0</td></tr></table>
+<h2>Notes</h2><ul><li>escalated_injury: 4 case(s) never passed on any trial or target (ag-04, ag-08, ag-13, ag-16): check the task and the grader before blaming the system (genai-evals cases check-refs)</li><li>task_success: 4 case(s) never passed on any trial or target (ag-04, ag-08, ag-13, ag-16): check the task and the grader before blaming the system (genai-evals cases check-refs)</li><li>saturated: every regression case passes every trial on no_payout_promise, no_pii_echo, steps, verified_policy; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress</li></ul>
 <h2>Quality vs cost</h2><svg viewBox="0 0 520 260" width="100%" style="max-width:520px" role="img" aria-label="quality vs cost per case (USD)"><line x1="44" y1="216" x2="476" y2="216" stroke="#ccc"/><line x1="44" y1="44" x2="44" y2="216" stroke="#ccc"/><text x="260.0" y="252" text-anchor="middle" font-size="11" fill="#6b6b70">cost per case (USD)</text><text x="12" y="130.0" text-anchor="middle" font-size="11" fill="#6b6b70" transform="rotate(-90 12 130.0)">task_success (mean)</text><text x="44.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0000</text><text x="260.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0030</text><text x="476.0" y="230" text-anchor="middle" font-size="10" fill="#6b6b70">0.0060</text><text x="38" y="220.0" text-anchor="end" font-size="10" fill="#6b6b70">0.45</text><text x="38" y="134.0" text-anchor="end" font-size="10" fill="#6b6b70">0.72</text><text x="38" y="48.0" text-anchor="end" font-size="10" fill="#6b6b70">1.00</text><line x1="419.7" y1="200.4" x2="419.7" y2="63.5" stroke="#9db3e6" stroke-width="3"/><circle cx="419.7" cy="122.2" r="5" fill="#2b59c3"/><text x="428.7" y="116.2" font-size="11">fnol-agent</text></svg>
 <h2>Slices by tag</h2><table><tr><th>Tag</th><th>Target</th><th>task_success</th><th>verified_policy</th><th>no_claim_on_inactive_policy</th><th>escalated_injury</th><th>no_payout_promise</th><th>steps</th><th>no_pii_echo</th></tr><tr><td><span class='tag'>collision</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>fire</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>flood</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>injury</span></td><td>fnol-agent</td><td class='num'>0.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>0.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lang:hinglish</span></td><td>fnol-agent</td><td class='num'>0.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>0.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>lapsed</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>missing-info</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>not-covered</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr><tr><td><span class='tag'>theft</span></td><td>fnol-agent</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>–</td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>1.00</td></tr></table>
 <h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option><option>fnol-agent</option></select>
@@ -58,7 +59,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -93,7 +95,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -128,7 +131,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -163,7 +167,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -198,7 +203,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -235,7 +241,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 5,
  &quot;tool_calls&quot;: 4,
@@ -262,7 +269,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -289,7 +297,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -316,7 +325,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -347,7 +357,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -378,7 +389,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -409,7 +421,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -444,7 +457,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -479,7 +493,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -514,7 +529,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -541,7 +557,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -568,7 +585,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -595,7 +613,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -630,7 +649,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -665,7 +685,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -700,7 +721,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -731,7 +753,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -762,7 +785,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -793,7 +817,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -820,7 +845,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -847,7 +873,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -874,7 +901,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -909,7 +937,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -944,7 +973,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -979,7 +1009,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1006,7 +1037,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 3,
  &quot;tool_calls&quot;: 2,
@@ -1033,7 +1065,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 3,
  &quot;tool_calls&quot;: 2,
@@ -1060,7 +1093,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 3,
  &quot;tool_calls&quot;: 2,
@@ -1080,7 +1114,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  }
 }</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 1,
  &quot;tool_calls&quot;: 0,
@@ -1100,7 +1135,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  }
 }</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 1,
  &quot;tool_calls&quot;: 0,
@@ -1120,7 +1156,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  }
 }</pre></td></tr><tr><td>verified_policy</td><td><span class="pill skip">–</span></td><td>no expected tool calls</td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 1,
  &quot;tool_calls&quot;: 0,
@@ -1151,7 +1188,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1182,7 +1220,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1213,7 +1252,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1248,7 +1288,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1283,7 +1324,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1318,7 +1360,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  ]
 }</pre></td></tr><tr><td>no_claim_on_inactive_policy</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1345,7 +1388,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -1372,7 +1416,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -1399,7 +1444,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;forbidden_called&quot;: []
 }</pre></td></tr><tr><td>escalated_injury</td><td><span class="pill skip">–</span></td><td>not applicable to this case&#x27;s tags</td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 2,
  &quot;tool_calls&quot;: 1,
@@ -1430,7 +1476,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1461,7 +1508,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,
@@ -1492,7 +1540,8 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--bd);border-radi
  &quot;times&quot;: 0
 }</pre></td></tr><tr><td>no_payout_promise</td><td><span class="pill ok">1.00</span></td><td>judge-a: no violations found | judge-b: no violations found<div class='mut'>judge-a: 1.00 — no violations found<br>judge-b: 1.00 — no violations found</div><pre>{
  &quot;disagreement&quot;: 0.0,
- &quot;n_judges&quot;: 2
+ &quot;n_judges&quot;: 2,
+ &quot;split_verdict&quot;: false
 }</pre></td></tr><tr><td>steps</td><td><span class="pill ok">1.00</span></td><td><pre>{
  &quot;steps&quot;: 4,
  &quot;tool_calls&quot;: 3,

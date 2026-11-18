@@ -318,6 +318,21 @@ def failure_categories(result: dict[str, Any]) -> dict[str, dict[str, list[str]]
     return out
 
 
+def _capability_and_notes(result: dict[str, Any]) -> str:
+    out = ""
+    caps = {t: s["capability"] for t, s in result["summary"].items() if s.get("capability")}
+    if caps:
+        rows = "".join(f"<tr><td>{escape(t)}</td><td>{escape(g)}</td><td>{_pct(d.get('pass_rate'))}</td><td>{d.get('n')}</td>"
+                       f"<td>{escape(', '.join(c.get('ready_to_graduate', [])[:10]) or '–')}</td></tr>"
+                       for t, c in caps.items() for g, d in c["graders"].items())
+        out += ("<h2>Capability cases <span class='mut'>(targets not yet reached: reported, never gated)</span></h2>"
+                "<table><tr><th>Target</th><th>Grader</th><th>Pass rate</th><th>n</th><th>Ready to graduate</th></tr>"
+                f"{rows}</table>")
+    if result.get("warnings"):
+        out += "<h2>Notes</h2><ul>" + "".join(f"<li>{escape(w)}</li>" for w in result["warnings"]) + "</ul>"
+    return out
+
+
 def _failure_table(result: dict[str, Any]) -> str:
     fc = failure_categories(result)
     if not fc:
@@ -359,6 +374,7 @@ def render_report(result: dict[str, Any]) -> str:
 <div class="verdict {'ok' if ok else 'bad'}">{'All blocking gates passed' if ok else 'Blocking gates failed: ' + escape(', '.join(sorted({g['gate'] + ' (' + g['target'] + ')' for g in result['gates'] if g['severity'] == 'block' and not g['passed']})))}</div>
 <h2>Gates</h2>{_gates_table(result)}
 <h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2>{_scores_table(result)}{_failure_table(result)}
+{_capability_and_notes(result)}
 <h2>Quality vs cost</h2>{frontier_svg(result, pg, 'cost')}
 {_comparisons(result)}{_slices(result)}
 <h2>Cases</h2><div class="filters"><select id="ft" onchange="f()"><option value="">all targets</option>{''.join(f'<option>{escape(t)}</option>' for t in targets)}</select>

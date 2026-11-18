@@ -1,6 +1,6 @@
 # Eval pack manifest. `genai-evals pack info structured-extraction` shows it with live adapter statuses.
 name: structured-extraction
-version: 0.1.3
+version: 0.1.4
 title: Structured extraction
 workflow: extraction
 summary: >-
@@ -8,7 +8,7 @@ summary: >-
   Measures schema validity, field-level accuracy with normalisers for dates, amounts, ids and names, totals and
   currencies, rejection of documents that are not invoices, and cost and latency per document.
 contract_version: "1"
-framework: ">=0.4.5"
+framework: ">=0.5.0"
 
 inputs:
   dataset:

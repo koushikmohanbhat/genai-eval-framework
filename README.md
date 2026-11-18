@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.5"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.5.0"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -38,7 +38,11 @@ in [Working with Promptfoo](docs/promptfoo.md).
 
 The design follows OpenAI's
 [evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices) section by
-section ([mapping](docs/openai-best-practices.md)).
+section ([mapping](docs/openai-best-practices.md)), and Anthropic's guidance on
+[agent evals](https://www.anthropic.com/research/demystifying-evals-for-ai-agents) and
+[safety evals](https://www.anthropic.com/research/building-strong-safety-evaluations) ([mapping](docs/agent-evals.md)):
+per-turn grading, "unknown" verdicts with a review queue, reference checks, capability vs regression cases,
+per-trial isolation, and both-sides behaviour coverage.
 
 ## See it in action
 
@@ -235,12 +239,12 @@ sources:
 - **See it:** [Sample reports](https://koushikmohanbhat.github.io/genai-eval-framework/demo/) · [5-minute walkthrough](docs/demo-walkthrough.md)
 - **Set up:** [Getting started](docs/getting-started.md) · [Eval packs](docs/packs.md) · [Engagement guide](docs/engagement.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Concepts:** [Architecture](docs/architecture.md) · [Adapters: contracts, plugins, conformance](docs/plugins.md) · [Adapter status](docs/adapters.md) · [Results format](docs/results.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
-- [Working with Promptfoo](docs/promptfoo.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
+- [Working with Promptfoo](docs/promptfoo.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Agent and safety evals (Anthropic) mapping](docs/agent-evals.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
 - [DPDP-safe eval data](docs/dpdp.md) · [Partner packaging](docs/partner-playbook.md) · [Limitations](docs/limitations.md) · [Roadmap](docs/roadmap.md)
 
 ## Project status
 
-v0.4.5. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.5.0. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

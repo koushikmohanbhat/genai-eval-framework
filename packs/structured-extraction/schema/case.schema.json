@@ -12,6 +12,9 @@
     "critical": {"type": "boolean", "description": "e.g. high-value invoices and documents that must be rejected"},
     "source": {"enum": ["synthetic", "production", "sme"]},
     "review_status": {"enum": ["draft", "reviewed"], "description": "draft cases (generated or harvested) are skipped until an expert marks them reviewed"},
+    "split": {"enum": ["representative", "stress"], "description": "representative (production-like) or stress (edge / adversarial); default from the stress tags"},
+    "weight": {"type": "number", "exclusiveMinimum": 0, "description": "production prevalence weight for representative cases (inverse inclusion probability from cases sample)"},
+    "purpose": {"enum": ["regression", "capability"], "description": "regression (default): gated, should keep passing; capability: a target not yet reached, reported but not gated"},
     "lineage_ref": {"type": "string"},
     "metadata": {"type": "object", "description": "e.g. original file name or page count"},
     "reference": {

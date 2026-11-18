@@ -152,8 +152,29 @@ profiles:
 | `max_steps` | agent step limit (default 12) |
 | `output` | `text` or `json` |
 | `options` | adapter settings, e.g. `agent_arn`, `region`, `resource`, `url`, `headers`, `body`, `map` |
+| `reset` | per-trial reset hook, run before every trial: `{python: "module:function"}` or `{url: ..., body: {...}, headers_env: {...}}`. See [isolating trials](#isolating-trials) |
 
 Per-adapter options and examples: [providers and targets](providers.md).
+
+#### Isolating trials
+
+Every trial (one case × repeat on one target) should start from a clean environment. If trials share state, such
+as an order already refunded by an earlier repeat, a cache, or a sandbox left dirty, failures become correlated and
+`pass^k` means little.
+
+- **Every trial gets a unique `trial_id`.** Use it as the session or conversation id of a deployed agent, so
+  repeats never continue each other's conversation: `body: {message: "{{ input }}", session_id: "{{ trial_id }}"}`.
+  Python targets get it as `ctx["trial"]["trial_id"]`. The offline tool loop, AgentCore Runtime and Bedrock Agents
+  already start each trial fresh.
+- **Reset hook.** `reset:` runs before every trial. A Python function is called as `fn(case, repeat, trial)`; a URL
+  is POSTed (`{{ case_id }}`, `{{ repeat }}`, `{{ trial_id }}` in the body). Whatever dict it returns (for example
+  `{"sandbox_id": "sb-42"}`) is merged into the trial, available as `{{ trial.sandbox_id }}` in HTTP bodies and
+  `ctx["trial"]` in Python. If the reset fails, that trial is recorded as a target error and isn't graded.
+- With a **shared** sandbox, a reset in one trial wipes another trial running at the same time. Either have the hook
+  hand out a separate sandbox per trial (the returned id), or set `concurrency: 1`.
+- **Order drift.** When a grader's pass rate on the first trial differs from later trials by 15 points or more (at
+  least 10 cases per trial), the run warns that trials may share state, or that the environment degraded during the
+  run (rate limits, exhaustion).
 
 ### Graders and gates
 
@@ -178,6 +199,8 @@ passes with "no baseline" instead of being `invalid`). Rule syntax and outcomes:
 | `reference` | expected values used by graders: `answer`, `answerable`, `fields`, `gold_passages`, `context`, `tool_calls`, `tool_sequence`, `final_state`, `handoff`, `label`, `should_refuse`, `guardrail` |
 | `tags` | list of slice labels |
 | `critical` | must pass for `critical_pass()` |
+| `split`, `weight` | `representative` or `stress` (default from the stress tags); production prevalence weight ([growing the eval set](growing-the-eval-set.md)) |
+| `purpose` | `regression` (default: gated) or `capability` (reported, never gated; [graduated](growing-the-eval-set.md#capability-and-regression-cases) once it passes reliably) |
 | `turns` / `goal`, `persona`, `max_turns` | multi-turn: scripted user turns, or a goal card for the simulator |
 | `source`, `lineage_ref` | `synthetic`, `production` or `sme`; DPDP lineage id for production-derived rows |
 | `metadata` | free-form |

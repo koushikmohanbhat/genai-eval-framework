@@ -23,8 +23,25 @@ JUDGE_RULES = """<rules>
 - Do not repeat personal details (names, numbers, addresses) in the rationale; refer to them ("the phone number").
 - Judge substance, not length or style: a longer answer is not better because it is longer. Do not reward padding,
   repetition or restating the question; an answer that is complete and concise beats one that is long and complete.
-- Use only the information given here. If something cannot be judged from it, say so in the rationale.
+- Use only the information given here. If it does not let you decide, give "unknown" as the verdict and say in the
+  rationale what is missing. Do not guess.
 </rules>"""
+
+TURN_PROMPT = """<task>{task}</task>
+You are a strict, impartial evaluator. Grade one assistant TURN of a conversation against the RUBRIC. Earlier turns are
+given as CONVERSATION for context only: grade the TURN, not the earlier turns.
+<scale>{scale}</scale>
+<rubric>
+{rubric}
+</rubric>
+<conversation>
+{conversation}
+</conversation>
+<output>
+{output}
+</output>
+{rules}
+Respond with JSON only: {schema}"""
 
 RUBRIC_PROMPT = """<task>{task}</task>
 You are a strict, impartial evaluator. Grade the OUTPUT against the RUBRIC{ref_hint}.
@@ -63,7 +80,7 @@ Rate how directly and completely the OUTPUT answers the QUESTION (1 = irrelevant
 {output}
 </output>
 {rules}
-Respond with JSON only: {{"rationale": "...", "score": <1-5>}}"""
+Respond with JSON only: {{"rationale": "...", "score": <1-5> or "unknown"}}"""
 
 PAIRWISE_PROMPT = """<task>pairwise</task>
 Compare two responses to the same request using the CRITERIA. Pick the better one, or "tie".
@@ -182,13 +199,22 @@ def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reas
     per = []
     for r in results:
         if "data" in r:
-            v = to_value(r["data"])
+            v = UNKNOWN if _is_unknown(r["data"]) else to_value(r["data"])
             d = r["data"] if reasoning_key in ("rationale", "reasoning") else {"rationale": r["data"].get(reasoning_key)}
-            per.append({"judge": r["judge"], "model": r.get("model"), "value": v, "reasoning": _rationale(d, policy)})
+            entry = {"judge": r["judge"], "model": r.get("model"), "reasoning": _rationale(d, policy)}
+            entry.update({"unknown": True} if v == UNKNOWN else {"value": v})
+            per.append(entry)
         else:
             per.append({"judge": r["judge"], "error": r["error"]})
     cost = sum(r.get("cost", 0.0) for r in results)
     vals = [p["value"] for p in per if p.get("value") is not None]
+    if not vals and any(p.get("unknown") for p in per):
+        # the judges that answered could not decide from the texts given: not a pass, not a fail, not an error.
+        # Recorded as a skip with label "unknown", so it is left out of means, counted, and queued for human review.
+        why = " | ".join(f"{p['judge']}: {p.get('reasoning') or p.get('error')}" for p in per if p.get("reasoning") or p.get("error"))
+        return Score(grader=grader.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                     skipped=True, label=UNKNOWN, skip_reason="judge could not decide from the texts given",
+                     reasoning=why[:2000], details={"judges": per, "unknown": True}, cost_usd=cost)
     if not vals:
         from ..retry import classify_error_text
         msg = "; ".join(p.get("error", "") for p in per)
@@ -206,6 +232,10 @@ def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reas
         value = statistics.fmean(vals)
     passed = (sum(v >= thr for v in vals) > len(vals) / 2) if agg == "majority" else value >= thr
     details = {"judges": per, "disagreement": (max(vals) - min(vals)) if len(vals) > 1 else 0.0, "n_judges": len(vals)}
+    if len(vals) > 1:
+        details["split_verdict"] = len({v >= thr for v in vals}) > 1     # the judges disagree on pass / fail
+    if any(p.get("unknown") for p in per):
+        details["unknown_judges"] = [p["judge"] for p in per if p.get("unknown")]
     if extra:
         details.update(extra(ok))
     reasoning = " | ".join(
@@ -214,7 +244,16 @@ def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reas
     return grader.score(sample, value, passed=passed, reasoning=reasoning[:2000], details=details, cost_usd=cost)
 
 
-def _scale_value(data: dict, scale: str) -> float | None:
+UNKNOWN = "unknown"
+
+
+def _is_unknown(data: dict) -> bool:
+    return any(str(data.get(k, "")).strip().lower() == UNKNOWN for k in ("pass", "score", "verdict", "winner"))
+
+
+def _scale_value(data: dict, scale: str) -> float | str | None:
+    if _is_unknown(data):
+        return UNKNOWN
     if "pass" in data and scale == "pass_fail":
         return 1.0 if data["pass"] in (True, "true", "pass", 1) else 0.0
     s = data.get("score")
@@ -250,13 +289,66 @@ class Rubric(Grader):
         tok = self.ctx.tokenize
         scale = "pass_fail" if self.task in ("reference_match", "policy") else self.p.get("scale", "1-5")
         ref = self.reference_value(case) if self.p.get("use_reference", self.task == "reference_match") else None
-        schema = '{"rationale": "...", "pass": true|false}' if scale == "pass_fail" else '{"rationale": "...", "score": <1-5>}'
+        schema = ('{"rationale": "...", "pass": true|false|"unknown"}' if scale == "pass_fail"
+                  else '{"rationale": "...", "score": <1-5> or "unknown"}')
+        if self.p.get("per_turn"):
+            return await self._grade_turns(sample, case, scale, ref, schema)
         prompt = RUBRIC_PROMPT.format(
             task=self.task, scale=scale, rubric=self.rubric_text(), question=tok(case.input_text()), output=tok(sample.output),
             rules=JUDGE_RULES,
             ref_hint=" and the REFERENCE answer" if ref else "", schema=schema,
             reference_block=f"<reference>\n{tok(str(ref))}\n</reference>\n" if ref else "")
         return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, scale))
+
+
+    async def _grade_turns(self, sample: Sample, case: Case, scale: str, ref: Any, schema: str) -> Score:
+        """per_turn: true — judge every assistant turn of the conversation (with the earlier turns as context) and pass
+        only if every turn passes. One bad turn fails the conversation, so the grader's pass rate is the share of
+        conversations that stayed acceptable throughout. value = the lowest turn value."""
+        tok = self.ctx.tokenize
+        msgs = [m for m in sample.messages if m.role in ("user", "assistant") and (m.content or "").strip()]
+        turns = [i for i, m in enumerate(msgs) if m.role == "assistant"]
+        if not turns:
+            if not sample.output:
+                return self.score(sample, 0.0, reasoning="empty output")
+            msgs = [Message(role="user", content=case.input_text()), Message(role="assistant", content=sample.output)]
+            turns = [1]
+        lim = int(self.p.get("max_turns", 20))
+        if len(turns) > lim:
+            turns = turns[-lim:]
+
+        async def one(i: int) -> Score:
+            convo = "\n".join(f"{m.role.upper()}: {tok(m.content or '')}" for m in msgs[:i])
+            prompt = TURN_PROMPT.format(task=self.task, scale=scale, rubric=self.rubric_text()
+                                        + (f"\nREFERENCE: {tok(str(ref))}" if ref else ""),
+                                        conversation=convo or "(none)", output=tok(msgs[i].content or ""),
+                                        rules=JUDGE_RULES, schema=schema)
+            return _combine(self, sample, await JudgePanel(self, sample).ask(prompt), lambda d: _scale_value(d, scale))
+        res = await asyncio.gather(*[one(i) for i in turns])
+        per_turn = [{"turn": n + 1, "value": r.value, "passed": r.passed, "unknown": r.label == UNKNOWN,
+                     "error": r.error, "reasoning": r.reasoning} for n, r in enumerate(res)]
+        cost = sum(r.cost_usd for r in res)
+        failed = [t for t in per_turn if t["passed"] is False]
+        details = {"per_turn": True, "turns": per_turn, "n_turns": len(per_turn),
+                   "first_failing_turn": failed[0]["turn"] if failed else None}
+        if failed:                                       # one bad turn fails the conversation, whatever else happened
+            return self.score(sample, min(t["value"] for t in failed if t["value"] is not None), passed=False,
+                              reasoning=f"turn {failed[0]['turn']}: {failed[0]['reasoning'] or ''}"[:2000],
+                              details=details, cost_usd=cost)
+        errs = [r for r in res if r.error]
+        if errs:
+            from ..retry import classify_error_text
+            msg = "; ".join(r.error for r in errs)
+            sc = Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                       error=msg, details=details, cost_usd=cost)
+            sc.error_kind = classify_error_text(msg)                            # type: ignore[attr-defined]
+            return sc
+        if any(t["unknown"] for t in per_turn):
+            return Score(grader=self.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                         skipped=True, label=UNKNOWN, skip_reason="judge could not decide on at least one turn",
+                         details=details | {"unknown": True}, cost_usd=cost)
+        return self.score(sample, min(t["value"] for t in per_turn), passed=True,
+                          reasoning=f"all {len(per_turn)} turns acceptable", details=details, cost_usd=cost)
 
 
 @register("reference_match")

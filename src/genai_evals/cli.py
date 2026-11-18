@@ -62,6 +62,8 @@ def _finish(result: dict[str, Any], args) -> int:
         mark = "ok  " if g["passed"] else ("INFO" if g["severity"] == "info" else ("WARN" if g["severity"] == "warn"
                                            else ("INVALID" if status == "invalid" else "FAIL")))
         print(f"  [{mark}] {g['gate']} @ {g['target']}: {g['rule']}" + (f"  ({g['message']})" if g["message"] else ""))
+    for w in result.get("warnings") or []:
+        print(f"  note: {w}")
     for k, v in paths.items():
         print(f"  {k}: {v}")
     if not result["passed"]:
@@ -422,7 +424,7 @@ def cmd_calibrate(args) -> int:
             if cv["gradable"]:
                 print(f"  {cmp[role]}: graded {cv['scored']}/{cv['gradable']} labelled units ({cv['failure_rate']:.0%} failed: "
                       f"{cv['transient_error']} transient errors, {cv['persistent_error']} persistent errors, "
-                      f"{cv['skipped']} skipped, {cv['missing']} missing)"
+                      f"{cv['unknown']} unknown, {cv['skipped']} skipped, {cv['missing']} missing)"
                       + (f"; {cv['target_error']} target errors left out" if cv["target_error"] else ""))
         if cmp.get("kappa_diff_ci_imputed"):
             ilo, ihi = cmp["kappa_diff_ci_imputed"]
@@ -495,6 +497,19 @@ def cmd_labels(args) -> int:
             print("  this sample is for calibration (balanced, by tag); for a production estimate also label a random one: "
                   "--design random")
         return 0
+    if args.action == "queue":
+        from .runner import load_result
+        items = lb.review_queue(load_result(args.path), [args.grader] if args.grader else None, limit=args.n)
+        reviewers = [r.strip() for r in (args.reviewers or "").split(",") if r.strip()]
+        out = lb.write_sheet(items, args.out or "review-queue.csv", reviewers)
+        counts: dict[str, int] = {}
+        for it in items:
+            k = it["stratum"].split("|")[1]
+            counts[k] = counts.get(k, 0) + 1
+        print(f"wrote {out}: {len(items)} item(s) the judges were unsure about ("
+              + (", ".join(f"{n} {k}" for k, n in counts.items()) or "none") + "). A targeted sample: use it to decide "
+              "these cases and fix rubrics, not to calibrate.")
+        return 0
     if args.action == "guide":
         if not args.grader:
             raise SystemExit("labels guide needs --grader")
@@ -531,6 +546,46 @@ def cmd_cases(args) -> int:
     if args.action == "tags":
         for d in tx.describe(args.workflow):
             print(f"  {d['tag']:<22} {d['group']:<10} {d['description']}")
+        return 0
+    if args.action == "health":
+        from .health import result_health
+        from .runner import load_result
+        h = result_health(load_result(args.path))
+        if args.json:
+            print(json.dumps(h, indent=1))
+        else:
+            for n in h["notes"] or ["no never-passing cases, no saturated graders, no capability cases ready to graduate"]:
+                print("  " + n)
+        return 0
+    if args.action == "check-refs":
+        from .health import check_references
+        suite = load_suite(args.path)
+        rep = check_references(suite, load_providers(_providers_path(args, args.path)), judges=args.judges,
+                               graders=args.grader)
+        if args.json:
+            print(json.dumps(rep, indent=1))
+        else:
+            print(f"graded {rep['cases']} case references with {len(rep['graders'])} grader(s)"
+                  f"{'' if rep['judges_included'] else ' (model graders skipped; --judges to include them)'}: "
+                  f"{rep['checked']} passed, {len(rep['rejected'])} rejected")
+            for r in rep["rejected"]:
+                print(f"  REJECTED {r['case_id']} by {r['grader']}: {r['why']}")
+            if rep["no_reference"]:
+                print(f"  no usable reference: {', '.join(rep['no_reference'][:10])}{' ...' if len(rep['no_reference']) > 10 else ''}")
+            if rep["not_checkable"]:
+                print("  not checkable from a reference: " + ", ".join(f"{g} ({n})" for g, n in rep["not_checkable"].items()))
+        return 1 if rep["rejected"] else 0
+    if args.action == "graduate":
+        from .health import graduate_dataset, graduation
+        from .runner import load_result
+        g = graduation([load_result(p) for p in [args.path] + (args.also or [])])
+        print(f"{len(g['ready'])} of {g['capability_cases']} capability case(s) passed every trial in all {g['runs']} run(s)"
+              + (": " + ", ".join(g["ready"]) if g["ready"] else ""))
+        if args.apply:
+            if not args.into:
+                raise SystemExit("graduate --apply needs --into <dataset.jsonl>")
+            n = graduate_dataset(args.into, g["ready"])
+            print(f"  set purpose: regression on {n} row(s) in {args.into}")
         return 0
     if args.action == "coverage":
         suite = load_suite(args.path)
@@ -867,9 +922,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_calibrate)
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
-    p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote"],
+    p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote", "check-refs",
+                                      "health", "graduate"],
                    help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
-                        "harvest <result.json> | promote <drafts.jsonl>")
+                        "harvest <result.json> | promote <drafts.jsonl> | check-refs <suite.yaml> | health <result.json> | "
+                        "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl]")
     p.add_argument("path", nargs="?", default="suite.yaml")
     p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
     p.add_argument("--json", action="store_true")
@@ -891,12 +948,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--reviewer", help="promote: who reviewed them")
     p.add_argument("--schema", help="promote: check promoted rows against this case schema")
     p.add_argument("--allow-empty-reference", action="store_true")
+    p.add_argument("--judges", action="store_true", help="check-refs: also run model graders (costs judge calls)")
+    p.add_argument("--also", action="append", help="graduate: more result files that must also show the case passing")
+    p.add_argument("--apply", action="store_true", help="graduate: set purpose: regression on ready cases in --into")
     p.add_argument("--providers")
     p.set_defaults(fn=cmd_cases)
 
     p = sub.add_parser("labels", help="human labels: reviewer sheet, labelling guide, agreement and consensus")
-    p.add_argument("action", choices=["sheet", "guide", "agreement"],
-                   help="sheet <result.json> | guide <suite.yaml> | agreement <reviews.csv>")
+    p.add_argument("action", choices=["sheet", "queue", "guide", "agreement"],
+                   help="sheet <result.json> | queue <result.json> (items judges were unsure about) | guide <suite.yaml> | "
+                        "agreement <reviews.csv>")
     p.add_argument("path")
     p.add_argument("--grader")
     p.add_argument("--n", type=int, default=50, help="sheet: items to sample (default 50)")

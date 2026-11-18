@@ -9,7 +9,7 @@ import urllib.request
 from typing import Any
 
 from ..models import Case, ContextChunk, Message, Sample, ToolCall, Usage
-from .base import Target, import_ref, maybe_await, parse_json
+from .base import Target, current_trial, import_ref, maybe_await, parse_json
 
 
 class ModelTarget(Target):
@@ -113,7 +113,9 @@ class HttpTarget(Target):
 
         def render(x):
             if isinstance(x, str):
-                return env.from_string(x).render(**vars_, case_id=case.id)
+                return env.from_string(x).render(**vars_, case_id=case.id, repeat=repeat,
+                                                 trial_id=current_trial().get("trial_id", f"{case.id}-{repeat}"),
+                                                 trial=current_trial())
             if isinstance(x, dict):
                 return {k: render(v) for k, v in x.items()}
             if isinstance(x, list):
@@ -161,7 +163,7 @@ class PythonTarget(Target):
         s = self.new_sample(case, repeat)
         t0 = time.perf_counter()
         res = await maybe_await(fn(case, {"repeat": repeat, "target": self.name, "options": self.spec.options, "run": self.ctx,
-                                          "prompt": self.prompt}))
+                                          "prompt": self.prompt, "trial": current_trial()}))
         elapsed = (time.perf_counter() - t0) * 1000
         if isinstance(res, Sample):
             res.case_id, res.target, res.repeat = case.id, self.name, repeat

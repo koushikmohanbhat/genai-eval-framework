@@ -121,8 +121,35 @@ def _split_stats(per_case: dict[str, float], per_case_pass_all: dict[str, list[b
     return out
 
 
+def purpose_of(case: Case | None) -> str:
+    """regression (default): the case should keep passing, and gates apply. capability: a target the system can't reach
+    yet; reported separately, never gated, and graduated to regression once it passes reliably."""
+    return "capability" if case is not None and getattr(case, "purpose", None) == "capability" else "regression"
+
+
+def trial_drift(lst: list[Score], min_cases: int = 10, threshold: float = 0.15) -> dict[str, Any] | None:
+    """Pass rate by trial (repeat) order. Independent trials should pass at about the same rate whatever their order;
+    a drop or rise across repeats suggests trials share state (leftover data, caches, a sandbox not reset) or the
+    environment degrades during the run (rate limits, resource exhaustion)."""
+    by_rep: dict[int, list[bool]] = defaultdict(list)
+    for s in lst:
+        if not s.skipped and s.passed is not None:
+            by_rep[s.repeat].append(bool(s.passed))
+    reps = sorted(by_rep)
+    if len(reps) < 2 or min(len(by_rep[r]) for r in reps) < min_cases:
+        return None
+    rates = {r: sum(by_rep[r]) / len(by_rep[r]) for r in reps}
+    first, rest = rates[reps[0]], statistics.fmean(rates[r] for r in reps[1:])
+    out: dict[str, Any] = {"pass_rate_by_repeat": rates, "spread": max(rates.values()) - min(rates.values())}
+    if abs(first - rest) >= threshold:
+        out["warning"] = (f"pass rate moves with trial order ({first:.0%} on the first trial, {rest:.0%} on later ones): trials "
+                          "may share state (reset the environment per trial) or the environment degraded during the run")
+    return out
+
+
 def summarise(target: str, cases: list[Case], samples: list[Sample], scores: list[Score], seed: int = 7,
-              on_error: str = "fail", stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> dict[str, Any]:
+              on_error: str = "fail", stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial"),
+              _capability: bool = False) -> dict[str, Any]:
     """Aggregate one target's scores.
 
     Each grader is also reported per split: `representative` (production-like cases, weighted by `case.weight` when
@@ -133,6 +160,19 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
     with value 0 when ``on_error="fail"`` (the default), so a grader that errors on hard cases cannot raise the mean;
     with ``on_error="exclude"`` they are left out and only counted.
     """
+    if not _capability and any(purpose_of(c) == "capability" for c in cases):
+        cap_ids = {c.id for c in cases if purpose_of(c) == "capability"}
+        reg = summarise(target, [c for c in cases if c.id not in cap_ids], [s for s in samples if s.case_id not in cap_ids],
+                        [s for s in scores if s.case_id not in cap_ids], seed, on_error, stress_tags, _capability=True)
+        cap = summarise(target, [c for c in cases if c.id in cap_ids], [s for s in samples if s.case_id in cap_ids],
+                        [s for s in scores if s.case_id in cap_ids], seed, on_error, stress_tags, _capability=True)
+        reg["ops"] = summarise(target, cases, samples, [], seed, on_error, stress_tags, _capability=True)["ops"]
+        reg["capability"] = {"cases": len(cap_ids), "graders": {g: {k: d.get(k) for k in
+                                                                     ("mean", "ci_low", "ci_high", "pass_rate", "pass_hat_k",
+                                                                      "n", "per_case_pass")}
+                                                                 for g, d in cap["graders"].items()},
+                             "ready_to_graduate": graduation_candidates(cap)}
+        return reg
     by_case = {c.id: c for c in cases}
     graders: dict[str, Any] = {}
     sc_by_g: dict[str, list[Score]] = defaultdict(list)
@@ -143,6 +183,7 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
         per_case_vals: dict[str, list[float]] = defaultdict(list)
         per_case_pass: dict[str, list[bool]] = defaultdict(list)
         skipped = sum(1 for s in lst if s.skipped)
+        unknown = sum(1 for s in lst if s.skipped and s.label == "unknown")
         errors = sum(1 for s in lst if s.error)
         for s in lst:
             if s.skipped:
@@ -165,12 +206,16 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
             "pass_rate": (sum(allp) / len(allp)) if allp else None,
             "pass_at_k": (sum(any(p) for p in per_case_pass.values()) / len(per_case_pass)) if per_case_pass else None,
             "pass_hat_k": (sum(all(p) for p in per_case_pass.values()) / len(per_case_pass)) if per_case_pass else None,
-            "n": len(vals), "skipped": skipped, "errors": errors, "per_case": case_means, "per_case_pass": case_pass,
+            "n": len(vals), "skipped": skipped, "unknown": unknown, "errors": errors,
+            "per_case": case_means, "per_case_pass": case_pass,
             "judge_cost_usd": sum(s.cost_usd for s in lst),
             "mean_disagreement": (statistics.fmean([s.details["disagreement"] for s in lst if "disagreement" in s.details])
                                   if any("disagreement" in s.details for s in lst) else None),
         }
         graders[g]["splits"] = _split_stats(case_means, per_case_pass, by_case, stress_tags, seed)
+        drift = trial_drift(lst)
+        if drift:
+            graders[g]["trial_drift"] = drift
         lw = [s.details["longer_won"] for s in lst if s.details.get("longer_won") is not None]
         if any("length_ratio" in s.details for s in lst):
             pc = [s.details["position_consistent"] for s in lst if "position_consistent" in s.details]
@@ -207,11 +252,22 @@ def summarise(target: str, cases: list[Case], samples: list[Sample], scores: lis
     crit_ids = [c.id for c in cases if c.critical]
     failed = sorted({s.case_id for s in scores if s.target == target and s.case_id in crit_ids and not s.skipped
                      and (s.passed is False or (s.error and on_error == "fail"))}
-                    | {s.case_id for s in mine if s.case_id in crit_ids and s.error})
+                    | {s.case_id for s in mine if s.case_id in crit_ids and s.error}
+                    # a judge that could not decide is not a pass: critical cases need a decision
+                    | {s.case_id for s in scores if s.target == target and s.case_id in crit_ids and s.label == "unknown"})
     split_n = {sp: sum(1 for c in cases if split_of(c, stress_tags) == sp) for sp in SPLITS}
     return {"target": target, "graders": graders, "ops": ops, "slices": dict(slices), "slice_n": dict(slice_n),
             "split_cases": split_n,
             "critical": {"total": len(crit_ids), "failed": failed, "passed": len(crit_ids) - len(failed)}}
+
+
+def graduation_candidates(cap_summary: dict[str, Any]) -> list[str]:
+    """Capability cases that passed every trial of every grader that scored them in this run."""
+    per: dict[str, list[bool]] = defaultdict(list)
+    for d in cap_summary["graders"].values():
+        for cid, ok in (d.get("per_case_pass") or {}).items():
+            per[cid].append(bool(ok))
+    return sorted(c for c, oks in per.items() if oks and all(oks))
 
 
 def metric_series(summary: dict[str, Any], samples: list[Sample], metric: str) -> list[float]:

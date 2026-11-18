@@ -104,6 +104,7 @@ class TargetSpec(BaseModel):
     max_steps: int = 12
     output: Literal["text", "json"] = "text"
     options: dict[str, Any] = Field(default_factory=dict)
+    reset: dict[str, Any] | None = None             # per-trial reset hook: {python: "mod:fn"} or {url: ..., body: ...}
 
 
 class GraderSpec(BaseModel):

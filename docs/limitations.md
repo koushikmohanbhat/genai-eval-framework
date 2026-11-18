@@ -1,4 +1,4 @@
-# Limitations (v0.4.5)
+# Limitations (v0.5.0)
 
 Read this before using the framework in production.
 
@@ -48,6 +48,12 @@ please open an issue with what you find.
 - **The judge ladder needs labels.** Non-inferiority on κ with a 0.05 margin usually needs 150–200 labelled units on
   the sample that decides (the random validation sample, when given); with fewer the cheaper judge is (correctly)
   not approved.
+- **Anthropic's agent and safety guidance: what's left.** Atomic pass/fail checklists, grader sensitivity to rubric
+  wording, large-sample guidance for safety claims, factorial scenario generation, and multiple-comparison correction
+  across gates are not built yet ([agent and safety evals](agent-evals.md#not-covered)).
+- **Reference checks only cover what a reference can stand in for.** `cases check-refs` can't check graders that
+  need latency, retrieval beyond the gold passages, or trace details, and it runs judges only with `--judges`.
+- **Per-turn grading costs one judge call per turn per judge.** Long conversations are capped at `max_turns`.
 - **Judge error classes come from the error text.** Transient (rate limit, timeout, 5xx, connection) vs persistent is
   decided by the same keyword rules as provider retries. An SDK that words a transient error unusually is treated as
   persistent, which is the safe side: it counts against the judge until retried with `regrade --only errors`.

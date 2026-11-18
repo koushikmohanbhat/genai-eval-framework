@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.5.0 (2026-11-18)
+
+Anthropic's guidance on agent and safety evals ([mapping](docs/agent-evals.md)). **Judge prompts changed** (the
+"unknown" option), so judge-graded numbers are not comparable with 0.4.x runs: re-run baselines.
+
+### Grading agents
+- **Per-turn grading.** `per_turn: true` on `rubric` and `policy` graders judges every assistant turn, with the earlier
+  turns as context, and passes only if every turn passes: one bad turn fails the conversation. Records each turn's
+  verdict and the first failing turn.
+- **"unknown" verdicts.** Rubric and policy judges may answer "unknown" instead of guessing. Unknown is neither pass
+  nor fail: a skip labelled `unknown`, counted per grader, left out of means, not passing on critical cases, and shown
+  in judge coverage. Panels record `split_verdict` when judges land on different sides of the threshold.
+- **New `labels queue`** writes a reviewer sheet of unknown verdicts, split panels and persistent judge errors
+  (a targeted sample, kept out of calibration).
+
+### Task health
+- **New `cases check-refs`** grades every case's reference as if it were the output (answer with gold passages and
+  citations, fields, final state, tool calls in sequence order); a rejected reference means a broken task or grader.
+- Every result lists **cases that never passed** on any trial or target, and **saturated graders** (every regression
+  case passes every trial), as notes in the CLI output and reports. `cases health` prints them for a result.
+
+### Capability and regression cases
+- Cases take `purpose: regression` (default, gated) or `capability` (reported in their own section, never gated, not
+  counted in the headline or critical cases).
+- **New `cases graduate`** lists capability cases that passed every trial in all given runs; `--apply --into` sets
+  them to regression.
+
+### Isolating trials
+- Every trial gets a unique `trial_id` (HTTP bodies: `{{ trial_id }}`; Python targets: `ctx["trial"]`).
+- **Per-trial `reset:` hook** on any target (`{python: "mod:fn"}` or `{url: ...}`), run before every trial; what it
+  returns is passed to the target. A failed reset is a target error for that trial.
+- A warning when a grader's pass rate moves with trial order (trials may share state).
+
+### Coverage
+- **Both sides of every behaviour:** coverage counts cases that expect refusal, escalation, tool use and handoff,
+  and cases that expect them not to happen, and flags one-sided behaviours.
+- New standard tag `benign_sensitive` (a legitimate request that sounds sensitive: the over-refusal pair).
+- Packs: `rag-knowledge-assistant` 0.3.0 adds two `benign_sensitive` questions; `tool-agent` 0.3.0 adds two cases
+  where no tool should be called; `structured-extraction` 0.1.4.
+
+### Fixed
+- The pack case schemas rejected `split` and `weight`, so cases drawn with `cases sample` (0.4.2+) failed validation
+  when promoted into a pack. The schemas now accept `split`, `weight` and `purpose`.
+
 ## 0.4.5 (2026-11-18)
 
 Review feedback: judge failures are classified, and transient ones can be retried before a judge is judged.

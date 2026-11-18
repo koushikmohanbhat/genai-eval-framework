@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `structured-extraction`
 
-Run `run_d8fc394c7cd4` · 21 cases × 1 targets × 1 repeats
+Run `run_f842d89ae8ea` · 21 cases × 1 targets × 1 repeats
 
 ### Gates
 
@@ -22,3 +22,7 @@ Run `run_d8fc394c7cd4` · 21 cases × 1 targets × 1 repeats
 | Target | valid_json | fields | amount_exact | latency | gstin_format | p95 latency | cost / case |
 |---|---|---|---|---|---|---|---|
 | extractor | 1.00 [1.00, 1.00] · rep 1.00 (n=14) · stress 1.00 (n=7) | 1.00 [1.00, 1.00] · rep 1.00 (n=14) · stress 1.00 (n=7) | 1.00 [1.00, 1.00] · rep 1.00 (n=14) · stress 1.00 (n=7) | 1.00 [1.00, 1.00] · rep 1.00 (n=14) · stress 1.00 (n=7) | 1.00 [1.00, 1.00] | 2043 ms | $0.0042 |
+
+### Notes
+
+- saturated: every regression case passes every trial on amount_exact, fields, gstin_format, latency, valid_json; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress

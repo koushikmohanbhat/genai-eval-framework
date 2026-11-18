@@ -69,6 +69,7 @@ class Case(BaseModel):
     review_status: str | None = None             # draft (generated or harvested, not yet reviewed) | reviewed
     split: str | None = None                     # representative | stress; default from tags (suite.stress_tags)
     weight: float | None = None                  # production prevalence weight for representative cases (default 1)
+    purpose: str | None = None                   # regression (default: gated) | capability (reported, not gated)
     lineage_ref: str | None = None               # DPDP framework artifact id for this row
     turns: list[str] | None = None               # scripted user turns for multi-turn cases
     goal: str | None = None                      # goal card for the user simulator

@@ -54,6 +54,16 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
         lat = s["ops"]["latency_ms"]["p95"]
         cost = s["ops"]["cost_usd"]["mean"]
         lines.append(f"| {t} | " + " | ".join(cells) + f" | {('%.0f ms' % lat) if lat is not None else '–'} | {('$%.4f' % cost) if cost is not None else '–'} |")
+    caps = {t: s["capability"] for t, s in result["summary"].items() if s.get("capability")}
+    if caps:
+        lines += ["", "### Capability cases (reported, not gated)", "", "| Target | Cases | Grader | Pass rate | Ready to graduate |",
+                  "|---|---|---|---|---|"]
+        for t, c in caps.items():
+            ready = ", ".join(f"`{x}`" for x in c.get("ready_to_graduate", [])[:top_n]) or "–"
+            for g, d in c["graders"].items():
+                lines.append(f"| {t} | {c['cases']} | {g} | {_f(d.get('pass_rate'))} | {ready} |")
+    if result.get("warnings"):
+        lines += ["", "### Notes", ""] + [f"- {w}" for w in result["warnings"]]
     comps = result.get("comparisons") or {}
     if comps:
         lines += ["", "### Change vs baseline (paired)", "", "| Target | Grader | Δ | 95% CI | Significant | Regressed cases |", "|---|---|---|---|---|---|"]

@@ -77,6 +77,44 @@ def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7
     return out
 
 
+def review_queue(result: dict[str, Any], graders: list[str] | None = None, include_errors: bool = True,
+                 limit: int | None = None) -> list[dict[str, Any]]:
+    """Items a human should look at because the grader was unsure:
+
+    - unknown: the judges answered "unknown" (the texts given didn't let them decide);
+    - split: the panel's judges disagreed on pass / fail;
+    - persistent error: the judge failed in a way retrying won't fix (e.g. an unparseable verdict).
+
+    The rows use the reviewer-sheet format with sample_design "targeted" and the reason as the stratum. A targeted
+    sample is chosen for uncertainty, so it is **not** a calibration or validation sample: use the labels to decide
+    these cases and to fix rubrics, and keep them out of `calibrate`."""
+    from .retry import classify_error_text
+    cases = {c["id"]: c for c in result.get("cases", [])}
+    samples = {(s["case_id"], s["target"], s.get("repeat", 0)): s for s in result.get("samples", [])}
+    out = []
+    for s in result.get("scores", []):
+        if graders and s["grader"] not in graders:
+            continue
+        d = s.get("details") or {}
+        if s.get("label") == "unknown" or d.get("unknown"):
+            why = "unknown"
+        elif d.get("split_verdict"):
+            why = "split"
+        elif include_errors and s.get("error") and \
+                (s.get("error_kind") or classify_error_text(s.get("error"))) == "persistent":
+            why = "persistent error"
+        else:
+            continue
+        smp = samples.get((s["case_id"], s["target"], s.get("repeat", 0)), {})
+        case = cases.get(s["case_id"], {})
+        out.append({"case_id": s["case_id"], "target": s["target"], "repeat": s.get("repeat", 0),
+                    "tags": ";".join(case.get("tags") or []), "input": smp.get("input") or case.get("input") or "",
+                    "output": smp.get("output") or "", "judge_passed": "", "sample_design": "targeted",
+                    "stratum": f"{s['grader']}|{why}", "weight": ""})
+    out.sort(key=lambda r: ({"unknown": 0, "split": 1}.get(r["stratum"].split("|")[1], 2), r["case_id"], r["target"]))
+    return out[:limit] if limit else out
+
+
 def write_sheet(items: list[dict[str, Any]], path: str | Path, reviewers: list[str] | None = None,
                 round_: int = 1) -> Path:
     """One row per item and reviewer. Leave judge verdicts out of what reviewers see (the default) so labels stay
