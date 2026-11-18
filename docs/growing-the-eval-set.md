@@ -26,6 +26,48 @@ The packs' headline gates use `split='representative'`. `doctor` flags any block
 splits. It doesn't flag `>= 1.0` requirements such as "no PII on any case", because a requirement that every case
 passes isn't an average.
 
+## Making "representative" verifiable
+
+A case without a stress tag is representative by default, but calling a set representative is a claim, and
+`doctor` asks for evidence:
+
+- **Provenance on the suite.** A `representative_sample:` block, required: it says what the set was sampled from,
+  when and how, and how any weights were set.
+- **Production cases.** At least `min_representative_production_share` (default 80%) of representative cases have
+  `source: production`. Synthetic and SME-written cases can be in the set, but they can't make up most of it.
+
+```yaml
+representative_sample:
+  source: production
+  population: "all web-chat claim sessions in the production tenant"
+  window: "2026-10-01..2026-10-31"
+  method: "stratified random sample of 200 sessions by intent, proportional allocation"
+  weights: "inverse inclusion: sessions per intent stratum / sessions drawn"
+  drawn_by: "eval owner"
+  drawn_at: "2026-11-02"
+```
+
+The easiest way to get both is to sample the set from an online run over production telemetry:
+
+```bash
+genai-evals online --sources sources.yaml --suite online_checks.yaml --out out/online
+genai-evals cases sample out/online/result.json --n 200 --by-tag --population "web-chat claim sessions" --out rep.jsonl
+#   wrote 200 draft representative case(s) to rep.jsonl, and their provenance to rep.jsonl.provenance.yaml
+```
+
+`cases sample` draws units (sessions, or case and target), **not** scores, so the set reflects traffic rather than
+failures. With `--by-tag` it uses proportional stratified sampling and writes each case's weight. Every draft has
+`source: production`, `split: representative`, and its run, session and trace ids.
+
+The provenance file records:
+- the window;
+- the telemetry sampling rate and method that produced the online run;
+- the selection method, and how the weights were set.
+
+An SME writes each reference, `cases promote` adds the cases (they stay `typical`, not `edge`), and you copy the
+provenance block into `suite.yaml`. Sampling from recorded fixture telemetry is labelled as such and doesn't count
+as production.
+
 ## Coverage tags (the stress suite)
 
 Tag cases with the standard coverage tags alongside your own domain tags:
@@ -46,10 +88,26 @@ Each tag applies to some workflows (`rag`, `agent`, `extraction`, `single_turn`)
 suite's `pack`. `coverage` (and the **eval set** check in `genai-evals doctor`) reports:
 
 - cases without a difficulty tag or split;
-- the size of the representative set, which should be at least `min_representative_cases` (default 30). The
-  starter packs are below this on purpose: the representative set should come from the customer's production traffic;
-- whether there is a stress suite at all, and which applicable coverage tags it has no case for;
-- blocking gates that mix the two sets.
+- the representative set's size (at least `min_representative_cases`, default 30) and its **evidence** (below);
+- for the stress suite, per coverage tag: enough cases, **thin** (some, but fewer than needed), or missing;
+- blocking gates that mix the two sets;
+- gates whose tag or split slice has fewer cases than their `min_n`, so they will be invalid. A blocking one is a
+  problem; `warn` and `info` ones are listed as notes.
+
+The starter packs fail most of these on purpose. Their representative cases are synthetic and few, and their stress
+cases are one or two per tag, to show the shape. A real engagement fills both from the customer's data.
+
+**How many cases a tag needs.** A tag present once shows the scenario exists. It doesn't support a conclusion
+about how the system handles it. So each coverage tag has a minimum by risk tier:
+
+| Tier | Tags | Minimum (default) |
+|---|---|---|
+| high | `jailbreak`, `system_conflict`, `bad_tool_args`, `circular_handoff` | 10 |
+| standard | every other coverage tag | 5 |
+
+Change them with `stress_min_cases: {high: 10, standard: 5}`, or per tag with `stress_min_by_tag: {multilingual: 20}`.
+A tag below its minimum is reported as **thin**. Gates on thin slices should be `severity: info` (diagnostic): they
+are reported, but they don't decide a release ([gates](gates.md#gate-outcomes)).
 
 A coverage tag on a typical case (say, a common Hindi question) is fine: tags describe the case, the split says how it
 is used. If a common pattern belongs in the production estimate, keep it representative (`split: representative`)
@@ -113,7 +171,8 @@ genai-evals cases harvest out/online/result.json --grader no_promises --below 0.
 
 ## A monthly loop
 
-1. Refresh the representative set: re-sample production traffic, so its proportions follow production.
+1. Refresh the representative set with `cases sample` from recent production traffic, so its proportions follow
+   production, and update `representative_sample:`.
 2. `cases harvest` from the last month's online runs.
 3. An expert reviews the drafts: keeps the real failures, writes references, adds coverage tags. Harvested
    failures go in the **stress** suite (tag them `edge`): they were selected because they failed, so they would bias

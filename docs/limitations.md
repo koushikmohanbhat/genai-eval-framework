@@ -1,4 +1,4 @@
-# Limitations (v0.4.1)
+# Limitations (v0.4.2)
 
 Read this before using the framework in production.
 
@@ -29,6 +29,12 @@ please open an issue with what you find.
 - **The representative set is only as representative as its sample.** Weights correct for known over- or
   under-sampling, not for traffic the sample never saw. Re-sample it from production regularly. The starter packs'
   representative sets are synthetic and below the 30-case minimum on purpose.
+- **Provenance is recorded, not audited.** `doctor` checks that a `representative_sample:` record exists and that
+  most representative cases say `source: production`. It can't verify that the record is true; `cases sample` makes
+  it true by construction when the set is drawn from an online run.
+- **Stress minimums are rules of thumb.** 10 cases for a high-risk tag and 5 otherwise are enough to see a gross
+  problem, not to estimate a rate precisely (with 10 cases, a 95% interval on a pass rate is roughly ±30 points).
+  Raise them for tags that decide releases.
 - **Production-weighted agreement depends on the sheet's weights.** They describe the result the sheet was drawn
   from; if that result was a curated suite rather than production traffic, the "production" estimate inherits the
   curation. Use the random validation sample from the representative set as the check.

@@ -288,6 +288,28 @@ def _results(project: Path) -> list[tuple[Path, dict[str, Any]]]:
     return sorted(found, key=lambda x: x[1].get("created_at", ""), reverse=True)
 
 
+def suite_coverage(suite, cases) -> dict[str, Any]:
+    """Coverage of the representative set and stress suite for a suite, with gate problems found before a run:
+    blocking gates that average both sets, and gates whose tag / split slice has fewer cases than their min_n."""
+    from . import taxonomy
+    cov = taxonomy.coverage(cases, taxonomy.workflow_of(suite), min_representative=suite.min_representative_cases,
+                            stress_tags=suite.stress_tags, min_by_tier=suite.stress_min_cases,
+                            min_by_tag=suite.stress_min_by_tag, provenance=suite.representative_sample,
+                            min_production_share=suite.min_representative_production_share)
+    mixed = taxonomy.mixed_gates(suite)
+    if mixed and cov["stress"] and cov["representative"]:
+        cov["problems"].append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed)
+                               + " (gate the headline with split='representative', and the stress suite separately)")
+    thin = taxonomy.thin_gates(suite, cases)
+    cov["thin_gates"] = thin
+    blocking = [t for t in thin if t["severity"] == "block"]
+    if blocking:
+        cov["problems"].append("blocking gate(s) will be invalid for lack of cases: " + ", ".join(
+            f"{t['gate']} ({t['slice']}: {t['cases']} < min_n {t['min_n']})" for t in blocking)
+            + " (add cases, or make the gate severity: info)")
+    return cov
+
+
 def _raw_rows(suite) -> list[dict[str, Any]]:
     from .config import _read_rows
     if isinstance(suite.dataset, list):
@@ -373,24 +395,36 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
                         "RUNBOOK step 6" if probs else ""))
     # 4b. representative set and stress suite (OpenAI's evaluation best practices; kept apart so edge cases don't
     #     distort the production estimate)
-    from . import taxonomy
     from .config import load_cases
     try:
         cases = load_cases(suite)
-        cov = taxonomy.coverage(cases, taxonomy.workflow_of(suite), min_representative=suite.min_representative_cases,
-                                stress_tags=suite.stress_tags)
+        cov = suite_coverage(suite, cases)
         drafts = sum(1 for c in _raw_rows(suite) if c.get("review_status") == "draft")
-        mixed = taxonomy.mixed_gates(suite)
         problems = list(cov["problems"])
-        if mixed and cov["stress"] and cov["representative"]:
-            problems.append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed)
-                            + " (gate the headline with split='representative', and the stress suite separately)")
-        w = f", {cov['representative_weighted']} weighted" if cov["representative_weighted"] else ""
-        detail = (f"{cov['representative']} representative{w} + {cov['stress']} stress cases; "
-                  + ("; ".join(problems) if problems else "every applicable coverage tag has a stress case")
+        rep = (f"{cov['representative']} representative ({cov['representative_production']} from production, "
+               + ("provenance recorded" if cov["provenance"] else "no provenance")
+               + (f", {cov['representative_weighted']} weighted" if cov["representative_weighted"] else "") + ")")
+        short = []
+        if cov["representative"] < suite.min_representative_cases:
+            short.append(f"representative set below {suite.min_representative_cases}")
+        if not cov["provenance"]:
+            short.append("no representative_sample provenance")
+        if cov["representative"] and cov["representative_production"] / cov["representative"] < suite.min_representative_production_share:
+            short.append("too few production cases in it")
+        if cov["missing"]:
+            short.append(f"{len(cov['missing'])} stress tag(s) missing")
+        if cov["thin"]:
+            short.append(f"{len(cov['thin'])} thin")
+        other = len(problems) - len(short) - (1 if cov["untagged"] else 0)
+        if cov["untagged"]:
+            short.append(f"{cov['untagged']} untagged")
+        if other > 0:
+            short.append("gate problems")
+        detail = (f"{rep} + {cov['stress']} stress cases; "
+                  + (", ".join(short) if problems else "representative set has evidence, stress coverage is sufficient")
                   + (f"; {drafts} draft case(s) awaiting review" if drafts else ""))
         checks.append(Check("eval set", not problems, detail,
-                            "" if not problems else "genai-evals cases coverage suite.yaml (docs/growing-the-eval-set.md)"))
+                            "" if not problems else "genai-evals cases coverage suite.yaml lists each item (docs/growing-the-eval-set.md)"))
     except Exception as e:  # noqa: BLE001
         checks.append(Check("eval set", False, f"{type(e).__name__}: {e}", "fix the dataset"))
     judged = [g.name for g in suite.graders if g.type in JUDGE_GRADER_TYPES or g.type == "policy"]

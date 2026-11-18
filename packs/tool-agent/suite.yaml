@@ -2,7 +2,7 @@
 # Offline it runs a simulated agent (sim_system.py) on mock tools (tools.py): `genai-evals run suite.yaml`.
 # To evaluate your agent, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: tool-agent
-pack: tool-agent@0.2.1
+pack: tool-agent@0.2.2
 description: Task success, correct tool use, policy adherence, escalation, reliability across repeats and privacy
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -14,6 +14,14 @@ judge_policy: {aggregate: mean, require_different_family: false}   # set true on
 min_judge_kappa: 0.4
 min_n: 5
 repeats: 3                       # agents are not deterministic: pass^k needs repeats
+# Where the representative set comes from (doctor checks it). Build it with `genai-evals cases sample` from an online
+# run over production telemetry, which writes this block for you. The starter cases are synthetic.
+# representative_sample:
+#   source: production
+#   population: "all sessions of the assistant in the customer's production tenant"
+#   window: "2026-10-01..2026-10-31"
+#   method: "simple random sample of 200 sessions"
+#   weights: null            # or how case weights were set, e.g. "intent share in October"
 graders:
   - {name: task_success, type: final_state}                                  # the business outcome
   - {name: correct_calls, type: tool_args_match}                             # the right tools with the right arguments

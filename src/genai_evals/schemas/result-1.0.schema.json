@@ -29,7 +29,7 @@
         "per_case_pass": {"type": "object", "additionalProperties": {"type": "boolean"}}}}},
       "ops": {"type": "object"}, "slices": {"type": "object"}, "critical": {"type": "object"}}}},
     "gates": {"type": "array", "items": {"type": "object", "required": ["gate", "target", "rule", "severity", "passed"], "properties": {
-      "status": {"enum": ["pass", "fail", "invalid"]}, "severity": {"enum": ["block", "warn"]}, "passed": {"type": "boolean"}}}},
+      "status": {"enum": ["pass", "fail", "invalid"]}, "severity": {"enum": ["block", "warn", "info"]}, "passed": {"type": "boolean"}}}},
     "comparisons": {"type": "object"},
     "baseline": {"type": ["string", "null"]},
     "prompt_versions": {"type": "object"},

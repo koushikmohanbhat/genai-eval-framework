@@ -59,13 +59,14 @@ def _finish(result: dict[str, Any], args) -> int:
     print(f"\n{verdict}: {result['suite']} ({result['run_id']})")
     for g in result["gates"]:
         status = g.get("status", "pass" if g["passed"] else "fail")
-        mark = "ok  " if g["passed"] else ("WARN" if g["severity"] == "warn" else ("INVALID" if status == "invalid" else "FAIL"))
+        mark = "ok  " if g["passed"] else ("INFO" if g["severity"] == "info" else ("WARN" if g["severity"] == "warn"
+                                           else ("INVALID" if status == "invalid" else "FAIL")))
         print(f"  [{mark}] {g['gate']} @ {g['target']}: {g['rule']}" + (f"  ({g['message']})" if g["message"] else ""))
     for k, v in paths.items():
         print(f"  {k}: {v}")
     if not result["passed"]:
         return 1
-    if getattr(args, "fail_on_warn", False) and any(not g["passed"] for g in result["gates"]):
+    if getattr(args, "fail_on_warn", False) and any(not g["passed"] and g["severity"] != "info" for g in result["gates"]):
         return 1
     return 0
 
@@ -381,7 +382,7 @@ def cmd_calibrate(args) -> int:
     if args.compare_to:
         strong = load_result(args.compare_result) if args.compare_result else result
         cmp = compare_judges((result, args.grader), (strong, args.compare_to), labels, margin=args.margin,
-                             min_kappa=args.min_kappa, min_n=args.min_n)
+                             min_kappa=args.min_kappa, min_n=args.min_n, info=read_sample_info(args.labels))
         if args.out:
             Path(args.out).write_text(json.dumps(cmp, indent=1), encoding="utf-8")
         if "kappa_cheap" in cmp:
@@ -396,6 +397,7 @@ def cmd_calibrate(args) -> int:
         validation = consensus(read_reviews(args.validation_labels), args.rule)[0]
     stress = list(result.get("stress_tags") or ["edge", "adversarial"])
     res = calibrate(result, args.grader, labels, human, sample_info=read_sample_info(args.labels), validation=validation,
+                    validation_info=read_sample_info(args.validation_labels) if args.validation_labels else None,
                     stress_tags=stress)
     out = Path(args.out or "calibration.json")
     existing = json.loads(out.read_text()) if out.exists() else {"graders": []}
@@ -404,7 +406,8 @@ def cmd_calibrate(args) -> int:
     k, ci = res["kappa"], res.get("kappa_ci")
     ci_txt = f" (95% CI {ci[0]:.2f}–{ci[1]:.2f})" if ci else ""
     print(f"{args.grader}: n={res['n']} accuracy={res['accuracy'] if res['accuracy'] is None else round(res['accuracy'], 3)} "
-          f"kappa={k if k is None else round(k, 3)}{ci_txt} on the {res['sample']['design']} calibration sample -> {out}")
+          f"kappa={k if k is None else round(k, 3)}{ci_txt} on the {res['sample']['design']} calibration sample "
+          f"(unit: case and target{', interval stratified' if res['sample'].get('stratified_interval') else ''}) -> {out}")
     w = res.get("weighted")
     if w and w.get("kappa") is not None:
         print(f"  production-weighted: kappa {w['kappa']:.2f}, accuracy {w['accuracy']:.0%}, human pass rate "
@@ -491,22 +494,26 @@ def cmd_cases(args) -> int:
         return 0
     if args.action == "coverage":
         suite = load_suite(args.path)
-        cov = tx.coverage(load_cases(suite), args.workflow or tx.workflow_of(suite),
-                          min_representative=suite.min_representative_cases, stress_tags=suite.stress_tags)
-        mixed = tx.mixed_gates(suite)
-        if mixed and cov["stress"] and cov["representative"]:
-            cov["problems"].append("blocking gate(s) average representative and stress cases together: " + ", ".join(mixed))
+        from .packs import suite_coverage
+        cov = suite_coverage(suite, load_cases(suite))
         if args.json:
             print(json.dumps(cov, indent=1))
         else:
             w = f" ({cov['representative_weighted']} weighted)" if cov["representative_weighted"] else ""
             print(f"{cov['cases']} cases ({cov['workflow']} workflow): representative {cov['representative']}{w}, "
                   f"stress {cov['stress']}")
+            for e in cov["evidence"]:
+                print(f"  representative evidence: {e}")
             for g, d in cov["by_group"].items():
                 pres = ", ".join(f"{t} ({cov['present'][t]})" for t in d["present"]) or "-"
-                print(f"  {g:<10} stress cases: {pres}")
+                print(f"  {g:<10} enough:  {pres}")
+                if d["thin"]:
+                    print(f"  {'':<10} thin:    " + ", ".join(f"{t} {cov['thin'][t]['cases']}/{cov['thin'][t]['needed']}" for t in d["thin"]))
                 if d["missing"]:
                     print(f"  {'':<10} missing: {', '.join(d['missing'])}")
+            for t in cov["thin_gates"]:
+                if t["severity"] != "block":
+                    print(f"  note: {t['severity']} gate {t['gate']} will be invalid ({t['slice']}: {t['cases']} < min_n {t['min_n']})")
             for pr in cov["problems"]:
                 print(f"  to do: {pr}")
         return 1 if (args.strict and cov["problems"]) else 0
@@ -517,6 +524,23 @@ def cmd_cases(args) -> int:
         out = cs.write_jsonl(rows, args.out or "drafts.jsonl", append=args.append)
         print(f"wrote {len(rows)} draft case(s) to {out}" + ("" if tok else " (NOT tokenised)") +
               ". Review each one, write its reference, then `genai-evals cases promote`.")
+        return 0
+    if args.action == "sample":
+        import yaml as _yaml
+
+        from .runner import load_result
+        tok = None if args.no_tokenize else cs.default_tokenizer()
+        rows, prov = cs.sample_representative(load_result(args.path), n=args.n, seed=args.seed, by_tag=args.by_tag,
+                                              tokenizer=tok, population=args.population)
+        out = cs.write_jsonl(rows, args.out or "representative-drafts.jsonl", append=args.append)
+        pfile = Path(str(out) + ".provenance.yaml")
+        pfile.write_text(_yaml.safe_dump({"representative_sample": {k: v for k, v in prov.items() if v is not None}},
+                                         sort_keys=False, allow_unicode=True), encoding="utf-8")
+        print(f"wrote {len(rows)} draft representative case(s) to {out}, and their provenance to {pfile}.")
+        if prov["source"] != "production":
+            print("  note: sampled from recorded fixture telemetry, so `doctor` won't count these as production cases")
+        print("  next: an SME writes each reference, `genai-evals cases promote ... --into <dataset>`, then copy the "
+              "provenance block into suite.yaml")
         return 0
     if args.action == "generate":
         if not args.generator:
@@ -778,15 +802,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_calibrate)
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
-    p.add_argument("action", choices=["tags", "coverage", "generate", "harvest", "promote"],
-                   help="tags | coverage <suite.yaml> | generate <suite.yaml> | harvest <result.json> | promote <drafts.jsonl>")
+    p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote"],
+                   help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
+                        "harvest <result.json> | promote <drafts.jsonl>")
     p.add_argument("path", nargs="?", default="suite.yaml")
     p.add_argument("--workflow", choices=["rag", "agent", "extraction", "single_turn"], help="override the suite's workflow")
     p.add_argument("--json", action="store_true")
     p.add_argument("--strict", action="store_true", help="coverage: exit 1 if anything is missing")
     p.add_argument("--generator", help="generate: provider profile that writes the drafts (a strong model)")
     p.add_argument("--tag", action="append", help="generate: coverage tag(s) to write cases for (default: the missing ones)")
-    p.add_argument("--n", type=int, default=5, help="generate: drafts per tag (default 5)")
+    p.add_argument("--n", type=int, default=5, help="generate: drafts per tag (default 5); sample: cases to draw")
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--by-tag", action="store_true", help="sample: stratify by tag (proportional), with weights")
+    p.add_argument("--population", help="sample: what the result covers, e.g. 'all web-chat claim sessions'")
     p.add_argument("--grader", action="append", help="harvest: only samples failing these graders (default: any)")
     p.add_argument("--below", type=float, help="harvest: also samples scoring below this value")
     p.add_argument("--limit", type=int, default=50)

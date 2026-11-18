@@ -122,10 +122,23 @@ class GraderSpec(BaseModel):
 class GateSpec(BaseModel):
     name: str
     rule: str
-    severity: Literal["block", "warn"] = "block"
+    severity: Literal["block", "warn", "info"] = "block"   # info: diagnostic, reported but never fails a run
     targets: list[str] | None = None
     min_n: int | None = None                    # overrides suite.min_n for this gate
     allow_missing_baseline: bool = False        # delta()/significant() pass (as 0 / False) when there is no baseline
+
+
+class RepresentativeSample(BaseModel):
+    """How the representative set was drawn, so "representative" is a claim with evidence behind it."""
+    model_config = ConfigDict(extra="allow")
+    source: str                                  # production | pilot | historical logs | ...
+    population: str                              # what was sampled from, e.g. "all web-chat claim sessions"
+    window: str                                  # when, e.g. "2026-10-01..2026-10-31"
+    method: str                                  # how, e.g. "simple random sample of sessions", "stratified by intent"
+    weights: str | None = None                   # how case weights were set, if any (e.g. "intent share in October")
+    drawn_by: str | None = None
+    drawn_at: str | None = None
+    notes: str | None = None
 
 
 class SuiteSpec(BaseModel):
@@ -153,6 +166,10 @@ class SuiteSpec(BaseModel):
     include_draft_cases: bool = False                # draft cases (review_status: draft) are left out of runs and gates
     stress_tags: list[str] = Field(default_factory=lambda: ["edge", "adversarial"])  # cases with these tags form the stress split
     min_representative_cases: int = 30              # doctor: size of the representative (production-like) set
+    min_representative_production_share: float = 0.8  # doctor: share of representative cases with source: production
+    representative_sample: RepresentativeSample | None = None   # provenance of the representative set
+    stress_min_cases: dict[str, int] = Field(default_factory=lambda: {"high": 10, "standard": 5})  # per coverage tag, by risk tier
+    stress_min_by_tag: dict[str, int] = Field(default_factory=dict)  # per-tag overrides
     tokenizer: dict[str, Any] = Field(default_factory=dict)
     validation: str | None = None                    # adapter validation records (default: validation.yaml next to the suite)
     overlays: list[str] = Field(default_factory=list)  # pack overlays (folders with overlay.yaml): extra cases, graders, gates

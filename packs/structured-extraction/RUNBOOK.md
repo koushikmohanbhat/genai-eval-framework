@@ -1,6 +1,6 @@
 # Runbook: Structured extraction
 
-The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.2).
+The path from a clean project to a customer-owned evaluation, for the `structured-extraction` pack (0.1.3).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)
@@ -35,13 +35,15 @@ Follow [`data/README.md`](data/README.md). Validate as you go:
 
 ```bash
 genai-evals validate suite.yaml          # schema errors name the case id and the field
-genai-evals cases coverage suite.yaml    # the representative set (size) and the stress suite (coverage tags)
+genai-evals cases coverage suite.yaml    # the representative set (size, provenance) and the stress suite (cases per tag)
+genai-evals cases sample out/online/result.json --n 200 --by-tag --out rep.jsonl   # representative set from production
 genai-evals cases generate suite.yaml --generator <strong model profile>   # optional: draft cases for missing tags
 ```
 
 Keep two sets ([two sets](https://github.com/koushikmohanbhat/genai-eval-framework/blob/main/docs/growing-the-eval-set.md#two-sets-representative-and-stress)):
 a **representative** set sampled from production traffic (at least 30 cases, with `weight:` where the sample isn't in
-production proportions), whose score is the production estimate; and a **stress** suite of `edge` / `adversarial`
+production proportions, and a `representative_sample:` provenance record in suite.yaml), whose score is the production
+estimate; and a **stress** suite of `edge` / `adversarial`
 cases that find failures. The headline gates use `split='representative'`; the stress suite is gated separately.
 
 Generated (and later, harvested) cases are drafts: they don't count until an SME writes the reference and

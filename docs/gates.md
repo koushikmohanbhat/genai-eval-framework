@@ -42,8 +42,16 @@ Each gate is evaluated per target and gets one status:
 | Status | When | Effect on the run |
 |---|---|---|
 | `pass` | the rule is true | none |
-| `fail` | the rule is false | `block`: run fails (exit 1). `warn`: reported; run fails only with `--fail-on-warn` |
-| `invalid` | the rule can't be decided: no baseline for `delta()` / `significant()`, fewer than `min_n` scored cases (overall, in a tag slice, or in the baseline overlap), an untrusted judge (see [calibration](graders.md#calibration)), an unknown grader or a rule error | `block`: run fails (exit 1). `warn`: reported as a warning |
+| `fail` | the rule is false | `block`: run fails (exit 1). `warn`: reported; run fails only with `--fail-on-warn`. `info`: reported as diagnostic, never fails |
+| `invalid` | the rule can't be decided: no baseline for `delta()` / `significant()`, fewer than `min_n` scored cases (overall, in a tag slice or split, or in the baseline overlap), an untrusted judge (see [calibration](graders.md#calibration)), an unknown grader or a rule error | `block`: run fails (exit 1). `warn`: reported as a warning. `info`: reported as "too few cases (diagnostic)" |
+
+**Severity.** `block` is the default.
+- `warn` is for early warnings, such as an SLO or a retrieval drift alarm.
+- `info` is diagnostic: use it for slices too small to support a decision, such as a stress tag with a handful of
+  cases, so the number is visible without deciding a release.
+
+`genai-evals cases coverage` and `doctor` list the gates whose slice has fewer cases than their `min_n` **before** a
+run. A blocking gate in that list is a problem: add cases, or make it `info`.
 
 Rules that apply to the numbers a gate reads:
 

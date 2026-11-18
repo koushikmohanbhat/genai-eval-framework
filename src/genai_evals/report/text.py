@@ -27,7 +27,11 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
         lines.append("Prompt versions: " + "; ".join(f"**{t}**: " + ", ".join(f"`{k}@{v}`" for k, v in d.items()) for t, d in pv.items()))
     lines += ["", "### Gates", "", "| Gate | Target | Result | Values |", "|---|---|---|---|"]
     for g in result["gates"]:
-        st = {"pass": "✅ pass", "fail": "❌ fail" if g["severity"] == "block" else "⚠️ fail (warn)", "invalid": "❌ invalid"}[g["status"]]
+        if g["severity"] == "info":
+            st = {"pass": "✅ pass", "fail": "ℹ️ below (diagnostic)", "invalid": "ℹ️ too few cases (diagnostic)"}[g["status"]]
+        else:
+            st = {"pass": "✅ pass", "fail": "❌ fail" if g["severity"] == "block" else "⚠️ fail (warn)",
+                  "invalid": "❌ invalid" if g["severity"] == "block" else "⚠️ invalid (warn)"}[g["status"]]
         vals = ", ".join(f"`{k}`={_f(v)}" for k, v in g["values"].items())
         lines.append(f"| {g['gate']} | {g['target']} | {st} | {vals}{(' — ' + g['message']) if g['message'] else ''} |")
     lines += ["", "### Scores (mean, 95% CI; representative and stress splits reported separately)", ""]
@@ -93,7 +97,7 @@ def junit_xml(result: dict[str, Any]) -> str:
     failures = 0
     for g in result["gates"]:
         name = escape(f"gate:{g['gate']}[{g['target']}]")
-        if g["passed"] or g["severity"] == "warn":
+        if g["passed"] or g["severity"] in ("warn", "info"):
             cases_xml.append(f'<testcase classname="gates" name="{name}"/>')
         else:
             failures += 1

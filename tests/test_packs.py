@@ -113,12 +113,17 @@ def test_doctor_tracks_the_repeatability_bar(tmp_path, monkeypatch):
     data = proj / "data/starter.jsonl"
     rows = [json.loads(x) for x in data.read_text().splitlines() if x.strip()]
     rows[0]["tags"] += ["structured_input", "image_input", "typos", "very_short"]
+    for r in rows:                     # a real engagement samples the representative set from production
+        if not {"edge", "adversarial"} & set(r["tags"]):
+            r["source"] = "production"
     data.write_text("".join(json.dumps(r) + "\n" for r in rows))
     (proj / "calibration.json").write_text(json.dumps(cal))
     suite = proj / "suite.yaml"
     # the starter set is small; a real engagement samples 30+ production cases into the representative set
     suite.write_text(suite.read_text().replace("# calibration: calibration.json", "calibration: calibration.json")
-                     + "\nmin_representative_cases: 10\n")
+                     + "\nmin_representative_cases: 10\nstress_min_cases: {high: 1, standard: 1}\n"
+                     + "representative_sample: {source: production, population: intranet questions, "
+                       "window: 2026-10-01..2026-10-31, method: simple random sample of sessions}\n")
     h = proj / "HANDOVER.md"
     h.write_text(h.read_text().replace("- [ ]", "- [x]").replace("Owner: ____", "Owner: Customer platform team"))
     from genai_evals.plugins import record_validation

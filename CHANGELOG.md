@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.4.2 (2026-11-18)
+
+Review feedback: a clearly defined calibration unit with design-aware intervals, evidence behind "representative",
+and visible thin stress coverage.
+
+### Calibration unit and intervals
+- The labelling unit is **(case, target)**. `labels sheet` draws one random repeat per unit, records it in `repeat`,
+  and computes strata and weights over units, not repeats.
+- Calibration compares each label with the judge's verdict on **that repeat only**, so repeats no longer count as
+  separate human comparisons (previously one label was applied to every repeat). Labels without a `repeat` column
+  use repeat 0, with a warning when the unit had several repeats. The judge ladder (`--compare-to`) uses the same
+  pairing.
+- Intervals are design-aware. For stratified sheets, both the sample κ CI and the production-weighted κ CI use a
+  stratified bootstrap: units are resampled within each sampling stratum, keeping stratum sizes and weights.
+- Calibration output records `unit: case, target` and whether the interval was stratified.
+
+### Representative set provenance
+- Suite `representative_sample:` (source, population, window, method, weights, drawn_by, drawn_at) records how the
+  representative set was drawn. `doctor` and `cases coverage` require it, require an explanation of any case
+  weights, and require at least `min_representative_production_share` (default 80%) of representative cases to have
+  `source: production`. They print the evidence they found.
+- New `genai-evals cases sample <online result>`: draws the representative set from production telemetry, by unit
+  (session / case and target) rather than by score.
+  - It does a simple random sample, or proportional stratified sampling by tag with weights (`--by-tag`).
+  - It writes drafts (`source: production`, `split: representative`) and a ready-to-paste provenance block with the
+    window and telemetry sampling.
+  - Fixture telemetry is labelled and doesn't count as production. `cases promote` keeps sampled cases `typical`.
+- Each pack suite has a commented `representative_sample:` template.
+
+### Stress coverage
+- Each coverage tag has a minimum number of cases by risk tier: 10 for high-risk tags (`jailbreak`,
+  `system_conflict`, `bad_tool_args`, `circular_handoff`) and 5 otherwise. Set them with `stress_min_cases` and
+  `stress_min_by_tag`. Tags below the minimum are reported as **thin**.
+- Before a run, `cases coverage` and `doctor` list gates whose tag or split slice has fewer cases than their
+  `min_n`. Blocking ones are problems.
+- New gate severity **`info`** (diagnostic): reported, including "too few cases", but never fails a run, even with
+  `--fail-on-warn`. The RAG pack's `grounded-under-stress` is now `info`. Packs bumped to 0.2.2 / 0.2.2 / 0.1.3.
+
 ## 0.4.1 (2026-11-18)
 
 Review feedback: keep the production estimate apart from stress testing, and account for how human labels were sampled.

@@ -16,6 +16,13 @@ level is shown, not just described. Put the same examples in the grader's `ancho
 
 ## 2. Make the sheets: a calibration sample and a validation sample
 
+**The unit is (case, target).** Each unit gets one human label.
+- When the run had repeats, the sheet picks one repeat per unit at random and records it in the `repeat` column.
+- Calibration compares the label with the judge's verdict on that repeat only, so repeats never count as extra human
+  comparisons.
+- Labels files without a `repeat` column are compared with repeat 0. If that unit had several repeats, the
+  calibration warns.
+
 Two samples answer two different questions, so draw both:
 
 ```bash
@@ -33,9 +40,14 @@ genai-evals labels sheet out/live/result.json --grader faithfulness --n 40 --des
 
 - **Which result to sample from.** Run on the representative set (or on online production samples) for the
   validation sheet. A sample of a suite that includes the stress cases is "random" only over that suite.
-- **Weights.** Every row records `sample_design`, `stratum` and `weight`: the inverse inclusion weight, i.e. the
-  number of scored items the labelled item stands for (stratum size ÷ items drawn from it). Calibration uses the
-  weights to estimate agreement at the population's prevalence. Leave these columns as they are.
+- **Weights and strata.** Every row records `sample_design`, `stratum` and `weight`. The weight is the inverse
+  inclusion weight: the number of units the labelled unit stands for (units in its stratum ÷ units drawn from it).
+  Calibration uses them in two ways:
+  - to estimate agreement at the population's prevalence (weighted κ, accuracy and pass rates);
+  - for **design-aware intervals**: the bootstrap resamples units *within each stratum*, keeping stratum sizes and
+    weights, as the sample was drawn.
+
+  Leave these columns as they are.
 - **Rows.** One row per item per reviewer. Reviewers fill `label` (`pass`, `fail` or `unsure`) and `notes`.
 - **Independence.** The judge's verdict is not in the sheet, so labels stay independent of the judge.
 - **Personal data.** Inputs and outputs come from the result, which is already tokenised when the run used

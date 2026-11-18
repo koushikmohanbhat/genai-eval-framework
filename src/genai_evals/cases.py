@@ -97,6 +97,73 @@ def harvest(result: dict[str, Any], graders: list[str] | None = None, below: flo
     return out
 
 
+# ---- sample (the representative set) -----------------------------------------------------------------------------
+
+def sample_representative(result: dict[str, Any], n: int = 50, seed: int = 7, by_tag: bool = False,
+                          tokenizer: Any = None, prefix: str = "rep-", population: str | None = None
+                          ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Draft representative cases from the samples in a result, usually an online run over production telemetry.
+    Selection is by the unit (session / case and target), **not** by score, so the set reflects traffic rather than
+    failures.
+
+    by_tag=False: a simple random sample. by_tag=True: proportional-allocation stratified sample by the first tag,
+    with each case weighted by stratum size / cases drawn, so the weighted mean estimates the whole population.
+
+    Returns (draft cases, provenance). The provenance (source, population, window, method, weights, drawn_at, plus the
+    telemetry sampling that produced the result) goes into the suite's `representative_sample:`."""
+    import datetime as _dt
+    import random as _random
+    rng = _random.Random(seed)
+    cases = {c["id"]: c for c in result.get("cases", [])}
+    units: dict[tuple[str, str], dict] = {}
+    for smp in result.get("samples", []):
+        units.setdefault((smp["case_id"], smp["target"]), smp)          # one sample per unit (first repeat)
+    keys = sorted(units)
+    if not keys:
+        raise ValueError("no samples in this result")
+    n = min(n, len(keys))
+    strata: dict[str, list] = {}
+    for k in keys:
+        tags = cases.get(k[0], {}).get("tags") or ["(untagged)"]
+        strata.setdefault(sorted(tags)[0] if by_tag else "all", []).append(k)
+    picked: list[tuple[tuple[str, str], str, float]] = []
+    total = len(keys)
+    for st, ks in sorted(strata.items()):
+        take = max(1, round(n * len(ks) / total)) if by_tag else n
+        take = min(take, len(ks))
+        for k in rng.sample(ks, take):
+            picked.append((k, st, len(ks) / take))
+    tok = (lambda x: tokenizer.tokenize(x)) if tokenizer else (lambda x: x)
+    srcs = result.get("sources") or []
+    def _w(w):
+        return ", ".join(f"{k} {v}" for k, v in w.items()) if isinstance(w, dict) else str(w)
+    window = "; ".join(f"{s.get('source')}: {_w(s.get('window'))}" for s in srcs if s.get("window")) or result.get("created_at", "")
+    fixture = any(s.get("fixture") for s in srcs)
+    out = []
+    for (cid, tgt), st, w in picked:
+        smp = units[(cid, tgt)]
+        inp = smp.get("input")
+        text = tok(inp if isinstance(inp, str) else json.dumps(inp, ensure_ascii=False))
+        row = {"id": _id(prefix, result.get("run_id"), cid, tgt), "input": text,
+               "tags": ["typical", "sampled"], "critical": False, "source": "synthetic" if fixture else "production",
+               "split": "representative", "review_status": "draft", "reference": {},
+               "metadata": {"sampled_from": result.get("run_id"), "original_case_id": cid, "target": tgt,
+                            "trace_id": smp.get("trace_id"), "session_id": smp.get("session_id"), "stratum": st}}
+        if by_tag:
+            row["weight"] = round(w, 6)
+        out.append(row)
+    prov = {"source": "fixture (not production: recorded telemetry)" if fixture else "production",
+            "population": population or ", ".join(sorted({s.get("source", "?") for s in srcs})) or "samples in " + str(result.get("run_id")),
+            "window": window,
+            "method": (f"stratified random sample by first tag, proportional allocation, {len(out)} of {total} units"
+                       if by_tag else f"simple random sample of {len(out)} of {total} units (sessions / cases), seed {seed}"),
+            "weights": "inverse inclusion: units in the tag stratum / units drawn from it" if by_tag else None,
+            "drawn_at": _dt.date.today().isoformat(), "sampled_from_run": result.get("run_id"),
+            "telemetry_sampling": [{k: s.get(k) for k in ("source", "type", "sampling", "sampling_method", "population",
+                                                           "samples", "window") if s.get(k) is not None} for s in srcs]}
+    return out, prov
+
+
 # ---- generate ------------------------------------------------------------------------------------------------------
 
 async def _generate(provider: Any, prompt: str) -> list[dict[str, Any]]:
@@ -166,7 +233,7 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
             refused.append(f"{d['id']}: no reference yet (write one, or pass --allow-empty-reference)")
             keep.append(d)
             continue
-        if not {"typical", "edge", "adversarial"} & set(d.get("tags") or []):
+        if not {"typical", "edge", "adversarial"} & set(d.get("tags") or []) and d.get("split") != "representative":
             d["tags"] = list(d.get("tags") or []) + ["edge"]
         d["review_status"] = "reviewed"
         meta = dict(d.get("metadata") or {})

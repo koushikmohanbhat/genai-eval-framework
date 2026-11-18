@@ -131,6 +131,8 @@ def read_sample_info(path: str | Path) -> dict[tuple[str, str], dict[str, Any]]:
         for r in csv.DictReader(f):
             key = (r["case_id"], r.get("target") or "*")
             info = {}
+            if str(r.get("repeat") or "").strip().isdigit():
+                info["repeat"] = int(r["repeat"])
             if (r.get("sample_design") or "").strip():
                 info["design"] = r["sample_design"].strip()
             if (r.get("stratum") or "").strip():
@@ -161,15 +163,32 @@ def cohen_kappa(pairs: list[tuple[bool, bool]]) -> float:
     return 1.0 if pe == 1 else (po - pe) / (1 - pe)
 
 
-def kappa_ci(pairs: list[tuple[bool, bool]], seed: int = 7, b: int = 2000, alpha: float = 0.05) -> tuple[float, float] | None:
-    """Bootstrap 95% interval for Cohen's kappa (resampling labelled items)."""
+def _resample(n: int, strata: list[Any] | None, rng) -> list[int]:
+    """Bootstrap indices. With strata, resample within each stratum (keeping its size), which respects a stratified
+    sampling design; without, resample all units together."""
+    if not strata:
+        return [rng.randrange(n) for _ in range(n)]
+    by: dict[Any, list[int]] = {}
+    for i, st in enumerate(strata):
+        by.setdefault(st, []).append(i)
+    out: list[int] = []
+    for idx in by.values():
+        out += [idx[rng.randrange(len(idx))] for _ in idx]
+    return out
+
+
+def kappa_ci(pairs: list[tuple[bool, bool]], seed: int = 7, b: int = 2000, alpha: float = 0.05,
+             strata: list[Any] | None = None) -> tuple[float, float] | None:
+    """Bootstrap 95% interval for Cohen's kappa, resampling labelled units (within strata when given)."""
     import random
     n = len(pairs)
     if n < 2:
         return None
     rng = random.Random(seed)
-    ks = sorted(cohen_kappa([pairs[rng.randrange(n)] for _ in range(n)]) for _ in range(b))
-    return ks[int(alpha / 2 * b)], ks[min(b - 1, int((1 - alpha / 2) * b))]
+    ks = sorted(k for k in (cohen_kappa([pairs[i] for i in _resample(n, strata, rng)]) for _ in range(b)) if k == k)
+    if not ks:
+        return None
+    return ks[int(alpha / 2 * len(ks))], ks[min(len(ks) - 1, int((1 - alpha / 2) * len(ks)))]
 
 
 def weighted_kappa(pairs: list[tuple[bool, bool]], weights: list[float]) -> float:
@@ -185,7 +204,9 @@ def weighted_kappa(pairs: list[tuple[bool, bool]], weights: list[float]) -> floa
     return 1.0 if pe == 1 else (po - pe) / (1 - pe)
 
 
-def _weighted_ci(pairs, weights, seed: int = 7, b: int = 2000) -> tuple[float, float] | None:
+def _weighted_ci(pairs, weights, seed: int = 7, b: int = 2000, strata: list[Any] | None = None) -> tuple[float, float] | None:
+    """Design-aware interval for the weighted kappa: a stratified bootstrap that resamples units within each sampling
+    stratum (keeping the stratum's size and weight), so the interval reflects how the sample was drawn."""
     import random
     n = len(pairs)
     if n < 2:
@@ -193,7 +214,7 @@ def _weighted_ci(pairs, weights, seed: int = 7, b: int = 2000) -> tuple[float, f
     rng = random.Random(seed)
     ks = []
     for _ in range(b):
-        idx = [rng.randrange(n) for _ in range(n)]
+        idx = _resample(n, strata, rng)
         k = weighted_kappa([pairs[i] for i in idx], [weights[i] for i in idx])
         if k == k:
             ks.append(k)
@@ -215,26 +236,47 @@ def _agreement(pairs: list[tuple[bool, bool]], seed: int = 7) -> dict[str, Any]:
 MIN_LABELS = 30
 
 
-def _pairs(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool]) -> dict[tuple[str, str, int], tuple[bool, bool]]:
-    out = {}
+def _pairs(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool],
+           info: dict[tuple[str, str], dict[str, Any]] | None = None, stats: dict[str, int] | None = None
+           ) -> dict[tuple[str, str], tuple[bool, bool]]:
+    """One (judge, human) pair per labelled **unit (case, target)**. The judge verdict is the one on the repeat that
+    was labelled (the sheet's `repeat` column). Without that column, repeat 0 is used, and `stats` counts the
+    units where this was a guess because the run had several repeats. Labels never fan out across repeats."""
+    info = info or {}
+    by_unit: dict[tuple[str, str], dict[int, bool]] = {}
     for s in result["scores"]:
         if s["grader"] != grader or s.get("skipped") or s.get("passed") is None:
             continue
-        lab = labels.get((s["case_id"], s["target"]), labels.get((s["case_id"], "*")))
-        if lab is not None:
-            out[(s["case_id"], s["target"], int(s.get("repeat") or 0))] = (bool(s["passed"]), lab)
+        by_unit.setdefault((s["case_id"], s["target"]), {})[int(s.get("repeat") or 0)] = bool(s["passed"])
+    out = {}
+    for (cid, tgt), reps in by_unit.items():
+        key = (cid, tgt) if (cid, tgt) in labels else (cid, "*")
+        lab = labels.get(key)
+        if lab is None:
+            continue
+        rep = (info.get((cid, tgt)) or info.get((cid, "*")) or {}).get("repeat")
+        if rep is None:
+            rep = min(reps)
+            if stats is not None and len(reps) > 1:
+                stats["repeat_unspecified"] = stats.get("repeat_unspecified", 0) + 1
+        if rep not in reps:
+            if stats is not None:
+                stats["repeat_missing"] = stats.get("repeat_missing", 0) + 1
+            continue
+        out[(cid, tgt)] = (reps[rep], lab)
     return out
 
 
 def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, Any], str],
                    labels: dict[tuple[str, str], bool], margin: float = 0.05, min_kappa: float | None = None,
-                   min_n: int = MIN_LABELS, seed: int = 7, b: int = 2000) -> dict[str, Any]:
+                   min_n: int = MIN_LABELS, seed: int = 7, b: int = 2000,
+                   info: dict[tuple[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
     """Can a cheaper judge replace a stronger one? Both are scored against the same human labels on the items both
     graded. The cheaper judge is approved when (a) the 95% lower bound of kappa(cheap) - kappa(strong) is above
     -margin (it is not meaningfully worse), (b) at least min_n items are shared, and (c) if min_kappa is given, its own
     kappa lower bound clears it."""
     import random
-    pc, ps = _pairs(cheap[0], cheap[1], labels), _pairs(strong[0], strong[1], labels)
+    pc, ps = _pairs(cheap[0], cheap[1], labels, info), _pairs(strong[0], strong[1], labels, info)
     common = sorted(set(pc) & set(ps))
     a = [pc[k] for k in common]
     s_ = [ps[k] for k in common]
@@ -272,6 +314,7 @@ def _judge_cost(result: dict[str, Any], grader: str) -> float:
 def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool],
               human: dict[str, Any] | None = None, sample_info: dict[tuple[str, str], dict[str, Any]] | None = None,
               validation: dict[tuple[str, str], bool] | None = None,
+              validation_info: dict[tuple[str, str], dict[str, Any]] | None = None,
               stress_tags: list[str] | tuple[str, ...] = ("edge", "adversarial")) -> dict[str, Any]:
     """Agreement between a model grader and human labels.
 
@@ -280,7 +323,8 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     stratified sample across tags), not hand-picked ones, so agreement generalises to the whole suite.
     """
     pairs, mismatches, keys = [], [], []
-    for (cid, tgt, _r), (j, lab) in _pairs(result, grader, labels).items():
+    pstats: dict[str, int] = {}
+    for (cid, tgt), (j, lab) in _pairs(result, grader, labels, sample_info, pstats).items():
         pairs.append((j, lab))
         keys.append((cid, tgt))
         if j != lab:
@@ -290,7 +334,13 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     fp = sum(1 for j, h in pairs if j and not h)
     fn = sum(1 for j, h in pairs if not j and h)
     n = len(pairs)
-    ci = kappa_ci(pairs)
+    info = sample_info or {}
+
+    def info_for(k):
+        return info.get(k) or info.get((k[0], "*")) or {}
+    strata = [info_for(k).get("stratum") for k in keys]
+    strata = strata if all(x is not None for x in strata) else None
+    ci = kappa_ci(pairs, strata=strata)
     prevalence = (tp + fn) / n if n else None
     warnings = []
     if n < MIN_LABELS:
@@ -306,17 +356,18 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
             warnings.append(f"judge agrees with the consensus (kappa {jk:.2f}) more than reviewers agree with each other "
                             f"({hk:.2f}): check the labels are independent")
     # --- how the labelled sample was drawn, and what it says about production --------------------------------------
-    info = sample_info or {}
-
-    def info_for(k):
-        return info.get(k) or info.get((k[0], "*")) or {}
+    if pstats.get("repeat_unspecified"):
+        warnings.append(f"{pstats['repeat_unspecified']} labelled unit(s) had several repeats but no `repeat` column: "
+                        "compared with repeat 0 only (use `labels sheet`, which records the labelled repeat)")
+    if pstats.get("repeat_missing"):
+        warnings.append(f"{pstats['repeat_missing']} label(s) name a repeat this result doesn't have: left out")
     designs = sorted({info_for(k).get("design") for k in keys if info_for(k).get("design")})
     design = designs[0] if len(designs) == 1 else ("mixed" if designs else "unknown")
     weights = [info_for(k).get("weight") for k in keys]
     weighted = None
     if n and all(w is not None for w in weights):
         wk = weighted_kappa(pairs, weights)
-        wci = _weighted_ci(pairs, weights)
+        wci = _weighted_ci(pairs, weights, strata=strata)
         tot = sum(weights)
         weighted = {"kappa": wk if wk == wk else None, "kappa_ci": list(wci) if wci else None,
                     "accuracy": sum(w for (a, b), w in zip(pairs, weights) if a == b) / tot,
@@ -341,7 +392,7 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     # --- a separate representative validation sample ----------------------------------------------------------------
     val = None
     if validation:
-        vp = list(_pairs(result, grader, validation).values())
+        vp = list(_pairs(result, grader, validation, validation_info).values())
         val = _agreement(vp)
     if design == "stratified":
         msg = ("calibration sample is stratified (balanced on the judge's verdict and spread across tags), so its pass "
@@ -358,8 +409,9 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     if val and val.get("kappa_ci") and ci and val["kappa_ci"][0] < ci[0] - 0.1:
         warnings.append(f"agreement on the representative validation sample is lower (kappa {val['kappa']:.2f}) than on "
                         f"the calibration sample ({cohen_kappa(pairs):.2f})")
-    return {"grader": grader, "n": n, "accuracy": (tp + tn) / n if n else None, "kappa": cohen_kappa(pairs) if n else None,
-            "sample": {"design": design, "weighted": weighted is not None}, "weighted": weighted,
+    return {"grader": grader, "n": n, "unit": "case, target", "accuracy": (tp + tn) / n if n else None,
+            "kappa": cohen_kappa(pairs) if n else None,
+            "sample": {"design": design, "weighted": weighted is not None, "stratified_interval": strata is not None}, "weighted": weighted,
             "slices": slices, "validation": val,
             "kappa_ci": list(ci) if ci else None,
             "human_pass_rate": prevalence,

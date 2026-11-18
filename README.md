@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.1"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.4.2"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -131,7 +131,7 @@ production. On top of that:
 | **40 graders** | deterministic (JSON schema, field match with Indian normalisers, regex), trajectory (tool calls, args, order, final state, handoffs, handoff loops, step budget), RAG (recall@k, MRR, nDCG, judge-labelled context precision and recall, claim-level faithfulness, citations, correct refusal), judges (rubric, reference match, policy, pairwise with position swap and length-bias tracking), ops (latency, cost, tokens), safety (PII leak with Verhoeff-checked Aadhaar, guardrail), custom (Python, HTTP, AgentCore evaluator, Vertex metric) |
 | **Judges you can trust** | no default judge (you must name them); multi-provider judge panels with disagreement reporting; a short, checkable rationale (quoted evidence, capped and tokenised) before every verdict and an explicit "length is not quality" rule; "judge must be a different family than the target"; calibration against human labels (Cohen's κ with a confidence interval and a minimum label count) that invalidates gates when a judge is unreliable; a judge ladder that approves a cheaper judge only if it agrees with humans as well as the strong one; judge prompt hashes and reported model ids recorded with every result |
 | **Human labels** | labelling guides with examples per level; reviewer sheets that hide the judge's verdict; several reviewers and rounds, Fleiss' κ, consensus. Calibration samples (stratified, balanced) record their design and weights, so agreement is also reported production-weighted, per slice, and on a separate representative validation sample ([human labels](docs/human-labels.md)) |
-| **Representative and stress sets** | every grader is reported on a **representative** set (production-like, optionally prevalence-weighted: the production estimate) and a **stress** suite (edge / adversarial), gated separately, so edge cases never distort the headline; 18 standard coverage tags show what the stress suite misses; drafts generated for missing tags or harvested from production count only after expert review ([growing the eval set](docs/growing-the-eval-set.md)) |
+| **Representative and stress sets** | every grader is reported on a **representative** set (the production estimate: production-like, optionally prevalence-weighted, with recorded provenance, and drawn from production telemetry by `cases sample`) and a **stress** suite (edge / adversarial), gated separately so edge cases never distort the headline; stress coverage by 18 standard tags with minimum counts by risk tier; drafts generated for missing tags or harvested from production count only after expert review ([growing the eval set](docs/growing-the-eval-set.md)) |
 | **Honest statistics** | repeats, bootstrap 95% CIs, `pass@k` and `pass^k`, paired comparisons (bootstrap + McNemar), slices by tag, critical cases, errors counted as failures, a minimum *n* per gate and slice, a warning when the dataset is too small to detect the difference ([assumptions](docs/gates.md#statistical-assumptions)) |
 | **Experiments** | a baseline and candidate changes (prompt, model, retriever, settings) on the same cases, compared side by side: quality with corrected significance, cost, latency, critical cases, the slices and failure types that moved, the cases that flipped; a manifest of hashes so the experiment can be re-run and checked ([experiments](docs/experiments.md)) |
 | **Release gates** | a small sandboxed DSL: `mean(faithfulness) >= 0.9 and ci_low(faithfulness) >= 0.85`, `delta(task_success) > -0.03 or not significant(task_success)`, `critical_pass()`, `p95(latency_ms) <= 3000`. Gates are pass, fail or **invalid** (no baseline, too few cases, untrusted judge) and invalid blocks. Exit code 0/1/2, GitHub Action, PR comment |
@@ -240,7 +240,7 @@ sources:
 
 ## Project status
 
-v0.4.1. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.4.2. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

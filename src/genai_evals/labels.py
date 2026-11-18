@@ -22,14 +22,17 @@ SHEET_COLUMNS = ["case_id", "target", "repeat", "tags", "input", "output", "judg
 
 def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7, stratify: bool = True,
                  include_judge: bool = False, design: str | None = None) -> list[dict[str, Any]]:
-    """Pick items to label.
+    """Pick units to label. **The unit is (case, target)**: one human label per case and target. When the run had
+    repeats, one repeat is chosen at random for each unit, recorded in the `repeat` column, and calibration compares
+    the label with the judge's verdict on that repeat only, so repeats never count as extra human comparisons.
 
-    design="stratified" (calibration, the default): stratified by tag (so rare slices are not missed) and balanced
-    between judge passes and fails, so agreement can be measured on both outcomes. Not representative of production.
-    design="random" (validation): a simple random sample, representative of the scored items.
+    design="stratified" (calibration, the default): units are stratified by tag and by the judge's verdict on the
+    chosen repeat, drawn round-robin so rare slices and both outcomes are represented. Not representative of
+    production.
+    design="random" (validation): a simple random sample of units.
 
-    Every item records its design, stratum and inverse-inclusion weight (stratum size / items drawn from it), so
-    calibration can weight agreement back to the population's prevalence."""
+    Each row records its design, stratum and inverse-inclusion weight (units in the stratum / units drawn from it),
+    so calibration can weight agreement back to the population and resample within strata for its intervals."""
     design = design or ("stratified" if stratify else "random")
     stratify = design == "stratified"
     cases = {c["id"]: c for c in result.get("cases", [])}
@@ -38,36 +41,39 @@ def sample_items(result: dict[str, Any], grader: str, n: int = 50, seed: int = 7
     if not scored:
         raise ValueError(f"no scored items for grader '{grader}' in this result")
     rng = random.Random(seed)
-    groups: dict[tuple[str, bool], list[dict]] = defaultdict(list)
+    units: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for s in scored:
+        units[(s["case_id"], s["target"])].append(s)
+    chosen = [rng.choice(sorted(v, key=lambda x: x.get("repeat", 0))) for _, v in sorted(units.items())]
+
+    def stratum(s):
         tags = cases.get(s["case_id"], {}).get("tags") or ["(untagged)"]
-        key = (sorted(tags)[0], bool(s["passed"])) if stratify else ("*", None)
-        groups[key].append(s)
+        return (sorted(tags)[0], bool(s["passed"])) if stratify else ("all", None)
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for s in chosen:
+        groups[stratum(s)].append(s)
     sizes = {k: len(v) for k, v in groups.items()}
     for g in groups.values():
         rng.shuffle(g)
     picked: list[dict] = []
-    keys = sorted(groups)
-    while len(picked) < min(n, len(scored)):          # round-robin across strata
+    keys = sorted(groups, key=str)
+    while len(picked) < min(n, len(chosen)):          # round-robin across strata
         for k in keys:
             if groups[k] and len(picked) < n:
                 picked.append(groups[k].pop())
     drawn: dict[tuple, int] = defaultdict(int)
-    strata = {}
     for s in picked:
-        tags = cases.get(s["case_id"], {}).get("tags") or ["(untagged)"]
-        k = (sorted(tags)[0], bool(s["passed"])) if stratify else ("*", None)
-        drawn[k] += 1
-        strata[id(s)] = k
+        drawn[stratum(s)] += 1
     out = []
     for s in picked:
+        k = stratum(s)
         smp = samples.get((s["case_id"], s["target"], s.get("repeat", 0)), {})
         case = cases.get(s["case_id"], {})
         out.append({"case_id": s["case_id"], "target": s["target"], "repeat": s.get("repeat", 0),
                     "tags": ";".join(case.get("tags") or []), "input": smp.get("input") or case.get("input") or "",
                     "output": smp.get("output") or "", "judge_passed": s["passed"] if include_judge else "",
-                    "sample_design": design, "stratum": "|".join(map(str, strata[id(s)])) if stratify else "all",
-                    "weight": round(sizes[strata[id(s)]] / drawn[strata[id(s)]], 6)})
+                    "sample_design": design, "stratum": "|".join(map(str, k)) if stratify else "all",
+                    "weight": round(sizes[k] / drawn[k], 6)})
     return out
 
 

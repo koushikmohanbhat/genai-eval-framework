@@ -200,7 +200,9 @@ def test_coverage_by_workflow():
     cases = [Case(id="a", input="x", tags=["typical"]), Case(id="b", input="x", tags=["edge", "typos"]),
              Case(id="c", input="x", tags=["adversarial", "jailbreak"]), Case(id="d", input="x")]
     cov = tx.coverage(cases, "agent")
-    assert cov["untagged"] == 1 and cov["stress"] == 2 and cov["representative"] == 2 and "typos" in cov["present"]
+    assert cov["untagged"] == 1 and cov["stress"] == 2 and cov["representative"] == 2
+    assert cov["thin"]["typos"] == {"cases": 1, "needed": 5, "tier": "standard"} and cov["required"]["jailbreak"] == 10
+    assert "typos" in tx.coverage(cases, "agent", min_per_tag=1)["present"]
     assert any("representative set too small (2 < 30)" in p for p in cov["problems"])
     assert "circular_handoff" in cov["missing"] and "no_answer" not in cov["missing"]
     assert "no_answer" in tx.coverage(cases, "rag")["missing"] and "circular_handoff" not in tx.coverage(cases, "rag")["missing"]
@@ -352,7 +354,7 @@ def test_calibration_reports_weighted_slice_and_validation_agreement(tmp_path):
     labels = {(c, "*"): h for c, h in human.items()}
     info = {(c, "*"): {"design": "stratified", "weight": 1.0 if int(c[1:]) >= 10 else 0.5} for c in human}
     out = cal.calibrate(result, "j", labels, sample_info=info, validation={(f"c{i}", "*"): human[f"c{i}"] for i in range(10, 60)})
-    assert out["sample"] == {"design": "stratified", "weighted": True}
+    assert out["sample"] == {"design": "stratified", "weighted": True, "stratified_interval": False}
     assert out["weighted"]["accuracy"] > out["accuracy"]                       # rare, error-prone slice down-weighted
     assert out["slices"]["rare"]["accuracy"] == pytest.approx(0.5) and out["slices"]["common"]["accuracy"] == 1.0
     assert out["slices"]["split:stress"]["n"] == 10 and out["slices"]["split:representative"]["n"] == 90
@@ -368,3 +370,102 @@ def test_read_sample_info_from_sheet(tmp_path):
     p = tmp_path / "l.csv"
     p.write_text("case_id,target,reviewer,label,sample_design,stratum,weight\nc1,t,ana,pass,stratified,rare|True,0.5\nc1,t,bo,pass,stratified,rare|True,0.5\n")
     assert cal.read_sample_info(p) == {("c1", "t"): {"design": "stratified", "stratum": "rare|True", "weight": 0.5}}
+
+
+# ---- review round 3: units, provenance, stress minimums ------------------------------------------------------------
+
+def _rep_result(n_cases=20, repeats=3):
+    cases = [{"id": f"c{i}", "tags": ["a" if i % 2 else "b"]} for i in range(n_cases)]
+    scores = [{"grader": "j", "case_id": f"c{i}", "target": "t", "repeat": r, "passed": (i + r) % 3 != 0}
+              for i in range(n_cases) for r in range(repeats)]
+    samples = [{"case_id": f"c{i}", "target": "t", "repeat": r, "input": f"q{i}", "output": f"a{i}.{r}"}
+               for i in range(n_cases) for r in range(repeats)]
+    return {"cases": cases, "scores": scores, "samples": samples}
+
+
+def test_label_unit_is_case_and_target_and_repeats_never_fan_out(tmp_path):
+    res = _rep_result()
+    items = lb.sample_items(res, "j", n=100)
+    assert len(items) == 20 and len({(i["case_id"], i["target"]) for i in items}) == 20       # one row per unit
+    assert sum(i["weight"] for i in items) == pytest.approx(20)
+    sheet = lb.write_sheet(items, tmp_path / "s.csv", ["ana"])
+    rows = list(__import__("csv").DictReader(open(sheet)))
+    for r in rows:                                        # label = the judge's verdict on the labelled repeat
+        rep = int(r["repeat"])
+        r["label"] = "pass" if (int(r["case_id"][1:]) + rep) % 3 != 0 else "fail"
+    with open(sheet, "w", newline="") as f:
+        w = __import__("csv").DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    out = cal.calibrate(res, "j", cal.read_labels(sheet), sample_info=cal.read_sample_info(sheet))
+    assert out["n"] == 20 and out["accuracy"] == 1.0 and out["unit"] == "case, target"   # 20 units, not 60
+    assert out["sample"]["stratified_interval"]
+    # without the repeat column, repeat 0 is used and the guess is flagged
+    plain = tmp_path / "p.csv"
+    plain.write_text("case_id,target,label\n" + "".join(f"{r['case_id']},t,{r['label']}\n" for r in rows))
+    out2 = cal.calibrate(res, "j", cal.read_labels(plain), sample_info=cal.read_sample_info(plain))
+    assert out2["n"] == 20 and any("compared with repeat 0 only" in w for w in out2["warnings"])
+
+
+def test_stratified_bootstrap_resamples_within_strata():
+    import random
+    strata = ["x"] * 3 + ["y"] * 7
+    for _ in range(50):
+        idx = cal._resample(10, strata, random.Random(_))
+        assert sum(1 for i in idx if i < 3) == 3 and len(idx) == 10
+    pairs = [(True, True)] * 5 + [(False, False)] * 4 + [(True, False)]
+    assert cal._weighted_ci(pairs, [1.0] * 10, strata=["s"] * 5 + ["f"] * 5) is not None
+
+
+def test_representative_set_needs_provenance_and_production_cases():
+    from genai_evals.config import RepresentativeSample
+    reps = [Case(id=f"r{i}", input="x", tags=["typical"], source="production", weight=2) for i in range(30)]
+    cov = tx.coverage(reps, "rag", min_by_tier={"high": 0, "standard": 0}, min_production_share=0.8)
+    assert any("no provenance" in p for p in cov["problems"])
+    prov = RepresentativeSample(source="production", population="web chat", window="Oct 2026", method="random 1%")
+    cov = tx.coverage(reps, "rag", provenance=prov, min_by_tier={"high": 0, "standard": 0})
+    assert any("weights, but the provenance doesn't say" in p for p in cov["problems"])
+    prov.weights = "intent share in October"
+    syn = [Case(id=f"s{i}", input="x", tags=["typical"], source="synthetic") for i in range(30)]
+    cov = tx.coverage(reps[:10] + syn, "rag", provenance=prov, min_by_tier={"high": 0, "standard": 0})
+    assert any("source: production (need 80%)" in p for p in cov["problems"])
+    assert "10/40 representative cases have source: production" in cov["evidence"]
+
+
+def test_thin_stress_tags_and_gates_are_visible_before_a_run():
+    cases = [Case(id=f"j{i}", input="x", tags=["adversarial", "jailbreak"]) for i in range(4)]
+    cov = tx.coverage(cases, "agent")
+    assert cov["thin"]["jailbreak"] == {"cases": 4, "needed": 10, "tier": "high"}
+    suite = SuiteSpec(name="s", min_n=5, gates=[{"name": "jb", "rule": "mean(q, tag='jailbreak') >= 0.9"},
+                                                {"name": "st", "rule": "mean(q, split='stress') >= 0.9", "severity": "info"},
+                                                {"name": "ok", "rule": "mean(q, tag='jailbreak') >= 0.9", "min_n": 3}])
+    thin = tx.thin_gates(suite, cases)
+    assert [(t["gate"], t["severity"]) for t in thin] == [("jb", "block"), ("st", "info")]
+    from genai_evals.packs import suite_coverage
+    probs = suite_coverage(suite, cases)["problems"]
+    assert any("will be invalid for lack of cases: jb (tag 'jailbreak': 4 < min_n 5)" in p for p in probs)
+    assert not any("st (" in p for p in probs)                          # diagnostic gates are notes, not problems
+
+
+def test_info_gates_never_fail_a_run():
+    from genai_evals.config import GateSpec
+    from genai_evals.gates import blocking_failures, evaluate_gates
+    cases = [Case(id=f"c{i}", input="x", tags=["edge"]) for i in range(3)]
+    summ = {"t": summarise("t", cases, [], [_sc(f"c{i}", 0.0) for i in range(3)])}
+    res = evaluate_gates([GateSpec(name="d", rule="mean(g, split='stress') >= 0.9", severity="info")], summ, [], min_n=5)
+    assert res[0].status == "invalid" and not blocking_failures(res)
+
+
+def test_cases_sample_draws_units_not_failures_with_provenance():
+    res = _rep_result(40, 2)
+    res["run_id"] = "run_x"
+    res["sources"] = [{"source": "agentcore", "window": {"last": "7d"}, "sampling": 0.1, "sampling_method": "hash"}]
+    rows, prov = cs.sample_representative(res, n=10, by_tag=True, population="claims chat")
+    assert len(rows) == 10 and len({r["metadata"]["original_case_id"] for r in rows}) == 10
+    assert all(r["split"] == "representative" and r["source"] == "production" and r["review_status"] == "draft" for r in rows)
+    assert sum(r["weight"] for r in rows) == pytest.approx(40)
+    assert prov["source"] == "production" and prov["window"] == "agentcore: last 7d" and prov["weights"]
+    assert "stratified" in prov["method"] and prov["telemetry_sampling"][0]["sampling"] == 0.1
+    res["sources"][0]["fixture"] = True
+    rows, prov = cs.sample_representative(res, n=5)
+    assert rows[0]["source"] == "synthetic" and prov["source"].startswith("fixture") and "weight" not in rows[0]
