@@ -372,6 +372,27 @@ def cmd_prompts(args) -> int:
     raise SystemExit(f"unknown prompts action {args.action}")
 
 
+def cmd_regrade(args) -> int:
+    from .runner import Runner, SuiteError, load_result
+    suite = load_suite(args.suite)
+    providers = load_providers(_providers_path(args, args.suite))
+    result = load_result(args.result)
+    baseline = load_result(args.baseline) if args.baseline else None
+    try:
+        runner = Runner(suite, providers, use_cache=False, telemetry=_telemetry(args))
+        new = runner.regrade(result, graders=args.grader or None, only=args.only, attempts=args.attempts,
+                             backoff_s=args.backoff, force=args.force, baseline=baseline)
+    except SuiteError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    r = new["regrade"]
+    print(f"re-graded {r['units']} unit(s) ({r['only']}) for {', '.join(r['graders'])} in {r['attempts']} attempt(s): "
+          f"{r['recovered']} recovered, {r['still_transient']} still transient, {r['persistent']} persistent")
+    if args.out is None:
+        args.out = str(Path(args.result).parent.with_name(Path(args.result).parent.name + "-regraded"))
+    return _finish(new, args)
+
+
 def cmd_calibrate(args) -> int:
     from .calibration import calibrate, compare_judges, consensus, read_reviews, read_sample_info, reviewer_agreement
     from .runner import load_result
@@ -400,14 +421,19 @@ def cmd_calibrate(args) -> int:
             cv = cmp["coverage"][role]
             if cv["gradable"]:
                 print(f"  {cmp[role]}: graded {cv['scored']}/{cv['gradable']} labelled units ({cv['failure_rate']:.0%} failed: "
-                      f"{cv['judge_error']} errors, {cv['skipped']} skipped, {cv['missing']} missing)"
+                      f"{cv['transient_error']} transient errors, {cv['persistent_error']} persistent errors, "
+                      f"{cv['skipped']} skipped, {cv['missing']} missing)"
                       + (f"; {cv['target_error']} target errors left out" if cv["target_error"] else ""))
         if cmp.get("kappa_diff_ci_imputed"):
             ilo, ihi = cmp["kappa_diff_ci_imputed"]
             print(f"  counting ungraded units as disagreements: difference {cmp['kappa_diff_imputed']:+.2f}, 95% CI {ilo:+.2f} to {ihi:+.2f}")
         if cmp.get("note"):
             print("note: " + cmp["note"])
-        print(("approved: " if cmp["approved"] else "not approved: ") + cmp["reason"])
+        label = {"approved": "approved: ", "retry_first": "not decided yet (retry first): ",
+                 "not_approved": "not approved: "}[cmp.get("decision", "approved" if cmp["approved"] else "not_approved")]
+        print(label + cmp["reason"])
+        if cmp.get("retry"):
+            print("  retry: " + cmp["retry"])
         return 0 if cmp["approved"] else 1
     stress = list(result.get("stress_tags") or ["edge", "adversarial"])
     res = calibrate(result, args.grader, labels, human, sample_info=read_sample_info(args.labels), validation=validation,
@@ -799,6 +825,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--strict-dpdp", action="store_true")
     p.add_argument("--ack-dpdp", action="store_true")
     p.set_defaults(fn=_prompts_dispatch)
+
+    p = sub.add_parser("regrade", help="retry graders on units whose grading failed (transient judge errors by default), "
+                                       "without re-running the system, then recompute gates")
+    p.add_argument("result", help="result.json of the run to fix")
+    p.add_argument("--suite", required=True, help="the suite that produced the result (graders must be unchanged)")
+    p.add_argument("--grader", action="append", help="grader to re-run (repeatable; default: every grader with failures)")
+    p.add_argument("--only", choices=["transient", "errors", "unscored"], default="transient",
+                   help="transient: rate limits, timeouts, 5xx (default); errors: every grader error; unscored: errors and "
+                        "units with no score")
+    p.add_argument("--attempts", type=int, default=3, help="tries per unit; transient errors are retried (default 3)")
+    p.add_argument("--backoff", type=float, default=2.0, help="seconds before the first retry, doubling each time (default 2)")
+    p.add_argument("--force", action="store_true", help="re-grade even if the grader's config changed since the run")
+    p.add_argument("--baseline", help="baseline result.json for delta gates")
+    p.add_argument("--providers")
+    p.add_argument("--out", help="output folder (default: next to the result, '<folder>-regraded')")
+    p.add_argument("--no-html", action="store_true")
+    p.add_argument("--store")
+    p.add_argument("--summary-md")
+    p.add_argument("--fail-on-warn", action="store_true")
+    p.set_defaults(fn=cmd_regrade)
 
     p = sub.add_parser("calibrate", help="measure judge agreement with human labels")
     p.add_argument("result")

@@ -17,6 +17,31 @@ def is_transient(e: BaseException) -> bool:
     return any(k in name or k in msg or k in code for k in TRANSIENT)
 
 
+PERSISTENT_PREFIXES = ("valueerror", "typeerror", "keyerror", "notimplementederror", "permissionerror",
+                       "jsondecodeerror", "validationerror", "authenticationerror", "permissiondenied", "badrequest",
+                       "notfound", "invalidrequest", "accessdenied", "unparseable verdict")
+
+
+def classify_error_text(msg: str | None) -> str | None:
+    """Classify a recorded error message (``"<ExceptionType>: <message>"``) as ``"transient"`` (rate limits, timeouts,
+    5xx, connection problems: worth retrying) or ``"persistent"`` (parse / schema / auth / bad request / anything else:
+    retrying the same call won't help). Uses the same keywords as provider retries. None for no error."""
+    if not msg:
+        return None
+    text = str(msg).lower()
+    if text.startswith("target error"):
+        return "target"
+    parts = [p.strip() for p in text.split(";") if p.strip()] or [text]      # a judge panel joins its judges' errors
+    kinds = []
+    for p in parts:
+        head = p.split(":", 1)[0]
+        if any(head.endswith(x) for x in PERSISTENT_PREFIXES):
+            kinds.append("persistent")
+        else:
+            kinds.append("transient" if any(k in p for k in TRANSIENT) else "persistent")
+    return "transient" if all(k == "transient" for k in kinds) else "persistent"
+
+
 def call_with_retry(fn: Callable[..., Any], *args, retries: int = 3, base_s: float = 1.0, sleep: Callable[[float], None] = time.sleep,
                     **kwargs) -> Any:
     for attempt in range(retries + 1):

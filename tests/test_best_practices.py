@@ -570,12 +570,16 @@ def _ladder_with_failures(cheap_fail=(), strong_fail=(), target_fail=(), n=200):
 def test_judge_ladder_reports_coverage_and_rejects_a_judge_that_fails_on_units():
     hard = tuple(range(0, 60, 3))                         # the cheap judge errors on 20 units (10%)
     res, labels = _ladder_with_failures(cheap_fail=hard)
+    for sc in res["scores"]:                              # persistent errors: retrying won't help
+        if sc.get("error", "").startswith("RateLimitError"):
+            sc["error"] = "unparseable verdict: I think the answer is fine"
     out = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
     cov = out["coverage"]["cheap"]
     assert (cov["gradable"], cov["scored"], cov["judge_error"]) == (200, 180, 20) and cov["failure_rate"] == pytest.approx(0.1)
     assert out["coverage"]["strong"]["failure_rate"] == 0
     assert out["kappa_diff_ci"][0] > -0.1                 # on the overlap alone it looks at least as good
     assert not out["approved"] and "failed to grade 10%" in out["reason"]
+    assert out["decision"] == "not_approved" and cov["persistent_error"] == 20 and cov["transient_error"] == 0
     # even with a lax failure limit, counting the ungraded units as disagreements shows it is worse
     lax = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1, max_judge_failure=0.5)
     assert not lax["approved"] and "ungraded units count as disagreements" in lax["reason"]
@@ -596,3 +600,94 @@ def test_calibrate_reports_judge_coverage():
     out = cal.calibrate(res, "cheap", labels)
     assert out["coverage"]["judge_error"] == 20 and out["n"] == 180
     assert any("failed to grade 10% of labelled units" in w for w in out["warnings"])
+
+
+def test_error_classification():
+    from genai_evals.retry import classify_error_text as k
+    assert k("RateLimitError: Error code: 429") == "transient"
+    assert k("APITimeoutError: Request timed out.") == "transient"
+    assert k("InternalServerError: 503 Service Unavailable") == "transient"
+    assert k("ThrottlingException: Rate exceeded") == "transient"
+    assert k("unparseable verdict: The answer looks fine") == "persistent"
+    assert k("AuthenticationError: invalid api key") == "persistent"
+    assert k("ValueError: timeout must be positive") == "persistent"           # a ValueError is not a timeout
+    assert k("RateLimitError: 429; unparseable verdict: x") == "persistent"    # one judge of a panel can't be fixed
+    assert k("RateLimitError: 429; APITimeoutError: timed out") == "transient"
+    assert k("target error: boom") == "target" and k(None) is None
+
+
+def test_judge_ladder_says_retry_first_when_only_transient_errors_block_approval():
+    res, labels = _ladder_with_failures(cheap_fail=tuple(range(0, 60, 3)))   # 20 RateLimitErrors
+    out = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
+    cov = out["coverage"]["cheap"]
+    assert cov["transient_error"] == 20 and cov["persistent_error"] == 0 and cov["failure_rate_after_retry_best_case"] == 0
+    assert not out["approved"] and out["decision"] == "retry_first"
+    assert "genai-evals regrade" in out["retry"] and "--grader cheap" in out["retry"]
+    # a cheaper judge that is worse on the units it did grade can't be rescued by retries
+    for sc in res["scores"]:
+        if sc["grader"] == "cheap" and sc.get("passed") is not None and int(sc["case_id"][1:]) % 7 == 1:
+            sc["passed"] = not sc["passed"]
+    worse = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
+    assert worse["decision"] == "not_approved" and "can't change the decision" in worse["retry"]
+
+
+def test_calibrate_points_to_regrade_for_transient_errors():
+    res, labels = _ladder_with_failures(cheap_fail=(0, 3))
+    out = cal.calibrate(res, "cheap", labels)
+    assert out["coverage"]["transient_error"] == 2
+    assert any("genai-evals regrade" in w for w in out["warnings"])
+
+
+def _regrade_suite(tmp_path):
+    from genai_evals.config import ProvidersConfig
+    data = write_jsonl(tmp_path / "d.jsonl", [{"id": f"c{i}", "input": f"question {i}", "reference": {"answer": f"question {i}"}}
+                                              for i in range(6)])
+    suite = SuiteSpec(name="rg", dataset=str(data), judges=["judge-a"], tokenize=False,
+                      targets=[{"name": "echo", "kind": "model", "profile": "echo", "system": "Repeat: {{ input }}"}],
+                      graders=[{"name": "q", "type": "rubric", "rubric": "Repeats the question."}],
+                      gates=[{"name": "quality", "rule": "mean(q) >= 0.0"}], base_dir=str(tmp_path))
+    return suite, ProvidersConfig(**MOCK_PROVIDERS)
+
+
+def test_regrade_retries_transient_judge_failures_and_recomputes(tmp_path, monkeypatch):
+    from genai_evals.runner import Runner
+    suite, prov = _regrade_suite(tmp_path)
+    first = Runner(suite, prov, use_cache=False).run()
+    good = {sc["case_id"]: sc["value"] for sc in first["scores"] if sc["grader"] == "q"}
+    for sc in first["scores"]:
+        if sc["case_id"] in ("c0", "c1"):
+            sc.update(value=None, passed=None, error="RateLimitError: Error code: 429", error_kind="transient")
+        if sc["case_id"] == "c2":
+            sc.update(value=None, passed=None, error="unparseable verdict: hmm", error_kind="persistent")
+    # the judge still rate-limits once before answering
+    from genai_evals.graders import judges
+    real, calls = judges.Rubric.grade, {}
+
+    async def flaky(self, sample, case):
+        calls[sample.case_id] = calls.get(sample.case_id, 0) + 1
+        if calls[sample.case_id] == 1:
+            raise RuntimeError("RateLimitError: 429 Too Many Requests")
+        return await real(self, sample, case)
+    monkeypatch.setattr(judges.Rubric, "grade", flaky)
+    new = Runner(suite, prov, use_cache=False).regrade(first, attempts=3, backoff_s=0)
+    r = new["regrade"]
+    assert (r["units"], r["recovered"], r["persistent"], r["still_transient"]) == (2, 2, 0, 0)
+    assert r["attempts"] == 4 and set(calls) == {"c0", "c1"}                  # c2 (persistent) not retried by default
+    after = {sc["case_id"]: sc for sc in new["scores"] if sc["grader"] == "q"}
+    assert after["c0"]["value"] == good["c0"] and after["c0"]["attempts"] == 3 and after["c0"]["regraded"]
+    assert after["c2"]["error"].startswith("unparseable")
+    assert new["regraded_from"] == first["run_id"] and new["run_id"] != first["run_id"]
+    n_scored = new["summary"]["echo"]["graders"]["q"]
+    assert n_scored  # summary recomputed from the merged scores
+    # --only errors also retries the persistent one
+    again = Runner(suite, prov, use_cache=False).regrade(new, only="errors", attempts=1, backoff_s=0)
+    assert again["regrade"]["units"] == 1
+
+
+def test_regrade_refuses_a_changed_grader(tmp_path):
+    from genai_evals.runner import Runner, SuiteError
+    suite, prov = _regrade_suite(tmp_path)
+    first = Runner(suite, prov, use_cache=False).run()
+    suite.graders[0].rubric = "Something else entirely."
+    with pytest.raises(SuiteError, match="config changed"):
+        Runner(suite, prov, use_cache=False).regrade(first)

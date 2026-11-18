@@ -8,7 +8,7 @@ summary: >-
   Measures schema validity, field-level accuracy with normalisers for dates, amounts, ids and names, totals and
   currencies, rejection of documents that are not invoices, and cost and latency per document.
 contract_version: "1"
-framework: ">=0.4.4"
+framework: ">=0.4.5"
 
 inputs:
   dataset:

@@ -14,6 +14,7 @@
 | `prompt 'x@1.2.0' not found` / `not in prompts.lock` | create the version folder, then `genai-evals prompts lock` |
 | `changed after it was locked` | a released prompt version was edited. Copy the folder to a new version instead, and restore the old one |
 | `promotion blocked ... adds data elements` | DPDP check: update the consent notice, ledger and DPDP eval suite, then promote with `--ack-dpdp` |
+| judge scores have `RateLimitError` / timeout errors, or the judge ladder says `retry_first` | the judge was rate-limited longer than the provider's own retries. Re-grade just those units: `genai-evals regrade <result.json> --suite <suite.yaml>` (raise `retries` or lower `concurrency` in the profile for next time) |
 | gates fail with `untrusted grader` | the judge's calibration is below `min_judge_kappa`. Recalibrate with more labels or change judges |
 | results look the same after a change | the run cache: unchanged cases are reused. Use `--no-cache` to force a rerun |
 | `dataset too small to detect` warning | the paired comparison can't separate the difference from noise. Add cases or repeats |

@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `rag-knowledge-assistant`
 
-Run `run_cf2df8d878d1` · 23 cases × 1 targets × 1 repeats
+Run `run_338df918d0ad` · 23 cases × 1 targets × 1 repeats
 
 ### Gates
 

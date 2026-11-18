@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `claims-extraction`
 
-Run `run_5d42acc691ac` · 24 cases × 2 targets × 1 repeats
+Run `run_5c2b50e44900` · 24 cases × 2 targets × 1 repeats
 
 ### Gates
 

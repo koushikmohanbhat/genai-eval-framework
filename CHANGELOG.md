@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.5 (2026-11-18)
+
+Review feedback: judge failures are classified, and transient ones can be retried before a judge is judged.
+
+- **Error classes.** Grader errors are classified as `transient` (rate limit, timeout, 5xx, connection) or
+  `persistent` (unparseable verdict, schema, auth, bad request), with the same rules as provider retries. New scores
+  record `error_kind`; older results are classified from the error text. A judge panel's error is transient only if
+  every judge's was.
+- **Coverage** reports transient errors separately from persistent errors, skips and missing scores, with the failure
+  rate a retry could at best leave (`failure_rate_after_retry_best_case`).
+- **New `genai-evals regrade`.** Re-runs graders on failed units of an existing result, without re-running the system
+  under test: `--only transient` (default), `errors` or `unscored`; `--attempts` with exponential `--backoff`.
+  Summaries, gates and reports are recomputed; the result records `regraded_from`, and per score `attempts` and
+  `regraded`. It refuses when the grader's config changed since the run (`--force` overrides).
+- **Judge ladder decision** is now `approved`, `not_approved` or `retry_first`. `retry_first` is returned when
+  transient errors are what block approval and the most favourable retry outcome would pass every check; the output
+  gives the `regrade` command. Otherwise it says retrying can't change the decision.
+- `calibrate` points to `regrade` when labelled units failed transiently.
+
 ## 0.4.4 (2026-11-18)
 
 Review feedback: judge failures and missing scores count in the judge ladder.

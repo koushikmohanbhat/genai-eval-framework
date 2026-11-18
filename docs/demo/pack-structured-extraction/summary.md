@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `structured-extraction`
 
-Run `run_801d37de847b` · 21 cases × 1 targets × 1 repeats
+Run `run_d8fc394c7cd4` · 21 cases × 1 targets × 1 repeats
 
 ### Gates
 

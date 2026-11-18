@@ -190,8 +190,12 @@ def _combine(grader: Grader, sample: Sample, results: list[dict], to_value, reas
     cost = sum(r.get("cost", 0.0) for r in results)
     vals = [p["value"] for p in per if p.get("value") is not None]
     if not vals:
-        return Score(grader=grader.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
-                     error="; ".join(p.get("error", "") for p in per), details={"judges": per}, cost_usd=cost)
+        from ..retry import classify_error_text
+        msg = "; ".join(p.get("error", "") for p in per)
+        sc = Score(grader=grader.name, case_id=sample.case_id, target=sample.target, repeat=sample.repeat,
+                   error=msg, details={"judges": per}, cost_usd=cost)
+        sc.error_kind = classify_error_text(msg)                                # type: ignore[attr-defined]
+        return sc
     thr = grader.spec.threshold if grader.spec.threshold is not None else grader.default_threshold()
     agg = grader.p.get("aggregate") or grader.ctx.suite.judge_policy.get("aggregate", "mean")
     if agg == "min":

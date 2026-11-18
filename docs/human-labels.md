@@ -149,14 +149,46 @@ look *better* than the strong judge on the rest. So the ladder reports, per judg
 | Status | Meaning | Counts against the judge |
 |---|---|---|
 | scored | the judge returned a verdict | – |
-| judge error | the judge call failed | yes |
+| transient error | rate limit, timeout, 5xx, connection error: **retry it** | yes, until retried |
+| persistent error | unparseable verdict, schema or auth error, bad request: retrying the same call won't help | yes |
 | skipped | the grader skipped the unit | yes |
 | missing | no score for the unit (the grader didn't run on it) | yes |
 | target error | the system under test failed, so there was nothing to judge | no: left out for both judges |
 
+Errors are classified with the same rules the providers use for their own retries; a judge panel's error is transient
+only if every judge's error was. New results record the class on each score (`error_kind`); older results are
+classified from the error text.
+
 Coverage is scored / gradable units, and the failure rate is the rest. Approval needs both the failure-rate limit
 and the worst-case comparison, so a judge can't pass by failing on the cases it would get wrong. `calibrate` (one
-judge) reports the same `coverage`, and warns when more than 5% of labelled units weren't graded.
+judge) reports the same `coverage`, warns when more than 5% of labelled units weren't graded, and points to
+`regrade` when any failed transiently.
+
+### Retry transient failures before deciding
+
+Provider calls already retry transient errors a few times (`retries` in the profile). A long rate-limit window can
+still outlast them. Re-grade those units, without re-running the system under test, and compare again:
+
+```bash
+genai-evals regrade out/live/result.json --suite suite.yaml --grader quality_cheap
+#   re-graded 18 unit(s) (transient) for quality_cheap in 23 attempt(s): 17 recovered, 1 still transient, 0 persistent
+genai-evals calibrate out/live-regraded/result.json --grader quality_cheap --compare-to quality --labels reviews.csv
+```
+
+- `--only transient` (default) retries rate limits, timeouts and 5xx. `--only errors` also retries persistent errors,
+  for example after fixing a judge's output format. `--only unscored` also grades units with no score.
+- Each unit is tried up to `--attempts` times (default 3) with exponential backoff from `--backoff` seconds (default
+  2). A persistent error stops the retries for that unit.
+- The new result keeps the old samples, replaces only the re-graded scores, and recomputes summaries, gates and
+  reports. It records `regraded_from` (the original run id), and per score `attempts` and `regraded`.
+- It refuses if the grader's config changed since the run, because the scores would then mix two versions of the
+  grader (`--force` overrides). With tokenisation on, the stored samples are already tokenised; judges saw tokens
+  in the original run too.
+
+When transient errors are what stand between a cheaper judge and approval, the ladder doesn't reject it. It returns
+`decision: retry_first` with the `regrade` command to run. This happens only when the most favourable retry outcome
+(every retried unit comes back right) would pass every check. Otherwise the decision is `not_approved`, and the
+output says retrying can't change it. Exit code is 1 for both, 0 only when approved.
 
 ### Which sample decides
 

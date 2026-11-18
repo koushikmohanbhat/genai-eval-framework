@@ -122,8 +122,102 @@ class Runner:
                 try:
                     return await gr.grade(s, case)
                 except Exception as e:  # noqa: BLE001
-                    return Score(grader=gr.name, case_id=s.case_id, target=s.target, repeat=s.repeat, error=f"{type(e).__name__}: {e}")
+                    return _error_score(gr.name, s, f"{type(e).__name__}: {e}")
         return list(await asyncio.gather(*[one(g, s) for s in samples for g in graders]))
+
+    # ---- re-grade units whose grading failed -----------------------------------------------------------------------
+    async def regrade_async(self, result: dict[str, Any], graders: list[str] | None = None, only: str = "transient",
+                            attempts: int = 3, backoff_s: float = 2.0, force: bool = False,
+                            baseline: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Re-run graders on the units whose grading failed in an earlier result, without re-running the system under
+        test. `only`: ``transient`` (rate limits, timeouts, 5xx; the default), ``errors`` (every grader error), or
+        ``unscored`` (errors and units with no score). Each unit is tried up to `attempts` times with exponential
+        backoff; still-transient errors are retried, a persistent error stops. Gates, summaries and reports are
+        recomputed. The new result records what was re-graded (`regrade`) and the run it came from."""
+        from .retry import classify_error_text
+        if only not in ("transient", "errors", "unscored"):
+            raise SuiteError(f"--only must be transient, errors or unscored (got {only})")
+        samples = [Sample(**d) for d in result.get("samples", [])]
+        scores = [Score(**d) for d in result.get("scores", [])]
+        ids = {c["id"] for c in result.get("cases", [])}
+        suite_cases = {c.id: c for c in load_cases(self.suite)}
+        cases = [suite_cases.get(i) or Case(id=i, input="") for i in sorted(ids)] if ids else list(suite_cases.values())
+        by_id = {c.id: c for c in cases}
+        specs = {g.name: g for g in self.suite.graders}
+        names = graders or sorted({s.grader for s in scores})
+        unknown = [n for n in names if n not in specs]
+        if unknown:
+            raise SuiteError(f"grader(s) not in the suite: {', '.join(unknown)}")
+        recorded = {g["name"]: g for g in result.get("graders", [])}
+        changed = [n for n in names if n in recorded and recorded[n].get("config_hash") != _grader_info(specs[n])["config_hash"]]
+        if changed and not force:
+            raise SuiteError("grader config changed since this run, so re-graded units would mix two versions: "
+                             + ", ".join(changed) + " (re-run the suite, or pass --force)")
+        families = {t["name"]: t.get("family") for t in result.get("targets", [])}
+        gctx = self.grade_context(samples, families)
+        built = {n: build_grader(specs[n], gctx) for n in names}
+        smap = {(s.target, s.case_id, s.repeat): s for s in samples}
+
+        def wanted(sc: Score) -> bool:
+            if sc.grader not in built or sc.skipped:
+                return False
+            kind = getattr(sc, "error_kind", None) or classify_error_text(sc.error)
+            if kind == "target" or (sc.error is None and sc.passed is not None):
+                return False
+            if only == "transient":
+                return kind == "transient"
+            return sc.error is not None or only == "unscored"
+        todo = [i for i, sc in enumerate(scores) if wanted(sc)]
+        if only == "unscored":                                  # units with no score at all for a grader
+            have = {(sc.grader, sc.target, sc.case_id, sc.repeat) for sc in scores}
+            for s in samples:
+                for n in built:
+                    if (n, s.target, s.case_id, s.repeat) not in have and not s.error:
+                        scores.append(Score(grader=n, case_id=s.case_id, target=s.target, repeat=s.repeat, error="missing"))
+                        todo.append(len(scores) - 1)
+        sem = asyncio.Semaphore(max(1, self.suite.concurrency))
+        log = {"recovered": 0, "still_transient": 0, "persistent": 0, "attempts": 0}
+
+        async def retry(i: int) -> None:
+            old = scores[i]
+            s = smap.get((old.target, old.case_id, old.repeat))
+            if s is None:
+                return
+            gr = built[old.grader]
+            case = by_id.get(s.case_id) or Case(id=s.case_id, input=s.input or "")
+            new = old
+            for k in range(max(1, attempts)):
+                if k:
+                    await asyncio.sleep(backoff_s * (2 ** (k - 1)))
+                async with sem:
+                    try:
+                        new = await gr.grade(s, case)
+                    except Exception as e:  # noqa: BLE001
+                        new = _error_score(gr.name, s, f"{type(e).__name__}: {e}")
+                log["attempts"] += 1
+                kind = getattr(new, "error_kind", None) or classify_error_text(new.error)
+                if new.error is None or kind != "transient":
+                    break
+            new.attempts = (getattr(old, "attempts", None) or 1) + k + 1     # type: ignore[attr-defined]
+            new.regraded = True                                                 # type: ignore[attr-defined]
+            if new.error is None and new.passed is not None:
+                log["recovered"] += 1
+            elif (getattr(new, "error_kind", None) or classify_error_text(new.error)) == "transient":
+                log["still_transient"] += 1
+            else:
+                log["persistent"] += 1
+            scores[i] = new
+        await asyncio.gather(*[retry(i) for i in todo])
+        out = self.finish(cases, result.get("targets", []), samples, scores, gctx, baseline, None)
+        for k, v in result.items():
+            out.setdefault(k, v)
+        out["regraded_from"] = result.get("run_id")
+        out["regrade"] = {"graders": sorted({scores[i].grader for i in todo}), "only": only, "units": len(todo), "max_attempts": attempts,
+                          "backoff_s": backoff_s, **log, "at": ResultStore.now()}
+        return out
+
+    def regrade(self, result: dict[str, Any], **kw) -> dict[str, Any]:
+        return asyncio.run(self.regrade_async(result, **kw))
 
     # ---- full run --------------------------------------------------------------
     async def run_async(self, target_names: list[str] | None = None, baseline: dict[str, Any] | None = None,
@@ -254,6 +348,13 @@ class Runner:
             t["args"] = tokenize_obj(t.get("args"), tok)
             t["result"] = tokenize_obj(t.get("result"), tok)
         return Sample(**d)
+
+
+def _error_score(grader: str, s: Sample, msg: str) -> Score:
+    from .retry import classify_error_text
+    sc = Score(grader=grader, case_id=s.case_id, target=s.target, repeat=s.repeat, error=msg)
+    sc.error_kind = classify_error_text(msg)                                    # type: ignore[attr-defined]
+    return sc
 
 
 def _grader_info(g) -> dict[str, Any]:

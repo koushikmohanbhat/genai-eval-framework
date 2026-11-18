@@ -275,7 +275,10 @@ def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, 
     """What happened to each labelled unit for this judge, on the labelled repeat:
 
     - scored: the judge returned a verdict;
-    - judge_error: the judge call failed (error, no verdict);
+    - transient_error: the judge call failed with a rate limit, timeout, 5xx or connection error (worth retrying:
+      `genai-evals regrade`);
+    - persistent_error: the judge call failed in a way retrying won't fix (unparseable verdict, schema, auth, bad
+      request);
     - skipped: the grader skipped it (e.g. data it needs is missing);
     - missing: no score at all (the grader didn't run on it, or the result doesn't hold it);
     - target_error: the system under test failed, so there was nothing to judge. Not the judge's fault, and left out
@@ -322,32 +325,46 @@ def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, 
         elif sc.get("skipped"):
             status[u] = "skipped"
         elif sc.get("passed") is None:
-            status[u] = "judge_error"
+            from .retry import classify_error_text
+            kind = sc.get("error_kind") or classify_error_text(sc.get("error"))
+            status[u] = "transient_error" if kind == "transient" else "persistent_error"
         else:
             status[u] = "scored"
     counts = {k: sum(1 for v in status.values() if v == k)
-              for k in ("scored", "judge_error", "skipped", "missing", "target_error")}
+              for k in ("scored", "transient_error", "persistent_error", "skipped", "missing", "target_error")}
+    counts["judge_error"] = counts["transient_error"] + counts["persistent_error"]
     gradable = len(status) - counts["target_error"]
     failed = counts["judge_error"] + counts["skipped"] + counts["missing"]
+    settled = gradable - counts["transient_error"]
     return {"grader": grader, "labelled_units": len(status), "gradable": gradable, **counts,
             "not_in_result": not_in_result,
             "coverage": counts["scored"] / gradable if gradable else None,
-            "failure_rate": failed / gradable if gradable else None, "status": status}
+            "failure_rate": failed / gradable if gradable else None,
+            # failures that a retry can't fix, over the units that are not waiting on a retry
+            "failure_rate_after_retry_best_case": (failed - counts["transient_error"]) / settled if settled else None,
+            "status": status}
 
 
 def _public(cov: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in cov.items() if k != "status"}
 
 
-def _imputed(pairs: dict, cov: dict[str, Any], labels: dict[tuple[str, str], bool], units: list[tuple[str, str]]) -> dict:
+def _imputed(pairs: dict, cov: dict[str, Any], labels: dict[tuple[str, str], bool], units: list[tuple[str, str]],
+             transient_right: bool = False) -> dict:
     """Pairs over every gradable unit, with a unit the judge could not grade counted as a disagreement with the human
-    (the worst case: a missing verdict is a case the judge can't be relied on)."""
+    (the worst case: a missing verdict is a case the judge can't be relied on). With transient_right, units that failed
+    with a transient error count as agreements instead: the best a retry could do."""
     out = {}
     for u in units:
         lab = labels.get(u, labels.get((u[0], "*")))
         if lab is None:
             continue
-        out[u] = pairs[u] if u in pairs else (not lab, lab)
+        if u in pairs:
+            out[u] = pairs[u]
+        elif transient_right and cov["status"].get(u) == "transient_error":
+            out[u] = (lab, lab)
+        else:
+            out[u] = (not lab, lab)
     return out
 
 
@@ -411,7 +428,13 @@ def _ladder_eval(cheap, strong, labels, info, seed, b) -> dict[str, Any]:
                       if cc["status"][u] != "target_error" and cs_["status"][u] != "target_error")
     overlap = _ladder_sample(pc, ps, info, seed, b)
     worst = _ladder_sample(_imputed(pc, cc, labels, gradable), _imputed(ps, cs_, labels, gradable), info, seed, b)
-    return {"overlap": overlap, "imputed": worst, "coverage": {"cheap": cc, "strong": cs_}}
+    out = {"overlap": overlap, "imputed": worst, "coverage": {"cheap": cc, "strong": cs_}}
+    if cc["transient_error"] or cs_["transient_error"]:
+        # could retrying the transient failures change the decision? The most favourable outcome for the cheaper
+        # judge: its retried units come back right, and the stronger judge's stay counted as disagreements
+        out["retry_best"] = _ladder_sample(_imputed(pc, cc, labels, gradable, transient_right=True),
+                                           _imputed(ps, cs_, labels, gradable), info, seed, b)
+    return out
 
 
 def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, Any], str],
@@ -458,15 +481,16 @@ def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, An
                            "validation_sample": (val_s | {"imputed": val_e["imputed"],
                                                           "coverage": {k: _public(v) for k, v in val_e["coverage"].items()}})
                                                 if val_e else None}
-    reasons = []
-    cf = coverage["cheap"]["failure_rate"]
+    reasons, retry_hint = [], None
+    c = coverage["cheap"]
+    cf = c["failure_rate"]
     if cf is not None and cf > max_judge_failure:
-        c = coverage["cheap"]
         reasons.append(f"cheaper judge failed to grade {cf:.0%} of gradable units (max {max_judge_failure:.0%}: "
-                       f"{c['judge_error']} errors, {c['skipped']} skipped, {c['missing']} missing of {c['gradable']})")
+                       f"{c['transient_error']} transient errors, {c['persistent_error']} persistent errors, "
+                       f"{c['skipped']} skipped, {c['missing']} missing of {c['gradable']})")
     if used["n"] < 2:
         reasons.append(f"only {used['n']} units graded by both judges and labelled ({basis})")
-        return out | {"approved": False, "reason": "; ".join(reasons)}
+        return out | {"approved": False, "decision": "not_approved", "reason": "; ".join(reasons)}
     lo, hi = used["kappa_diff_ci"] or (float("-inf"), float("inf"))
     cci = used["kappa_cheap_ci"]
     imp = ev["imputed"]
@@ -486,11 +510,29 @@ def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, An
     if val_s is not None and cal_s.get("kappa_diff_ci") and cal_s["kappa_diff_ci"][0] < -margin and not reasons:
         out["note"] = ("on the calibration sample (over-weighting hard cases) the cheaper judge may be worse "
                        f"(difference CI lower bound {cal_s['kappa_diff_ci'][0]:.2f}): check the slices it misses")
+    decision = "approved" if not reasons else "not_approved"
+    transient = c["transient_error"] + coverage["strong"]["transient_error"]
+    if reasons and transient:
+        # would the failures that remain after the best possible retry still block approval?
+        best = ev.get("retry_best") or {}
+        blo = (best.get("kappa_diff_ci") or [float("-inf")])[0]
+        fr_best = c["failure_rate_after_retry_best_case"]
+        blocking = [r for r in reasons
+                    if not (r.startswith("cheaper judge failed to grade") or "ungraded units" in r)]
+        if not blocking and blo >= -margin and (fr_best is None or fr_best <= max_judge_failure):
+            decision = "retry_first"
+            retry_hint = (f"{transient} unit(s) failed with transient judge errors (rate limits, timeouts, 5xx); retrying "
+                          "them could change the decision: genai-evals regrade <result.json> --suite <suite.yaml> "
+                          f"--grader {cheap[1]}" + (f" --grader {strong[1]}" if coverage["strong"]["transient_error"] else "")
+                          + ", then compare again")
+        else:
+            retry_hint = (f"{transient} unit(s) failed with transient judge errors, but retrying them can't change the "
+                          "decision")
     return out | {k: used[k] for k in ("kappa_cheap", "kappa_strong", "kappa_cheap_ci", "kappa_diff", "kappa_diff_ci",
                                          "accuracy_cheap", "accuracy_strong")} | {
                   "kappa_diff_imputed": imp.get("kappa_diff"), "kappa_diff_ci_imputed": imp.get("kappa_diff_ci"),
                   "judge_cost_cheap": _judge_cost(cheap[0], cheap[1]), "judge_cost_strong": _judge_cost(strong[0], strong[1]),
-                  "approved": not reasons,
+                  "approved": decision == "approved", "decision": decision, "retry": retry_hint,
                   "reason": "; ".join(reasons) or f"not meaningfully worse than the stronger judge ({basis})"}
 
 
@@ -579,9 +621,13 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     # --- did the judge grade every labelled unit? ----------------------------------------------------------------------
     coverage = _public(judge_coverage(result, grader, labels, sample_info))
     if coverage["failure_rate"] and coverage["failure_rate"] > MAX_JUDGE_FAILURE:
-        warnings.append(f"judge failed to grade {coverage['failure_rate']:.0%} of labelled units ({coverage['judge_error']} errors, "
-                        f"{coverage['skipped']} skipped, {coverage['missing']} missing of {coverage['gradable']}): agreement "
-                        "is measured only on the units it graded, which may be the easier ones")
+        warnings.append(f"judge failed to grade {coverage['failure_rate']:.0%} of labelled units ({coverage['transient_error']} "
+                        f"transient errors, {coverage['persistent_error']} persistent errors, {coverage['skipped']} skipped, "
+                        f"{coverage['missing']} missing of {coverage['gradable']}): agreement is measured only on the units "
+                        "it graded, which may be the easier ones")
+    if coverage["transient_error"]:
+        warnings.append(f"{coverage['transient_error']} labelled unit(s) failed with transient judge errors: retry them with "
+                        f"`genai-evals regrade <result.json> --suite <suite.yaml> --grader {grader}`, then calibrate again")
     if coverage["target_error"]:
         warnings.append(f"{coverage['target_error']} labelled unit(s) had a target error, so there was nothing to judge: left out")
     # --- a separate representative validation sample ----------------------------------------------------------------

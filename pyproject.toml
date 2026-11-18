@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "genai-eval-framework"
-version = "0.4.4"
+version = "0.4.5"
 description = "Evals as code for GenAI apps and agents: OpenAI, Anthropic, Amazon Bedrock / AgentCore and Google Vertex AI targets, native telemetry sources (CloudWatch, X-Ray, Cloud Trace, BigQuery), prompt versioning and CI release gates"
 readme = "README.md"
 license = { text = "Apache-2.0" }

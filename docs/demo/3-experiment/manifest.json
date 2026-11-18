@@ -1,7 +1,7 @@
 {
  "experiment": "fnol-injury-escalation",
- "created_at": "2026-11-18T03:08:54.277806+00:00",
- "run_id": "run_323e81c423ec",
+ "created_at": "2026-11-18T04:59:20.318274+00:00",
+ "run_id": "run_f6b9c4074037",
  "experiment_path": "examples/insurance/fnol_experiment.yaml",
  "files": {
   "experiment": {
@@ -214,9 +214,9 @@
   ]
  },
  "environment": {
-  "framework": "0.4.4",
+  "framework": "0.4.5",
   "python": "3.11.18",
-  "git_sha": "086224f80a3c53a2476e00cfe48785520daf9410",
+  "git_sha": "f1b0379298f2c6ec0c0f21641119d08a8c67b7a6",
   "git_dirty": true
  },
  "not_captured": [
