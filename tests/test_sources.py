@@ -223,6 +223,7 @@ def test_session_join_never_takes_another_turns_record():
 
 def test_unreliable_joins_make_online_gates_invalid(tmp_path, ex_dir):
     import yaml
+
     from genai_evals.report.html import render_scorecard
     sy = _join_copy(tmp_path, strip_ids=True)
     r = run_online(load_suite(ex_dir / "online_checks.yaml"), load_providers(ex_dir / "providers.yaml"), load_sources(sy))

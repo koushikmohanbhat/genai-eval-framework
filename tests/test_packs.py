@@ -148,6 +148,7 @@ def test_pack_cli(capsys):
 
 def test_ci_templates_pin_actions_and_current_release():
     import re
+
     from genai_evals import __version__
     root = Path(__file__).resolve().parents[1]
     files = list((root / ".github/workflows").glob("*.yml")) + [root / "action.yml", root / "packs/_common/ci/github-actions-evals.yml"]
