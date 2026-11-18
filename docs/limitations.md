@@ -1,4 +1,4 @@
-# Limitations (v0.4.3)
+# Limitations (v0.4.4)
 
 Read this before using the framework in production.
 
@@ -48,6 +48,9 @@ please open an issue with what you find.
 - **The judge ladder needs labels.** Non-inferiority on κ with a 0.05 margin usually needs 150–200 labelled units on
   the sample that decides (the random validation sample, when given); with fewer the cheaper judge is (correctly)
   not approved.
+- **Judge failures are counted, not explained.** The ladder treats a unit a judge failed to grade as a disagreement
+  (worst case) and caps the failure rate; it doesn't retry the judge or tell a transient failure from a systematic one.
+  Re-run the judge on failed units before comparing if the failures were transient (rate limits).
 - **Weights only fix known, random capture.** `cases sample` weights by telemetry capture rate, online sampling and
   selection. If `capture_rate` is not set, the set represents the captured telemetry only; and capture that drops
   sessions for a reason (errors, an uninstrumented channel) is bias no weight corrects.

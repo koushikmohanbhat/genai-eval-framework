@@ -267,6 +267,90 @@ def _pairs(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bo
     return out
 
 
+MAX_JUDGE_FAILURE = 0.05
+
+
+def judge_coverage(result: dict[str, Any], grader: str, labels: dict[tuple[str, str], bool],
+                   info: dict[tuple[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """What happened to each labelled unit for this judge, on the labelled repeat:
+
+    - scored: the judge returned a verdict;
+    - judge_error: the judge call failed (error, no verdict);
+    - skipped: the grader skipped it (e.g. data it needs is missing);
+    - missing: no score at all (the grader didn't run on it, or the result doesn't hold it);
+    - target_error: the system under test failed, so there was nothing to judge. Not the judge's fault, and left out
+      of the judge's failure rate.
+
+    Labels that name no unit in the result are counted as not_in_result. Returns counts, the judge's coverage
+    (scored / gradable units), its failure rate (judge_error + skipped + missing over gradable units), and the
+    status per unit."""
+    info = info or {}
+    targets_of: dict[str, set[str]] = {}
+    sample_err: dict[tuple[str, str, int], bool] = {}
+    for smp in result.get("samples", []):
+        targets_of.setdefault(smp["case_id"], set()).add(smp["target"])
+        sample_err[(smp["case_id"], smp["target"], int(smp.get("repeat") or 0))] = bool(smp.get("error"))
+    mine: dict[tuple[str, str], dict[int, dict]] = {}
+    for sc in result.get("scores", []):
+        targets_of.setdefault(sc["case_id"], set()).add(sc["target"])
+        if sc["grader"] == grader:
+            mine.setdefault((sc["case_id"], sc["target"]), {})[int(sc.get("repeat") or 0)] = sc
+    units: list[tuple[str, str]] = []
+    not_in_result = 0
+    for (cid, tgt) in labels:
+        if tgt == "*":
+            ts = sorted(targets_of.get(cid, ()))
+            if not ts:
+                not_in_result += 1
+            units += [(cid, t) for t in ts if (cid, t) not in labels]
+        elif cid in targets_of and tgt in targets_of[cid]:
+            units.append((cid, tgt))
+        else:
+            not_in_result += 1
+    status: dict[tuple[str, str], str] = {}
+    for u in sorted(set(units)):
+        reps = mine.get(u, {})
+        rep = (info.get(u) or info.get((u[0], "*")) or {}).get("repeat")
+        if rep is None:
+            scored = [r for r, sc in reps.items() if sc.get("passed") is not None and not sc.get("skipped")]
+            rep = min(scored) if scored else (min(reps) if reps else 0)
+        sc = reps.get(rep)
+        if sample_err.get((u[0], u[1], rep)) or (sc and str(sc.get("error") or "").startswith("target error")):
+            status[u] = "target_error"
+        elif sc is None:
+            status[u] = "missing"
+        elif sc.get("skipped"):
+            status[u] = "skipped"
+        elif sc.get("passed") is None:
+            status[u] = "judge_error"
+        else:
+            status[u] = "scored"
+    counts = {k: sum(1 for v in status.values() if v == k)
+              for k in ("scored", "judge_error", "skipped", "missing", "target_error")}
+    gradable = len(status) - counts["target_error"]
+    failed = counts["judge_error"] + counts["skipped"] + counts["missing"]
+    return {"grader": grader, "labelled_units": len(status), "gradable": gradable, **counts,
+            "not_in_result": not_in_result,
+            "coverage": counts["scored"] / gradable if gradable else None,
+            "failure_rate": failed / gradable if gradable else None, "status": status}
+
+
+def _public(cov: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in cov.items() if k != "status"}
+
+
+def _imputed(pairs: dict, cov: dict[str, Any], labels: dict[tuple[str, str], bool], units: list[tuple[str, str]]) -> dict:
+    """Pairs over every gradable unit, with a unit the judge could not grade counted as a disagreement with the human
+    (the worst case: a missing verdict is a case the judge can't be relied on)."""
+    out = {}
+    for u in units:
+        lab = labels.get(u, labels.get((u[0], "*")))
+        if lab is None:
+            continue
+        out[u] = pairs[u] if u in pairs else (not lab, lab)
+    return out
+
+
 def _ladder_sample(pc: dict, ps: dict, info: dict[tuple[str, str], dict[str, Any]] | None, seed: int, b: int
                    ) -> dict[str, Any]:
     """Kappa of two judges against the same human labels on one labelled sample, and a design-aware 95% interval for
@@ -319,49 +403,81 @@ def _ladder_sample(pc: dict, ps: dict, info: dict[tuple[str, str], dict[str, Any
                   "accuracy_strong": sum(wi for (j, h), wi in zip(s_, w) if j == h) / tot}
 
 
+def _ladder_eval(cheap, strong, labels, info, seed, b) -> dict[str, Any]:
+    """Overlap and worst-case comparisons of two judges on one labelled sample, plus each judge's coverage."""
+    pc, ps = _pairs(cheap[0], cheap[1], labels, info), _pairs(strong[0], strong[1], labels, info)
+    cc, cs_ = judge_coverage(cheap[0], cheap[1], labels, info), judge_coverage(strong[0], strong[1], labels, info)
+    gradable = sorted(u for u in set(cc["status"]) & set(cs_["status"])
+                      if cc["status"][u] != "target_error" and cs_["status"][u] != "target_error")
+    overlap = _ladder_sample(pc, ps, info, seed, b)
+    worst = _ladder_sample(_imputed(pc, cc, labels, gradable), _imputed(ps, cs_, labels, gradable), info, seed, b)
+    return {"overlap": overlap, "imputed": worst, "coverage": {"cheap": cc, "strong": cs_}}
+
+
 def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, Any], str],
                    labels: dict[tuple[str, str], bool], margin: float = 0.05, min_kappa: float | None = None,
                    min_n: int = MIN_LABELS, seed: int = 7, b: int = 2000,
                    info: dict[tuple[str, str], dict[str, Any]] | None = None,
                    validation: dict[tuple[str, str], bool] | None = None,
-                   validation_info: dict[tuple[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Can a cheaper judge replace a stronger one? Both are scored against the same human labels on the units both
-    graded. The cheaper judge is approved when (a) the 95% lower bound of kappa(cheap) - kappa(strong) is above
-    -margin (it is not meaningfully worse), (b) at least min_n units are shared, and (c) if min_kappa is given, its own
-    kappa lower bound clears it.
+                   validation_info: dict[tuple[str, str], dict[str, Any]] | None = None,
+                   max_judge_failure: float = MAX_JUDGE_FAILURE) -> dict[str, Any]:
+    """Can a cheaper judge replace a stronger one? Both are scored against the same human labels. The cheaper judge
+    is approved when:
+
+    (a) on the units both judges graded, the 95% lower bound of kappa(cheap) - kappa(strong) is above -margin;
+    (b) the same holds when **every gradable unit** is counted and a unit a judge failed to grade (error, skip, no
+        score) is treated as a disagreement with the human, so a judge can't look good by failing on hard cases;
+    (c) the cheaper judge's failure rate is at most max_judge_failure (default 5%);
+    (d) at least min_n units are shared; and (e) if min_kappa is given, its own kappa lower bound clears it.
+
+    Units where the system under test failed are excluded for both judges and counted. Each judge's coverage and
+    failure rate are reported.
 
     The comparison respects how the labels were drawn. On the calibration sample, the interval resamples within the
     sheet's strata and, when units carry inverse-inclusion weights, compares production-weighted kappas. When a separate
     random validation sample is given, **approval is decided on it** (it is the unbiased estimate of production
     agreement) and the calibration sample is reported alongside."""
-    pc, ps = _pairs(cheap[0], cheap[1], labels, info), _pairs(strong[0], strong[1], labels, info)
-    cal_s = _ladder_sample(pc, ps, info, seed, b)
-    val_s = None
-    if validation:
-        vc = _pairs(cheap[0], cheap[1], validation, validation_info)
-        vs = _pairs(strong[0], strong[1], validation, validation_info)
-        val_s = _ladder_sample(vc, vs, validation_info, seed, b)
+    cal_e = _ladder_eval(cheap, strong, labels, info, seed, b)
+    val_e = _ladder_eval(cheap, strong, validation, validation_info, seed, b) if validation else None
+    cal_s, val_s = cal_e["overlap"], (val_e["overlap"] if val_e else None)
     if val_s is not None:
-        basis, used = "validation sample", val_s
+        basis, used, ev = "validation sample", val_s, val_e
         if val_s["design"] not in ("random", "unknown") and not val_s["weighted"]:
             basis += f" (design {val_s['design']}, unweighted: may not estimate production)"
     elif cal_s["design"] == "stratified" and cal_s["weighted"]:
-        basis, used = "calibration sample, production-weighted (stratified bootstrap)", cal_s
+        basis, used, ev = "calibration sample, production-weighted (stratified bootstrap)", cal_s, cal_e
     elif cal_s["design"] == "stratified":
-        basis, used = "calibration sample, stratified but unweighted: estimates the sample, not production", cal_s
+        basis, used, ev = "calibration sample, stratified but unweighted: estimates the sample, not production", cal_s, cal_e
     else:
-        basis, used = f"calibration sample (design {cal_s['design']})", cal_s
+        basis, used, ev = f"calibration sample (design {cal_s['design']})", cal_s, cal_e
+    coverage = {"cheap": _public(ev["coverage"]["cheap"]), "strong": _public(ev["coverage"]["strong"])}
     out: dict[str, Any] = {"cheap": cheap[1], "strong": strong[1], "n": used["n"], "margin": margin, "basis": basis,
-                           "calibration_sample": cal_s, "validation_sample": val_s}
-    if used["n"] < 2:
-        return out | {"approved": False, "reason": f"only {used['n']} units graded by both judges and labelled ({basis})"}
+                           "coverage": coverage, "max_judge_failure": max_judge_failure,
+                           "calibration_sample": cal_s | {"imputed": cal_e["imputed"],
+                                                          "coverage": {k: _public(v) for k, v in cal_e["coverage"].items()}},
+                           "validation_sample": (val_s | {"imputed": val_e["imputed"],
+                                                          "coverage": {k: _public(v) for k, v in val_e["coverage"].items()}})
+                                                if val_e else None}
     reasons = []
+    cf = coverage["cheap"]["failure_rate"]
+    if cf is not None and cf > max_judge_failure:
+        c = coverage["cheap"]
+        reasons.append(f"cheaper judge failed to grade {cf:.0%} of gradable units (max {max_judge_failure:.0%}: "
+                       f"{c['judge_error']} errors, {c['skipped']} skipped, {c['missing']} missing of {c['gradable']})")
+    if used["n"] < 2:
+        reasons.append(f"only {used['n']} units graded by both judges and labelled ({basis})")
+        return out | {"approved": False, "reason": "; ".join(reasons)}
     lo, hi = used["kappa_diff_ci"] or (float("-inf"), float("inf"))
     cci = used["kappa_cheap_ci"]
+    imp = ev["imputed"]
+    ilo, ihi = imp.get("kappa_diff_ci") or (float("-inf"), float("inf"))
     if used["n"] < min_n:
         reasons.append(f"only {used['n']} shared labelled units in the {basis.split(' (')[0].split(',')[0]} (min {min_n})")
     if lo < -margin:
         reasons.append(f"cheaper judge may be worse: kappa difference 95% CI [{lo:.2f}, {hi:.2f}] goes below -{margin}")
+    elif ilo < -margin:
+        reasons.append(f"cheaper judge may be worse once ungraded units count as disagreements: kappa difference "
+                       f"95% CI [{ilo:.2f}, {ihi:.2f}] goes below -{margin}")
     if min_kappa is not None and cci and cci[0] < min_kappa:
         reasons.append(f"cheaper judge's kappa lower bound {cci[0]:.2f} < {min_kappa}")
     if "unweighted" in basis and not reasons:
@@ -372,6 +488,7 @@ def compare_judges(cheap: tuple[dict[str, Any], str], strong: tuple[dict[str, An
                        f"(difference CI lower bound {cal_s['kappa_diff_ci'][0]:.2f}): check the slices it misses")
     return out | {k: used[k] for k in ("kappa_cheap", "kappa_strong", "kappa_cheap_ci", "kappa_diff", "kappa_diff_ci",
                                          "accuracy_cheap", "accuracy_strong")} | {
+                  "kappa_diff_imputed": imp.get("kappa_diff"), "kappa_diff_ci_imputed": imp.get("kappa_diff_ci"),
                   "judge_cost_cheap": _judge_cost(cheap[0], cheap[1]), "judge_cost_strong": _judge_cost(strong[0], strong[1]),
                   "approved": not reasons,
                   "reason": "; ".join(reasons) or f"not meaningfully worse than the stronger judge ({basis})"}
@@ -459,6 +576,14 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     weak = [g for g, d in slices.items() if d["n"] >= 5 and overall_acc is not None and d["accuracy"] < overall_acc - 0.15]
     if weak:
         warnings.append("judge agrees noticeably less on: " + ", ".join(f"{g} ({slices[g]['accuracy']:.0%}, n={slices[g]['n']})" for g in weak))
+    # --- did the judge grade every labelled unit? ----------------------------------------------------------------------
+    coverage = _public(judge_coverage(result, grader, labels, sample_info))
+    if coverage["failure_rate"] and coverage["failure_rate"] > MAX_JUDGE_FAILURE:
+        warnings.append(f"judge failed to grade {coverage['failure_rate']:.0%} of labelled units ({coverage['judge_error']} errors, "
+                        f"{coverage['skipped']} skipped, {coverage['missing']} missing of {coverage['gradable']}): agreement "
+                        "is measured only on the units it graded, which may be the easier ones")
+    if coverage["target_error"]:
+        warnings.append(f"{coverage['target_error']} labelled unit(s) had a target error, so there was nothing to judge: left out")
     # --- a separate representative validation sample ----------------------------------------------------------------
     val = None
     if validation:
@@ -482,7 +607,7 @@ def calibrate(result: dict[str, Any], grader: str, labels: dict[tuple[str, str],
     return {"grader": grader, "n": n, "unit": "case, target", "accuracy": (tp + tn) / n if n else None,
             "kappa": cohen_kappa(pairs) if n else None,
             "sample": {"design": design, "weighted": weighted is not None, "stratified_interval": strata is not None}, "weighted": weighted,
-            "slices": slices, "validation": val,
+            "slices": slices, "validation": val, "coverage": coverage,
             "kappa_ci": list(ci) if ci else None,
             "human_pass_rate": prevalence,
             "positive_agreement": (2 * tp / (2 * tp + fp + fn)) if (2 * tp + fp + fn) else None,

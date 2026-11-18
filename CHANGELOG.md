@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.4 (2026-11-18)
+
+Review feedback: judge failures and missing scores count in the judge ladder.
+
+- New `judge_coverage`: for every labelled unit, whether the judge scored it, errored, skipped it, had no score, or
+  had nothing to judge because the target failed. Coverage and failure rate exclude target errors, which are not
+  the judge's fault.
+- `calibrate --compare-to` reports each judge's coverage and failure rate, and approval now also requires:
+  - the non-inferiority check to hold when every gradable unit counts, with a unit a judge failed to grade treated as
+    a disagreement with the human (worst case), so a judge can't look acceptable by failing on hard cases;
+  - the cheaper judge's failure rate to be at most `--max-judge-failure` (default 5%).
+- `calibrate` (one judge) reports `coverage` and warns when more than 5% of labelled units weren't graded, or when
+  labelled units had target errors.
+
 ## 0.4.3 (2026-11-18)
 
 Review feedback: representative sets weighted for telemetry sampling, and a design-aware judge ladder.

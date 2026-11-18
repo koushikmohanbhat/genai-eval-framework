@@ -125,14 +125,38 @@ graders:
 genai-evals calibrate out/live/result.json --grader quality_cheap --compare-to quality \
   --labels reviews.csv --validation-labels random-reviews.csv
 #   quality_cheap vs quality on 120 labelled units (validation sample): kappa 0.71 vs 0.74 (difference -0.03, 95% CI -0.09 to +0.03); judge cost ...
+#     quality_cheap: graded 120/121 labelled units (1% failed: 1 errors, 0 skipped, 0 missing)
+#     quality: graded 121/121 labelled units (0% failed: 0 errors, 0 skipped, 0 missing)
+#     counting ungraded units as disagreements: difference -0.04, 95% CI -0.10 to +0.02
 #   approved: not meaningfully worse than the stronger judge (validation sample)
 ```
 
-The cheaper judge is approved when, on the same labelled units (case and target, one repeat each):
+The cheaper judge is approved when, on the labelled units (case and target, one repeat each):
 
-- the 95% lower bound of κ(cheap) − κ(strong) is above −`--margin` (default 0.05), so it is not meaningfully worse;
+- the 95% lower bound of κ(cheap) − κ(strong) is above −`--margin` (default 0.05) on the units **both** judges graded;
+- the same holds when **every gradable unit** is counted and a unit a judge failed to grade is treated as a
+  disagreement with the human (see below);
+- the cheaper judge failed to grade at most `--max-judge-failure` of the units (default 5%);
 - at least `--min-n` units (default 30) are shared; and
 - with `--min-kappa`, its own κ lower bound clears that threshold.
+
+### Judges that fail to grade
+
+A judge can time out, hit a rate limit, return something unparseable, or skip a unit whose data it needs. Those units
+have no verdict, so they can't be compared, and they are often the hard ones. A judge that fails on 10% of units can
+look *better* than the strong judge on the rest. So the ladder reports, per judge, what happened to every labelled unit:
+
+| Status | Meaning | Counts against the judge |
+|---|---|---|
+| scored | the judge returned a verdict | – |
+| judge error | the judge call failed | yes |
+| skipped | the grader skipped the unit | yes |
+| missing | no score for the unit (the grader didn't run on it) | yes |
+| target error | the system under test failed, so there was nothing to judge | no: left out for both judges |
+
+Coverage is scored / gradable units, and the failure rate is the rest. Approval needs both the failure-rate limit
+and the worst-case comparison, so a judge can't pass by failing on the cases it would get wrong. `calibrate` (one
+judge) reports the same `coverage`, and warns when more than 5% of labelled units weren't graded.
 
 ### Which sample decides
 

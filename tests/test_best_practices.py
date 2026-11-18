@@ -544,3 +544,55 @@ def test_compare_judges_approves_on_the_random_validation_sample():
     out2 = cal.compare_judges((res, "cheap"), (res, "strong"), val2 | {}, margin=0.1, validation=val2,
                               validation_info={k: {"repeat": 0, "design": "random"} for k in val2})
     assert out2["basis"] == "validation sample" and out2["approved"] and out2["calibration_sample"]["n"] == out2["n"]
+
+
+def _ladder_with_failures(cheap_fail=(), strong_fail=(), target_fail=(), n=200):
+    """Both judges agree with humans except: the strong judge errs on 4 units; `*_fail` units have no verdict
+    (judge error), `target_fail` units have a failed system output (nothing to judge)."""
+    human = [i % 3 != 0 for i in range(n)]
+    scores, samples = [], []
+    for i, h in enumerate(human):
+        samples.append({"case_id": f"c{i}", "target": "t", "repeat": 0, "error": "timeout" if i in target_fail else None})
+        for g, fails in (("cheap", cheap_fail), ("strong", strong_fail)):
+            if i in target_fail:
+                scores.append({"grader": g, "case_id": f"c{i}", "target": "t", "repeat": 0, "passed": None,
+                               "error": "target error: timeout"})
+            elif i in fails:
+                scores.append({"grader": g, "case_id": f"c{i}", "target": "t", "repeat": 0, "passed": None,
+                               "error": "RateLimitError: judge"})
+            else:
+                v = (not h) if (g == "strong" and i in (5, 55, 105, 155)) else h
+                scores.append({"grader": g, "case_id": f"c{i}", "target": "t", "repeat": 0, "passed": v, "value": float(v)})
+    labels = {(f"c{i}", "t"): h for i, h in enumerate(human)}
+    return {"scores": scores, "samples": samples}, labels
+
+
+def test_judge_ladder_reports_coverage_and_rejects_a_judge_that_fails_on_units():
+    hard = tuple(range(0, 60, 3))                         # the cheap judge errors on 20 units (10%)
+    res, labels = _ladder_with_failures(cheap_fail=hard)
+    out = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
+    cov = out["coverage"]["cheap"]
+    assert (cov["gradable"], cov["scored"], cov["judge_error"]) == (200, 180, 20) and cov["failure_rate"] == pytest.approx(0.1)
+    assert out["coverage"]["strong"]["failure_rate"] == 0
+    assert out["kappa_diff_ci"][0] > -0.1                 # on the overlap alone it looks at least as good
+    assert not out["approved"] and "failed to grade 10%" in out["reason"]
+    # even with a lax failure limit, counting the ungraded units as disagreements shows it is worse
+    lax = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1, max_judge_failure=0.5)
+    assert not lax["approved"] and "ungraded units count as disagreements" in lax["reason"]
+    assert lax["kappa_diff_ci_imputed"][0] < -0.1
+
+
+def test_judge_ladder_target_errors_are_not_judge_failures():
+    res, labels = _ladder_with_failures(target_fail=tuple(range(1, 40, 4)))       # 10 failed system outputs
+    out = cal.compare_judges((res, "cheap"), (res, "strong"), labels, margin=0.1)
+    for role in ("cheap", "strong"):
+        c = out["coverage"][role]
+        assert c["target_error"] == 10 and c["gradable"] == 190 and c["failure_rate"] == 0
+    assert out["approved"] and out["n"] == 190
+
+
+def test_calibrate_reports_judge_coverage():
+    res, labels = _ladder_with_failures(cheap_fail=tuple(range(0, 60, 3)))
+    out = cal.calibrate(res, "cheap", labels)
+    assert out["coverage"]["judge_error"] == 20 and out["n"] == 180
+    assert any("failed to grade 10% of labelled units" in w for w in out["warnings"])

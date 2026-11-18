@@ -387,7 +387,8 @@ def cmd_calibrate(args) -> int:
         cmp = compare_judges((result, args.grader), (strong, args.compare_to), labels, margin=args.margin,
                              min_kappa=args.min_kappa, min_n=args.min_n, info=read_sample_info(args.labels),
                              validation=validation,
-                             validation_info=read_sample_info(args.validation_labels) if args.validation_labels else None)
+                             validation_info=read_sample_info(args.validation_labels) if args.validation_labels else None,
+                             max_judge_failure=args.max_judge_failure)
         if args.out:
             Path(args.out).write_text(json.dumps(cmp, indent=1), encoding="utf-8")
         if "kappa_cheap" in cmp:
@@ -395,6 +396,15 @@ def cmd_calibrate(args) -> int:
             print(f"{args.grader} vs {args.compare_to} on {cmp['n']} labelled units ({cmp['basis']}): kappa "
                   f"{cmp['kappa_cheap']:.2f} vs {cmp['kappa_strong']:.2f} (difference {cmp['kappa_diff']:+.2f}, "
                   f"95% CI {lo:+.2f} to {hi:+.2f}); judge cost ${cmp['judge_cost_cheap']:.4f} vs ${cmp['judge_cost_strong']:.4f}")
+        for role in ("cheap", "strong"):
+            cv = cmp["coverage"][role]
+            if cv["gradable"]:
+                print(f"  {cmp[role]}: graded {cv['scored']}/{cv['gradable']} labelled units ({cv['failure_rate']:.0%} failed: "
+                      f"{cv['judge_error']} errors, {cv['skipped']} skipped, {cv['missing']} missing)"
+                      + (f"; {cv['target_error']} target errors left out" if cv["target_error"] else ""))
+        if cmp.get("kappa_diff_ci_imputed"):
+            ilo, ihi = cmp["kappa_diff_ci_imputed"]
+            print(f"  counting ungraded units as disagreements: difference {cmp['kappa_diff_imputed']:+.2f}, 95% CI {ilo:+.2f} to {ihi:+.2f}")
         if cmp.get("note"):
             print("note: " + cmp["note"])
         print(("approved: " if cmp["approved"] else "not approved: ") + cmp["reason"])
@@ -803,6 +813,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="judge ladder: approve --grader (cheaper judge) only if it agrees with humans about as well as GRADER")
     p.add_argument("--compare-result", help="result.json holding --compare-to, if it is a different run on the same cases")
     p.add_argument("--margin", type=float, default=0.05, help="largest acceptable drop in kappa for the cheaper judge (default 0.05)")
+    p.add_argument("--max-judge-failure", type=float, default=0.05,
+                   help="judge ladder: the most the cheaper judge may fail to grade (errors, skips, missing scores) (default 0.05)")
     p.add_argument("--validation-labels", help="labels on a representative random sample (`labels sheet --design random`), "
                                                "reported separately; a trusted judge must clear --min-kappa on it too. "
                                                "With --compare-to, the ladder's approval is decided on this sample")
