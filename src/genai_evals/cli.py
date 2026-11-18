@@ -129,6 +129,39 @@ def cmd_online(args) -> int:
     return _finish(result, args)
 
 
+def cmd_sources_check(args) -> int:
+    """Read the configured telemetry window without grading and report, per source, how many traces had their payload
+    records (prompts and completions) and how they were matched."""
+    from .online import collect
+    from .sources.normalize import diagnose_source
+    log = collect(load_sources(args.sources))[3]
+    report, bad = [], 0
+    for e in log:
+        if "samples" not in e:
+            continue
+        probs = diagnose_source(e, min_id_share=args.min_id_share, max_time_share=args.max_time_share)
+        bad += bool(probs)
+        joins = {k.split(":", 1)[1]: v for k, v in e.items() if k.startswith("join:")}
+        report.append({"source": e["source"], "type": e["type"], "samples": e["samples"], "fixture": e.get("fixture", False),
+                       "content": e.get("content"), "joins": joins, "problems": probs})
+    if args.json:
+        print(json.dumps(report, indent=1))
+    else:
+        for x in report:
+            c = x["content"] or {}
+            print(f"{x['source']} ({x['type']}{', fixture' if x['fixture'] else ''}): {x['samples']} samples, "
+                  f"{c.get('with_input', 0)} with prompt, {c.get('with_output', 0)} with completion")
+            for jt, st in x["joins"].items():
+                m = st["matched"]
+                print(f"  + {jt}: {st['records']} records ({st['records_with_trace_id']} with trace id); matched "
+                      f"trace_id={m['trace_id']} session_id={m['session_id']} timestamp={m['time_window']} none={m['none']}")
+            for pr in x["problems"]:
+                print(f"  ! {pr}")
+            if not x["problems"]:
+                print("  ok")
+    return 1 if bad else 0
+
+
 def cmd_compare(args) -> int:
     from .comparison import compare_runs
     from .report.experiment import render_comparison_html, render_comparison_md
@@ -957,6 +990,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--baseline")
     outputs(p)
     p.set_defaults(fn=cmd_online)
+
+    p = sub.add_parser("sources", help="check telemetry sources without grading")
+    ssub = p.add_subparsers(dest="sources_cmd", required=True)
+    q = ssub.add_parser("check", help="read the window and report how traces joined to payload records (trace id, session id, timestamp, none)")
+    q.add_argument("sources")
+    q.add_argument("--min-id-share", type=float, default=0.9, help="fail when fewer spans than this matched by trace or session id")
+    q.add_argument("--max-time-share", type=float, default=0.1, help="fail when more spans than this matched by timestamp only")
+    q.add_argument("--json", action="store_true")
+    q.set_defaults(fn=cmd_sources_check)
 
     p = sub.add_parser("compare", help="side-by-side comparison of two runs: quality, cost, latency, critical cases, slices")
     p.add_argument("current")

@@ -35,6 +35,36 @@ show, per source, how many sessions were graded out of how many were read, the s
 - **Window effects.** A 24-hour window over-represents the hours with most traffic. Compare like with like (same window
   length and weekday) when you look at trends.
 
+## Troubleshooting telemetry joins
+
+Traces (CloudWatch / X-Ray, Cloud Trace) say *that* a model was called; the prompt and completion usually live
+elsewhere: Bedrock model invocation logs, or the Vertex request-response table in BigQuery. Both are **off by
+default**, and both are joined to traces after the fact. If the join silently fails, online scores grade empty or
+wrong outputs.
+
+```bash
+genai-evals sources check sources.yaml          # reads the window, grades nothing; exit 1 on problems
+```
+
+```
+claims-agent-aws (aws_agentcore_observability): 8 samples, 8 with prompt, 8 with completion
+  + aws_bedrock_invocation_logs: 8 records (8 with trace id); matched trace_id=8 session_id=0 timestamp=0 none=0
+  ok
+```
+
+Each span is matched to a payload record by **trace id**, then **session id**, then **timestamp** (within 2 s, same
+model). Timestamp matches are fuzzy: with overlapping sessions they can pair the wrong prompt with a trace, so the
+check fails when more than 10% of spans match that way (`--max-time-share`) or fewer than 90% match by an id
+(`--min-id-share`). `genai-evals doctor` runs the same diagnosis on the latest live online result
+(**telemetry joins**), and every online result records it per source under `join:<type>` and `content`.
+
+| Problem | Fix |
+|---|---|
+| no payload records in the window | AWS: turn on Bedrock model invocation logging with text delivery to the log group in `sources.yaml`. GCP: enable request-response logging on the model or endpoint (it has its own sampling rate). Check the window and read permissions |
+| records carry no trace id | Bedrock invocation logs don't carry the trace: pass `requestMetadata={"trace_id": ..., "session_id": ...}` on each Converse call. Vertex: add `labels={"trace_id": ..., "session_id": ...}` to each request. A W3C `traceparent` value works too |
+| spans with no completion | turn on content capture in the agent's instrumentation (GenAI semantic conventions: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`), or join a payload source |
+| many unmatched spans | the payload log's sampling rate is lower than the trace sampling rate, or the windows differ |
+
 ## AWS ↔ Google Cloud equivalents
 
 | Capability | AWS | Google Cloud | How the framework uses it |

@@ -365,6 +365,25 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
     else:
         checks.append(Check("telemetry connected", False, "no online run on live telemetry yet (fixture runs don't count)",
                             "keep your source in sources.yaml, remove `fixture:`, `genai-evals online ... --out out/online`"))
+    # 2b. telemetry joins: do sampled traces actually have their payload records (Bedrock invocation logs, Vertex
+    #     request-response logs)? Content capture is often off by default, and a join that falls back to timestamps can
+    #     pair the wrong prompt with a trace.
+    if online:
+        from .sources.normalize import diagnose_source
+        f, r = online[0]
+        live_src = [s for s in r["sources"] if "samples" in s and not s.get("fixture")]
+        joins = sum(1 for s in live_src for k in s if k.startswith("join:"))
+        jprobs = [x for s in live_src for x in diagnose_source(s)]
+        if jprobs:
+            checks.append(Check("telemetry joins", False, "; ".join(jprobs),
+                                "`genai-evals sources check sources.yaml` re-reads the window and prints the join report "
+                                "(docs/sources.md, Troubleshooting telemetry joins)"))
+        else:
+            checks.append(Check("telemetry joins", True,
+                                f"{joins} payload join(s) matched by trace or session id; completions present" if joins
+                                else "no payload joins configured; completions present in the traces"))
+    else:
+        checks.append(Check("telemetry joins", None, "skipped (no online run on live telemetry yet)"))
 
     # 3. understandable report
     suite = load_suite(p / "suite.yaml")

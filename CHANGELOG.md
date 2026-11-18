@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.3 (2026-11-18)
+
+### Telemetry joins
+- **`genai-evals sources check sources.yaml`** reads the telemetry window without grading and reports, per source,
+  how many traces have a prompt and a completion and how each was joined to its payload record (trace id, session
+  id, timestamp only, none). Exit 1 on problems; `--json` for scripts.
+- **`doctor` has a telemetry joins check** on the latest live online run: no payload records (Bedrock invocation
+  logging and Vertex request-response logging are off by default), records without trace ids, joins that fell back
+  to timestamps, low id-match share, and traces with no completion. Each problem names the fix.
+- **Trace ids from request tags.** Bedrock records read `requestMetadata` (trace_id / traceparent / session_id);
+  Vertex rows read request `labels`. The insurance example's payload fixtures now carry them, so its joins match by
+  trace id instead of timestamps.
+- Online results record the join report (`join:<type>`) and content counts (`content`) per source.
+
+### Releases
+- The release workflow attaches the wheel, sdist, SBOM and provenance to the GitHub Release even when the release
+  was created first (it failed on that before, so releases since v0.4.0 had no artifacts), and can be run by hand
+  for an existing tag to backfill them.
+
 ## 0.6.2 (2026-11-18)
 
 Review fixes for seeding and the security overlays.

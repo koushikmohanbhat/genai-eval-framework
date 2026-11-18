@@ -54,6 +54,12 @@
 | `check-config` fails on `store: true` | set `options.store: false` on every OpenAI profile |
 | usage source returns `403` | the usage APIs need an admin key (`admin_key_env`), not an inference key |
 
+## Online scores look wrong or empty
+
+Run `genai-evals sources check sources.yaml`. It shows, per source, how many traces got their prompt and completion
+and how they were joined (trace id, session id, timestamp, none). See
+[troubleshooting telemetry joins](sources.md#troubleshooting-telemetry-joins).
+
 ## Still stuck
 
 Run with `genai-evals validate` first; it checks profiles, dataset, prompts, graders and gates without calling any

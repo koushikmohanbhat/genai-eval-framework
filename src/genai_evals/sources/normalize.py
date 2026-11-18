@@ -436,15 +436,46 @@ def _build(key: str, grp: list[dict], origin: str, target: str | None) -> Sample
 # ---------------------------------------------------------------------------
 # joins: request/response logs and conversation history
 # ---------------------------------------------------------------------------
+def ids_from_tags(tags: dict[str, Any] | None) -> tuple[str | None, str | None]:
+    """(trace_id, session_id) from request tags the application attached to a model call: Bedrock Converse
+    `requestMetadata`, or Vertex request `labels`. Accepts trace_id / traceId / otel_trace_id, a W3C traceparent
+    (00-<trace id>-<span id>-01), and session_id / sessionId / conversation_id."""
+    if not isinstance(tags, dict):
+        return None, None
+    low = {str(k).lower().replace("-", "_"): v for k, v in tags.items()}
+    trace = low.get("trace_id") or low.get("traceid") or low.get("otel_trace_id")
+    tp = low.get("traceparent")
+    if not trace and isinstance(tp, str) and tp.count("-") >= 3:
+        trace = tp.split("-")[1]
+    session = low.get("session_id") or low.get("sessionid") or low.get("conversation_id")
+    return (str(trace) if trace else None), (str(session) if session else None)
+
+
 def enrich(samples: list[Sample], records: list[dict[str, Any]], window_ms: float = 2000.0) -> int:
     """Fill missing prompts / outputs / usage from request-response records ({trace_id, session_id, request_id, time_ns,
-    model, input_messages, output_text, usage}). Match on trace or session id, else on time inside the sample's span window."""
+    model, input_messages, output_text, usage}). Match on trace or session id, else on time inside the sample's span window.
+    Returns how many samples were filled; join_stats() reports how the matches were made."""
+    return join_stats(samples, records, window_ms)["filled"]
+
+
+def join_stats(samples: list[Sample], records: list[dict[str, Any]], window_ms: float = 2000.0) -> dict[str, Any]:
+    """enrich(), reporting how each sample was matched: by trace id, by session id, by time window only (a fuzzy match
+    that can pair the wrong records under concurrency), or not at all. Each sample records `join_match`."""
     filled = 0
+    how = {"trace_id": 0, "session_id": 0, "time_window": 0, "none": 0}
+    rec_traces = sum(1 for r in records if r.get("trace_id"))
     for s in samples:
-        cands = [r for r in records if (r.get("trace_id") and r["trace_id"] == s.trace_id) or (r.get("session_id") and r["session_id"] == s.session_id)]
+        cands = [r for r in records if r.get("trace_id") and r["trace_id"] == s.trace_id]
+        kind = "trace_id" if cands else None
+        if not cands:
+            cands = [r for r in records if r.get("session_id") and r["session_id"] == s.session_id]
+            kind = "session_id" if cands else None
         if not cands and s.metadata.get("start_ns"):
             lo, hi = s.metadata["start_ns"] - window_ms * 1e6, (s.metadata.get("end_ns") or s.metadata["start_ns"]) + window_ms * 1e6
             cands = [r for r in records if r.get("time_ns") and lo <= r["time_ns"] <= hi and (not s.model or not r.get("model") or r["model"] in s.model or s.model in r["model"])]
+            kind = "time_window" if cands else None
+        how[kind or "none"] += 1
+        s.metadata.setdefault("join_match", {})[str(records[0].get("source", "logs")) if records else "logs"] = kind or "none"
         if not cands:
             continue
         cands.sort(key=lambda r: r.get("time_ns") or 0)
@@ -472,7 +503,62 @@ def enrich(samples: list[Sample], records: list[dict[str, Any]], window_ms: floa
         if changed:
             s.metadata.setdefault("enriched_from", []).append(first.get("source", "logs"))
             filled += 1
-    return filled
+    n = len(samples) or 1
+    return {"samples": len(samples), "records": len(records), "records_with_trace_id": rec_traces, "matched": how,
+            "matched_by_id_share": (how["trace_id"] + how["session_id"]) / n, "time_window_share": how["time_window"] / n,
+            "unmatched_share": how["none"] / n, "filled": filled}
+
+
+#: why payloads are missing, per source type: the defaults that most often break a join
+JOIN_HINTS = {
+    "aws_bedrock_invocation_logs": "Bedrock model invocation logging is off by default: turn it on (text delivery to the "
+                                   "CloudWatch log group in sources.yaml). Invocation logs don't carry the trace id: pass "
+                                   "it on each Converse call as requestMetadata {trace_id, session_id} so joins don't "
+                                   "fall back to timestamps",
+    "gcp_vertex_request_response": "Vertex request-response logging to BigQuery is off by default: enable it on the "
+                                   "model or endpoint (it has its own sampling rate). Logged requests don't carry the "
+                                   "trace id: add labels {trace_id, session_id} to each request so joins don't fall back "
+                                   "to timestamps",
+    "aws_agentcore_memory": "AgentCore Memory events need the same session id the spans carry",
+    "gcp_agent_engine_sessions": "Agent Engine sessions need the same session id the spans carry",
+}
+CONTENT_HINT = ("span content capture is off by default (OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true in the "
+                "agent, or AgentCore / ADK content settings); either turn it on or join a payload source "
+                "(aws_bedrock_invocation_logs, gcp_vertex_request_response)")
+
+
+def diagnose_source(entry: dict[str, Any], min_id_share: float = 0.9, max_time_share: float = 0.1,
+                    min_content_share: float = 0.9) -> list[str]:
+    """Problems with one source's joins and content, from an online run's source log entry. [] when it's healthy."""
+    probs: list[str] = []
+    if entry.get("samples") == 0:
+        return [f"{entry['source']}: no samples read in the window: check the filter, window and permissions"]
+    for k, st in entry.items():
+        if not k.startswith("join:") or not isinstance(st, dict):
+            continue
+        jt = k.split(":", 1)[1]
+        hint = JOIN_HINTS.get(jt, "")
+        if st["records"] == 0:
+            probs.append(f"{entry['source']} + {jt}: no payload records in the window. {hint}".strip())
+            continue
+        if st["records_with_trace_id"] == 0 and st["matched"]["trace_id"] == 0:
+            how = {"aws_bedrock_invocation_logs": "pass requestMetadata {trace_id} on each Converse call",
+                   "gcp_vertex_request_response": "add labels {trace_id} to each request"}.get(jt, "propagate the trace id")
+            probs.append(f"{entry['source']} + {jt}: payload records carry no trace id, so joins rely on session ids "
+                         f"or timestamps: {how}")
+        if st["matched_by_id_share"] < min_id_share:
+            probs.append(f"{entry['source']} + {jt}: only {st['matched_by_id_share']:.0%} of {st['samples']} spans matched a "
+                         f"payload record by trace or session id ({st['matched']['none']} unmatched). {hint}".strip())
+        if st["time_window_share"] > max_time_share:
+            probs.append(f"{entry['source']} + {jt}: {st['time_window_share']:.0%} matched by timestamp only, which can pair "
+                         "the wrong records when sessions overlap")
+    c = entry.get("content")
+    if c and c.get("of"):
+        share = c["with_output"] / c["of"]
+        if share < min_content_share:
+            probs.append(f"{entry['source']}: only {c['with_output']} of {c['of']} samples have a completion to grade "
+                         f"({c['with_input']} have a prompt). {CONTENT_HINT}")
+    return probs
 
 
 def attach_history(samples: list[Sample], history: dict[str, list[dict[str, Any]]]) -> int:

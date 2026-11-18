@@ -123,9 +123,12 @@ def vertex_row_to_record(row: dict[str, Any], cols: dict[str, str]) -> dict[str,
     um = resp.get("usageMetadata") or resp.get("usage_metadata") or resp.get("usage") or {}
     usage = {"input_tokens": um.get("promptTokenCount") or um.get("prompt_token_count") or um.get("input_tokens") or 0,
              "output_tokens": um.get("candidatesTokenCount") or um.get("candidates_token_count") or um.get("output_tokens") or 0}
+    from .normalize import ids_from_tags
+    tag_trace, tag_session = ids_from_tags(req.get("labels"))
     return {"source": "vertex_request_response", "request_id": row.get(cols.get("request_id", "request_id")), "time_ns": _ns(row.get(cols["time"])),
             "model": row.get(cols["model"]), "input_messages": msgs, "output_text": text, "usage": usage,
-            "trace_id": row.get(cols.get("trace_id", "trace_id")), "session_id": row.get(cols.get("session_id", "session_id"))}
+            "trace_id": row.get(cols.get("trace_id", "trace_id")) or tag_trace,
+            "session_id": row.get(cols.get("session_id", "session_id")) or tag_session}
 
 
 @register("gcp_vertex_request_response")

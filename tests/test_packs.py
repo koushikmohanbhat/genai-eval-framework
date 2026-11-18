@@ -89,6 +89,7 @@ def test_doctor_tracks_the_repeatability_bar(tmp_path, monkeypatch):
     assert checks["offline demo"].ok is True
     for n in ("provider connected", "telemetry connected", "report", "release gate", "judges calibrated", "handover", "adapters validated"):
         assert checks[n].ok is False and checks[n].next, n
+    assert checks["telemetry joins"].ok is None
 
     # simulate the evidence a finished engagement leaves behind
     res = packs.run_offline(proj, tmp_path / "o")
@@ -131,6 +132,7 @@ def test_doctor_tracks_the_repeatability_bar(tmp_path, monkeypatch):
     record_validation(proj / "validation.yaml", "source", "otlp", "customer_validated", environment="customer prod")
     checks = packs.doctor(proj, run=False)
     assert all(c.ok is not False for c in checks), [(c.name, c.detail) for c in checks if c.ok is False]
+    assert {c.name: c for c in checks}["telemetry joins"].ok is True
     monkeypatch.chdir(proj)
     assert cli(["doctor", ".", "--no-run"]) == 0
 

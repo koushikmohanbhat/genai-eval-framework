@@ -14,7 +14,8 @@ from typing import Any
 from .config import ProvidersConfig, SourcesConfig, SuiteSpec
 from .models import Case, Sample, Score
 from .runner import Runner
-from .sources import attach_history, build_source, enrich
+from .sources import attach_history, build_source
+from .sources.normalize import join_stats
 
 
 def collect(sources: SourcesConfig, clients: dict[str, Any] | None = None) -> tuple[list[Sample], list[Score], dict[str, Any], list[dict]]:
@@ -51,7 +52,9 @@ def collect(sources: SourcesConfig, clients: dict[str, Any] | None = None) -> tu
             js = build_source({"name": j.get("name", f"{spec.name}:{j['type']}"), "window": spec.window, **j}, sources.base_dir,
                               clients.get(j.get("name", "")))
             if js.kind == "records":
-                entry[f"enriched:{j['type']}"] = enrich(got, js.join_records())
+                st = join_stats(got, js.join_records())
+                entry[f"enriched:{j['type']}"] = st["filled"]
+                entry[f"join:{j['type']}"] = st
             elif js.kind == "history":
                 entry[f"history:{j['type']}"] = attach_history(got, js.history([s.session_id for s in got if s.session_id]))
             elif js.kind == "scores":
@@ -64,6 +67,8 @@ def collect(sources: SourcesConfig, clients: dict[str, Any] | None = None) -> tu
                 entry[f"scores:{j['type']}"] = len(sc)
             elif js.kind == "metrics":
                 operational[f"{spec.name}:{j['type']}"] = js.metrics()
+        entry["content"] = {"of": len(got), "with_input": sum(1 for s in got if s.input),
+                            "with_output": sum(1 for s in got if s.output)}
         samples += got
         log.append(entry)
     return samples, imported, operational, log

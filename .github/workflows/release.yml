@@ -1,16 +1,30 @@
 name: release
+# Builds the wheel and sdist for a tag and attaches them (with an SBOM and build provenance) to the GitHub Release.
+# Runs on a tag push, or by hand for an existing tag (Actions > release > Run workflow, tag: v0.6.2) to backfill
+# the artifacts of a release made earlier. Works whether or not the release already exists.
 on:
   push: {tags: ["v*"]}
+  workflow_dispatch:
+    inputs:
+      tag: {description: "existing tag to build and attach artifacts to, e.g. v0.6.2", required: true}
 permissions: {contents: write, id-token: write, attestations: write}
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with: {ref: "${{ inputs.tag || github.ref }}"}
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install build cyclonedx-bom pip-audit
       - run: python -m build
+      - name: check the built version matches the tag
+        run: |
+          ls dist/
+          test -n "$(ls dist/*-"${TAG#v}"-*.whl)" || { echo "wheel version does not match $TAG"; exit 1; }
       - name: audit dependencies (the package itself is not on PyPI, so audit what it pulls in)
         run: |
           pip install dist/*.whl
@@ -19,5 +33,10 @@ jobs:
       - run: cyclonedx-py environment -o dist/sbom.cdx.json
       - uses: actions/attest-build-provenance@v1
         with: {subject-path: "dist/*"}
-      - run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
-        env: {GH_TOKEN: "${{ github.token }}"}
+      - name: attach to the release (create it if it doesn't exist yet)
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --generate-notes --verify-tag
+          fi

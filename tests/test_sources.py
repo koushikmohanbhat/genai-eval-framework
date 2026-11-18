@@ -1,4 +1,6 @@
 import json
+import shutil
+from pathlib import Path
 
 from genai_evals.config import load_providers, load_sources, load_suite
 from genai_evals.online import run_online
@@ -127,3 +129,57 @@ def test_sampling_is_deterministic_by_session():
     kept = {s.session_id for s in a}
     assert all((s.session_id in kept) == (s in a) for s in samples)          # whole sessions in or out
     assert 0 < len(kept) < 20
+
+
+# --- telemetry joins: do sampled traces have their payload records? -------------------------------------------------
+
+def test_trace_ids_come_from_request_tags():
+    from genai_evals.sources.aws import bedrock_log_to_record
+    from genai_evals.sources.gcp import vertex_row_to_record
+    from genai_evals.sources.normalize import ids_from_tags
+    assert ids_from_tags({"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "sessionId": "s1"}) \
+        == ("4bf92f3577b34da6a3ce929d0e0e4736", "s1")
+    assert ids_from_tags(None) == (None, None)
+    rec = bedrock_log_to_record({"timestamp": "2026-11-05T09:00:00Z", "modelId": "m", "requestMetadata": {"trace_id": "t1", "session_id": "s1"},
+                                 "input": {"inputBodyJson": {"messages": []}}, "output": {"outputBodyJson": {}}})
+    assert (rec["trace_id"], rec["session_id"]) == ("t1", "s1")
+    row = {"logging_time": "2026-11-05T09:00:00Z", "model": "g", "full_request": json.dumps({"contents": [], "labels": {"trace_id": "t2"}}),
+           "full_response": "{}"}
+    rec = vertex_row_to_record(row, {"request": "full_request", "response": "full_response", "time": "logging_time", "model": "model"})
+    assert rec["trace_id"] == "t2"
+
+
+def _join_copy(tmp_path, strip_ids: bool):
+    src = Path(__file__).resolve().parents[1] / "examples/insurance"
+    dst = tmp_path / "ins"
+    shutil.copytree(src, dst)
+    if strip_ids:
+        f = dst / "fixtures/aws/bedrock_invocation_logs.jsonl"
+        rows = [json.loads(x) for x in f.read_text().splitlines() if x.strip()]
+        for r in rows:
+            r.pop("requestMetadata", None)
+        f.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return dst / "sources.yaml"
+
+
+def test_sources_check_reports_timestamp_only_joins(tmp_path, capsys):
+    from genai_evals.cli import main as cli
+    assert cli(["sources", "check", str(_join_copy(tmp_path / "a", strip_ids=False)), "--json"]) == 0
+    rep = json.loads(capsys.readouterr().out)
+    aws = next(x for x in rep if x["type"] == "aws_agentcore_observability")
+    assert aws["joins"]["aws_bedrock_invocation_logs"]["matched"]["trace_id"] == aws["samples"] and not aws["problems"]
+
+    assert cli(["sources", "check", str(_join_copy(tmp_path / "b", strip_ids=True))]) == 1
+    out = capsys.readouterr().out
+    assert "timestamp only" in out and "requestMetadata" in out
+
+
+def test_diagnose_source_flags_missing_payloads_and_content():
+    from genai_evals.sources.normalize import diagnose_source
+    st = {"samples": 10, "records": 0, "records_with_trace_id": 0, "matched": {"trace_id": 0, "session_id": 0, "time_window": 0, "none": 10},
+          "matched_by_id_share": 0.0, "time_window_share": 0.0, "unmatched_share": 1.0, "filled": 0}
+    probs = diagnose_source({"source": "s", "samples": 10, "join:gcp_vertex_request_response": st,
+                             "content": {"of": 10, "with_input": 10, "with_output": 2}})
+    assert any("no payload records" in p and "off by default" in p for p in probs)
+    assert any("2 of 10 samples have a completion" in p for p in probs)
+    assert diagnose_source({"source": "s", "samples": 3, "content": {"of": 3, "with_input": 3, "with_output": 3}}) == []

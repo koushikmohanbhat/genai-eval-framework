@@ -166,8 +166,12 @@ def bedrock_log_to_record(r: dict[str, Any]) -> dict[str, Any]:
     u = out.get("usage") or {}
     usage = {"input_tokens": (r.get("input") or {}).get("inputTokenCount") or u.get("inputTokens") or u.get("input_tokens") or 0,
              "output_tokens": (r.get("output") or {}).get("outputTokenCount") or u.get("outputTokens") or u.get("output_tokens") or 0}
+    from .normalize import ids_from_tags
+    tag_trace, tag_session = ids_from_tags(r.get("requestMetadata") or inp.get("requestMetadata"))
     rec = {"source": "bedrock_invocation_logs", "request_id": r.get("requestId"), "time_ns": _ns(r.get("timestamp")), "model": r.get("modelId"),
-           "input_messages": msgs, "output_text": text, "usage": usage, "trace_id": (r.get("trace") or {}).get("traceId") if isinstance(r.get("trace"), dict) else None}
+           "input_messages": msgs, "output_text": text, "usage": usage,
+           "trace_id": ((r.get("trace") or {}).get("traceId") if isinstance(r.get("trace"), dict) else None) or tag_trace,
+           "session_id": tag_session}
     if out.get("stopReason") == "guardrail_intervened" or (out.get("amazon-bedrock-guardrailAction") == "INTERVENED"):
         rec["guardrail"] = {"action": "INTERVENED", "source": "bedrock_guardrails"}
     return rec

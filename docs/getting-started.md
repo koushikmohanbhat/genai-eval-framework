@@ -25,7 +25,7 @@ The package is not on PyPI yet, so install it from a GitHub release tag ([releas
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.2"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.6.3"
 genai-evals --version
 ```
 
@@ -163,6 +163,12 @@ genai-evals doctor
 It passes when the project meets the [definition of repeatable](engagement.md#definition-of-repeatable): offline
 demo, one live provider and one live telemetry source, an understandable report, a meaningful release gate, and a
 handover with a maintenance path.
+
+Its **telemetry joins** check reads the latest live online run and fails when sampled traces didn't get their
+payload records: no Bedrock invocation log or Vertex request-response row in the window, records without a trace
+id, joins that fell back to timestamps, or traces with no completion to grade. Before the first online run,
+`genai-evals sources check sources.yaml` reads the window without grading and prints the same report
+([troubleshooting telemetry joins](sources.md#troubleshooting-telemetry-joins)).
 
 ## Where to go next
 
