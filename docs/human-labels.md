@@ -49,6 +49,20 @@ genai-evals labels sheet out/live/result.json --grader faithfulness --n 40 --des
 
   Leave these columns as they are.
 - **Rows.** One row per item per reviewer. Reviewers fill `label` (`pass`, `fail` or `unsure`) and `notes`.
+- **Excel or the labelling page.** Name the sheet `.xlsx` (`--out calibration.xlsx`, needs
+  `pip install "genai-eval-framework[xlsx]"`) for a workbook with a frozen header, dropdowns on `label`, and every
+  column but the reviewer's own locked. Or give reviewers a page:
+
+  ```bash
+  genai-evals label calibration.xlsx          # or .csv; opens http://127.0.0.1:8765/?t=<one-time token>
+  ```
+
+  One item at a time, keys 1/2/3 to choose, notes per item, a progress bar, and "next undecided". Every decision is
+  written straight back into the same sheet, with the reviewer's name as the sign-off, so the commands below read it
+  unchanged. The page binds to 127.0.0.1 only, needs the token printed at start, sends nothing anywhere, and shows only
+  what is in the sheet, which never holds the judge's verdict. It works the same for draft-case review sheets from
+  `cases review-sheet` (keep / fix / drop, with the corrected fields). For a team, share the file, not the page: one
+  reviewer per sheet (`--reviewers` makes their rows), merged by the commands below.
 - **Independence.** The judge's verdict is not in the sheet, so labels stay independent of the judge.
 - **Personal data.** Inputs and outputs come from the result, which is already tokenised when the run used
   tokenisation.

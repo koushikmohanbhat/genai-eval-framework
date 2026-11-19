@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "genai-eval-framework"
-version = "0.7.2"
+version = "0.7.3"
 description = "Evals as code for GenAI apps and agents: OpenAI, Anthropic, Amazon Bedrock / AgentCore and Google Vertex AI targets, native telemetry sources (CloudWatch, X-Ray, Cloud Trace, BigQuery), prompt versioning and CI release gates"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 openai = ["openai>=1.60"]
 docs = ["pypdf>=4.0", "python-docx>=1.1"]
+xlsx = ["openpyxl>=3.1"]
 agents = ["openai-agents>=0.2"]
 anthropic = ["anthropic[vertex]>=0.60"]
 aws = ["boto3>=1.40"]
@@ -38,7 +39,7 @@ otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25", "opentelemetry-exp
 postgres = ["psycopg[binary]>=3.1"]
 dpdp = ["dpdp-data-rights-framework>=0.2"]
 all = ["genai-eval-framework[openai,agents,anthropic,aws,gcp,otel,postgres]"]
-dev = ["pytest>=8", "ruff>=0.5", "boto3>=1.40", "opentelemetry-sdk>=1.25", "pip-audit>=2.7"]
+dev = ["pytest>=8", "ruff>=0.5", "openpyxl>=3.1", "boto3>=1.40", "opentelemetry-sdk>=1.25", "pip-audit>=2.7"]
 
 [project.scripts]
 genai-evals = "genai_evals.cli:main"

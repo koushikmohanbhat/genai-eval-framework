@@ -27,6 +27,7 @@ targets:                                 # how to point the pack at the customer
   - {file: targets/vertex-rag.yaml, system: Vertex AI RAG Engine + a model, adapters: ["provider:vertex"]}
 
 graders: [recall_at_4, mrr, context_precision, context_recall, faithfulness, relevance, citations, refusal, no_pii, safe_content, latency]
+start_here: [faithfulness, relevance, citations, refusal, recall_at_4, no_pii]   # the few to read first; the rest are advanced
 failure_categories:                      # defined in suite.yaml `report:`; shown in every report
   retrieval miss: "the right passage was not retrieved (recall_at_4, mrr)"
   unsupported claim: "the answer says something the passages don't (faithfulness)"

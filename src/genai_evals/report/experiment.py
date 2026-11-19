@@ -82,6 +82,61 @@ def _notes(comp: dict[str, Any]) -> list[str]:
 
 
 # ---- Markdown ---------------------------------------------------------------
+MONTHLY_CAVEAT = ("Eval cost per case is not production cost per request: eval prompts, repeats and lengths differ from "
+                  "live traffic, and the judge's cost is not included. Treat this as the direction and rough size of the "
+                  "change; for a business case, put measured production token counts into the ROI calculator "
+                  "(genai-roi-calculator).")
+
+
+def monthly(comp: dict[str, Any], volume: int) -> list[dict[str, Any]]:
+    """Per variant: model cost per month at `volume` requests, baseline vs variant, and the change with the paired
+    interval scaled to the same volume, next to the quality verdict. None where the run carried no prices."""
+    out = []
+    for v in comp["variants"]:
+        r = comp["results"][v["name"]]
+        c = r["ops"]["cost_usd"]
+        b, n = c.get("baseline_mean"), c.get("candidate_mean")
+        row = {"variant": v["name"], "verdict": r["verdict"], "volume": volume,
+               "baseline_usd": b * volume if b is not None else None,
+               "variant_usd": n * volume if n is not None else None,
+               "change_usd": (n - b) * volume if b is not None and n is not None else None,
+               "change_low_usd": c["ci_low"] * volume if c.get("ci_low") is not None else None,
+               "change_high_usd": c["ci_high"] * volume if c.get("ci_high") is not None else None,
+               "significant": c.get("significant", False),
+               "quality": {g: {"delta": q["delta"], "ci_low": q["ci_low"], "ci_high": q["ci_high"],
+                               "significant": q["significant"]} for g, q in r["quality"].items()}}
+        out.append(row)
+    return out
+
+
+def _monthly_md(comp: dict[str, Any]) -> list[str]:
+    rows = comp.get("monthly")
+    if not rows:
+        return []
+    L = ["", f"### Monthly model cost at {rows[0]['volume']:,} requests / month", "",
+         "| Variant | Baseline / month | Variant / month | Change | Interval | Quality |", "|---|---|---|---|---|---|"]
+    for m in rows:
+        rng = (f"[{_money(m['change_low_usd'])}, {_money(m['change_high_usd'])}]" if m["change_low_usd"] is not None else "")
+        q = "; ".join(f"{g} {_sd(x['delta'])}{' sig' if x['significant'] else ''}" for g, x in m["quality"].items())
+        L.append(f"| {m['variant']} | {_money(m['baseline_usd'])} | {_money(m['variant_usd'])} | {_money(m['change_usd'])} "
+                 f"| {rng} | {m['verdict']}: {q} |")
+    return L + ["", f"_{MONTHLY_CAVEAT}_"]
+
+
+def _monthly_html(comp: dict[str, Any]) -> str:
+    rows = comp.get("monthly")
+    if not rows:
+        return ""
+    body = "".join(
+        f"<tr><td><b>{escape(m['variant'])}</b></td><td class='num'>{_money(m['baseline_usd'])}</td>"
+        f"<td class='num'>{_money(m['variant_usd'])}</td><td class='num'>{_money(m['change_usd'])}</td>"
+        f"<td class='num'>{'[' + _money(m['change_low_usd']) + ', ' + _money(m['change_high_usd']) + ']' if m['change_low_usd'] is not None else ''}</td>"
+        f"<td>{_pill(m['verdict'])}</td></tr>" for m in rows)
+    return (f"<h2>Monthly model cost at {rows[0]['volume']:,} requests / month</h2><table><tr><th>Variant</th>"
+            f"<th>Baseline / month</th><th>Variant / month</th><th>Change</th><th>Interval</th><th>Quality verdict</th></tr>"
+            f"{body}</table><p class='mut'>{escape(MONTHLY_CAVEAT)}</p>")
+
+
 def render_comparison_md(comp: dict[str, Any], max_cases: int = 10) -> str:
     L = [f"## Experiment: {comp['name']}", ""]
     if comp.get("description"):
@@ -93,6 +148,7 @@ def render_comparison_md(comp: dict[str, Any], max_cases: int = 10) -> str:
     for v in comp["variants"]:
         r = comp["results"][v["name"]]
         L.append(f"| **{v['name']}** | {_changes_text(v['changes'])} | {r['verdict']} | {headline(r)} |")
+    L += _monthly_md(comp)
     for v in comp["variants"]:
         r = comp["results"][v["name"]]
         L += ["", f"### {v['name']} vs {comp['baseline']}: {r['verdict']}", ""]
@@ -233,6 +289,6 @@ def render_comparison_html(comp: dict[str, Any], result: dict[str, Any] | None =
 <body><main><h1>Experiment · {escape(comp['name'])}</h1><div class="mut">{escape(comp.get('description') or '')}</div>{hyp}
 <p>Baseline: <b>{escape(comp['baseline'])}</b> · {comp['n_cases']} cases × {comp.get('repeats') or 1} repeat(s)</p>{run_link}
 <table><tr><th>Variant</th><th>Change</th><th>Verdict</th><th>Summary</th></tr>{rows}</table>
-{charts}{''.join(sections)}
+{_monthly_html(comp)}{charts}{''.join(sections)}
 <div style="margin-top:30px">{''.join(f"<p class='mut'>{escape(n)}</p>" for n in _notes(comp))}</div>
 </main></body></html>"""

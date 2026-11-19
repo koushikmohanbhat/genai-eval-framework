@@ -101,7 +101,15 @@ genai-evals experiment run fnol_experiment.yaml --out out/injury-exp
 genai-evals experiment run fnol_experiment.yaml --fail-on-regression    # exit 1 if any variant regresses (CI)
 genai-evals experiment rerun out/injury-exp                             # reproduce it
 genai-evals experiment report out/injury-exp                            # re-render the comparison
+genai-evals experiment report out/injury-exp --monthly-volume 250000    # add model cost per month at that volume
 ```
+
+`--monthly-volume N` (on `run`, `rerun` and `report`) adds a table: model cost per month for the baseline and each
+variant at N requests, the change with its paired interval scaled to N, and the quality verdict beside it, so a
+cheaper model's saving and what it costs in quality are read together. It is the direction and rough size of the
+change, not a forecast: eval cases, repeats and lengths differ from live traffic, and the judge's cost is not in it.
+For a business case, put measured production token counts into the
+[ROI calculator](https://github.com/koushikmohanbhat/genai-roi-calculator).
 
 The default output folder is `.genai-evals/experiments/<name>/<timestamp>`:
 

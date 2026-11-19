@@ -126,3 +126,18 @@ def test_compare_cli_across_runs(work, tmp_path):
     assert comp["results"]["fnol-agent"]["verdict"] == "regresses"
     assert cli(["compare", "out/b/result.json", "out/a/result.json", "--fail-on-regression"]) == 1
     _ = write_experiment  # exported API
+
+
+def test_experiment_monthly_cost_projection(work, capsys):
+    assert cli(["experiment", "run", "fnol_experiment.yaml", "--out", "out/m1", "--no-cache"]) == 0
+    capsys.readouterr()
+    assert cli(["experiment", "report", "out/m1", "--monthly-volume", "100000"]) == 0
+    out = capsys.readouterr().out
+    assert "Monthly model cost at 100,000 requests / month" in out and "ROI calculator" in out
+    from genai_evals.report.experiment import monthly
+    comp = json.loads((work / "out/m1/comparison.json").read_text())
+    rows = {m["variant"]: m for m in monthly(comp, 100_000)}
+    fast = rows["fast-model"]
+    assert fast["change_usd"] < 0 and fast["change_low_usd"] <= fast["change_usd"] <= fast["change_high_usd"]
+    assert fast["variant_usd"] == pytest.approx(fast["baseline_usd"] + fast["change_usd"])
+    assert "Monthly model cost" in (work / "out/m1/comparison.html").read_text()

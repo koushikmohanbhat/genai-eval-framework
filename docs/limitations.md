@@ -1,4 +1,4 @@
-# Limitations (v0.7.2)
+# Limitations (v0.7.3)
 
 Read this before using the framework in production.
 
@@ -30,6 +30,9 @@ please open an issue with what you find.
   Engine conversations are tested against local fakes; the OpenAI Agents SDK path is written to the SDK's
   `to_input_list()` API and not yet run in CI. A model-played user varies between runs: use repeats, or `user_rules`
   for reproducible conversations.
+- **The LangGraph and FastAPI examples in `examples/connect-your-agent/` are illustrative**, not run in CI; the
+  plain-Python agent and the contract itself are tested. The run's cost estimate (`--dry-run`) is an upper bound from
+  rough token counts, not a quote, and `--budget-usd` stops only calls with known prices.
 - **`cases mutate` is not an adaptive attacker.** Its variants are fixed rewrites; use Promptfoo red-team for
   adaptive probing.
 

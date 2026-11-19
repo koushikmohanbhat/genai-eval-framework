@@ -38,19 +38,19 @@ def read_reviews(path: str | Path) -> dict[tuple[str, str], list[dict[str, Any]]
     """CSV columns: case_id, target (optional, '*' = any), label, and optionally reviewer, round and adjudicated
     (true on the row that settles a disputed item). Blank / 'unsure' labels are ignored. Several rows per item are
     kept; a later round from the same reviewer replaces their earlier one."""
+    from .sheets import read_rows
     out: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
-    with open(path, encoding="utf-8", newline="") as f:
-        for i, r in enumerate(csv.DictReader(f)):
-            lab = parse_label(r.get("label", ""))
-            if lab is None:
-                continue
-            key = (r["case_id"], r.get("target") or "*")
-            who = (r.get("reviewer") or "").strip() or f"_row{i}"
-            rnd = int(r.get("round") or 1)
-            adj = str(r.get("adjudicated") or "").strip().lower() in {"true", "yes", "1"}
-            prev = out.setdefault(key, {}).get(who)
-            if prev is None or rnd >= prev["round"]:
-                out[key][who] = {"reviewer": who, "label": lab, "round": rnd, "adjudicated": adj}
+    for i, r in enumerate(read_rows(path)):
+        lab = parse_label(r.get("label", ""))
+        if lab is None:
+            continue
+        key = (r["case_id"], r.get("target") or "*")
+        who = (r.get("reviewer") or "").strip() or f"_row{i}"
+        rnd = int(r.get("round") or 1)
+        adj = str(r.get("adjudicated") or "").strip().lower() in {"true", "yes", "1"}
+        prev = out.setdefault(key, {}).get(who)
+        if prev is None or rnd >= prev["round"]:
+            out[key][who] = {"reviewer": who, "label": lab, "round": rnd, "adjudicated": adj}
     return {k: list(v.values()) for k, v in out.items()}
 
 

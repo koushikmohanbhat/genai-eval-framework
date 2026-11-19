@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.7.3 (2026-11-19)
+
+Packs: each marks a `start_here` grader tier (metadata only; pack versions unchanged).
+
+### Cost before live runs
+- **`run --dry-run`** prints the plan: calls, estimated input / output tokens and cost per target, judge and
+  simulated user, from the providers' prices. An upper bound from rough token counts; calls without a price are
+  counted, not costed. Nothing runs.
+- **`run --budget-usd N`** refuses to start when the estimate is over N (exit 2), and stops priced model calls once
+  spend reaches N. `result.json` records `spend`: model USD, calls, unpriced calls, the budget and calls it stopped.
+
+### Connect your agent
+- **`from genai_evals import agent, tool, serve, report_state`**: decorate the agent and its tools; the decorated
+  agent works as a Python target, and `serve()` puts it behind the HTTP contract (stdlib server) with sessions.
+- **HTTP contract v1** (`options: {contract: v1}` on the HTTP target): request `message, session_id, turn, case_id,
+  user`; response `output, tool_calls, state, session_id, usage, cost_usd, trace_id`; no field mapping needed.
+- [docs/connect-your-agent.md](docs/connect-your-agent.md) and `examples/connect-your-agent/` (plain Python, tested;
+  LangGraph and FastAPI, illustrative).
+
+### SME labelling
+- Label, review-queue and draft-review sheets can be **`.xlsx`** (`pip install "genai-eval-framework[xlsx]"`):
+  frozen header, dropdowns, locked non-editable columns. `calibrate --labels`, `labels agreement` and
+  `cases promote --sheet` read `.xlsx` and `.csv` alike.
+- **`genai-evals label <sheet>`**: a local labelling page (127.0.0.1, one-time token, nothing sent anywhere), one
+  item at a time with keyboard shortcuts, each decision saved back into the sheet with the reviewer as sign-off.
+  Works for label sheets (pass / fail / unsure) and draft-case review sheets (keep / fix / drop with corrections).
+  The judge's verdict is never shown.
+
+### Experiments
+- **`--monthly-volume N`** on `experiment run | rerun | report`: model cost per month per variant vs baseline at N
+  requests, with the change's paired interval, next to the quality verdict; with the caveat that eval cost per case
+  is not production cost, and a pointer to the ROI calculator.
+
+### Partner packs
+- **`genai-evals pack new <name> --extends <pack>`**: a partner package with the entry point, an overlay (starter
+  cases, a prompt-leak attack and grader, slice / leak / critical gates), a README, and a CI workflow that checks it
+  passes on the guarded offline system, fails on the vulnerable one, and builds the wheel.
+- **Start-here graders**: `start_here` in each `pack.yaml`, shown by `pack info` with the rest as advanced, and a
+  table in [graders](docs/graders.md#start-here).
+
 ## 0.7.2 (2026-11-19)
 
 Packs: tool-agent 0.6.0 (multi-turn conversations; requires framework 0.7.2).

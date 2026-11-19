@@ -17,6 +17,18 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
 | Safety / privacy | `pii_leak` (Aadhaar with Verhoeff check, PAN, UPI, +91 phones, email, Luhn-valid cards), `refusal_appropriate`, `guardrail_triggered` |
 | Custom | `python` (`module:fn(sample, case, params)`), `http`, `agentcore_evaluator` (experimental), `vertex_metric` (experimental) |
 
+### Start here
+
+Each pack marks the few graders to read first (`start_here` in `pack.yaml`; `genai-evals pack info <pack>` lists
+them, and the rest as advanced). Start with these, and add an advanced one when a failure you care about is invisible
+to them.
+
+| Pack | Start here | Advanced |
+|---|---|---|
+| rag-knowledge-assistant | `faithfulness`, `relevance`, `citations`, `refusal`, `recall_at_4`, `no_pii` | `mrr`, `context_precision`, `context_recall`, `safe_content`, `latency` |
+| tool-agent | `task_success`, `correct_calls`, `lookup_first`, `no_refund_over_limit`, `escalated`, `no_pii` | `no_refund_undelivered`, `no_address_change_after_ship`, `steps`, `no_handoff_loop`, `no_promises`, `latency` |
+| structured-extraction | `valid_json`, `fields`, `amount_exact`, `latency` | none |
+
 `field_match` normalisers: `text`, `name` (order-insensitive), `date` (many Indian and ISO formats), `amount`
 ("₹1.2 lakh", "45k", "2 crore"), `phone`, `digits`, `upper_alnum`, `exact`. Lists are scored with F1.
 

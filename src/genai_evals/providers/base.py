@@ -73,8 +73,11 @@ class Provider:
         temperature = opts.pop("temperature", None) if temperature is None else temperature
         max_tokens = max_tokens or opts.pop("max_tokens", None)
         last: Exception | None = None
+        meter = getattr(self, "meter", None)
         for attempt in range(self.profile.retries + 1):
             try:
+                if meter is not None:
+                    meter.check()
                 async with self.limiter:
                     t0 = time.perf_counter()
                     res = await asyncio.to_thread(self._complete, messages, tools or [], temperature, max_tokens,
@@ -82,6 +85,8 @@ class Provider:
                     if not res.latency_ms:
                         res.latency_ms = (time.perf_counter() - t0) * 1000
                     res.model = res.model or self.profile.model
+                    if meter is not None:
+                        meter.add(self.cost(res.usage) if res.usage else None)
                     return res
             except Exception as e:  # noqa: BLE001 - provider SDKs raise many types
                 last = e

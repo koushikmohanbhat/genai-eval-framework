@@ -25,7 +25,7 @@ The package is not on PyPI yet, so install it from a GitHub release tag ([releas
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.2"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.3"
 genai-evals --version
 ```
 
@@ -118,10 +118,19 @@ EVAL_JUDGE_A=judge-openai
 EVAL_JUDGE_B=judge-gemini
 ```
 
+No HTTP endpoint that reports tool calls and state yet? Wrap the agent with the `@agent` / `@tool` decorators, or
+put the small JSON contract in front of it: [connect your agent](connect-your-agent.md).
+
 ```bash
 genai-evals check-config providers.live.yaml
-genai-evals run suite.yaml --out out/live-1 --allow-missing-baseline
+genai-evals run suite.yaml --dry-run                                   # calls, tokens and estimated cost; nothing runs
+genai-evals run suite.yaml --out out/live-1 --allow-missing-baseline --budget-usd 20
 ```
+
+`--dry-run` prints the planned calls per target, judge and simulated user with estimated tokens and cost (an upper
+bound from the providers' prices; calls with no price are counted, not costed). `--budget-usd` refuses to start when
+the estimate is over it, and stops making priced model calls once the spend reaches it; the result records the spend
+and how many calls the budget stopped.
 
 Cloud-specific setup: [AWS](setup-aws.md) · [Google Cloud](setup-gcp.md) · [OpenAI and Anthropic](setup-openai-anthropic.md).
 Then calibrate the judges against SME labels ([calibration](graders.md#calibration)); judge-graded gates stay

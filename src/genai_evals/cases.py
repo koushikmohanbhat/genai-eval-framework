@@ -315,37 +315,38 @@ def promote(drafts_path: str | Path, into: str | Path, ids: list[str] | None = N
 REVIEW_COLUMNS = ["id", "kind", "flags", "tags", "input", "draft_answer", "answerable", "gold_passages", "source_location",
                   "evidence", "passage_excerpt", "closest_passages", "source_check", "decision", "corrected_input", "corrected_answer",
                   "corrected_answerable", "reviewer", "notes"]
+REVIEW_EDITABLE = ["decision", "corrected_input", "corrected_answer", "corrected_answerable", "reviewer", "notes"]
 
 
 def write_review_sheet(drafts_path: str | Path, out: str | Path) -> int:
     """A CSV an expert fills in to sign drafts off: one row per draft with the draft answer, its source passage and
     evidence. decision: keep (promote as drafted), fix (promote with the corrected_* columns), drop (delete), or
     blank (leave as a draft)."""
-    import csv
+    from .sheets import write_rows
     rows = read_jsonl(drafts_path)
-    with Path(out).open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=REVIEW_COLUMNS)
-        w.writeheader()
-        for d in rows:
-            ref, meta = d.get("reference") or {}, d.get("metadata") or {}
-            ans = ref.get("answerable")
-            loc = meta.get("source_location")
-            locs = loc if isinstance(loc, list) else ([loc] if loc else [])
-            sc = meta.get("source_check") or {}
-            w.writerow({"id": d["id"], "kind": meta.get("kind", ""), "flags": ";".join(meta.get("flags") or []),
-                        "source_location": " | ".join(", ".join(f"{k} {v}" for k, v in x.items() if v not in (None, ""))
-                                                      for x in locs if x),
-                        "source_check": (f"generator gave passage '{sc.get('generator_passage_id') or '(none)'}', which "
-                                         f"doesn't exist; {sc.get('assigned')} was assigned by word overlap: check it")
-                                        if sc else "",
-                        "tags": ";".join(d.get("tags") or []),
-                        "input": d.get("input") if isinstance(d.get("input"), str) else json.dumps(d.get("input")),
-                        "draft_answer": ref.get("answer", ""), "answerable": "" if ans is None else ("yes" if ans else "no"),
-                        "gold_passages": ";".join(ref.get("gold_passages") or []), "evidence": meta.get("evidence", ""),
-                        "passage_excerpt": meta.get("passage_excerpt", ""),
-                        "closest_passages": ";".join(meta.get("closest_passages") or []), "decision": "",
-                        "corrected_input": "", "corrected_answer": "", "corrected_answerable": "", "reviewer": "",
-                        "notes": ""})
+    out_rows: list[dict[str, Any]] = []
+    for d in rows:
+        ref, meta = d.get("reference") or {}, d.get("metadata") or {}
+        ans = ref.get("answerable")
+        loc = meta.get("source_location")
+        locs = loc if isinstance(loc, list) else ([loc] if loc else [])
+        sc = meta.get("source_check") or {}
+        out_rows.append({"id": d["id"], "kind": meta.get("kind", ""), "flags": ";".join(meta.get("flags") or []),
+                    "source_location": " | ".join(", ".join(f"{k} {v}" for k, v in x.items() if v not in (None, ""))
+                                                  for x in locs if x),
+                    "source_check": (f"generator gave passage '{sc.get('generator_passage_id') or '(none)'}', which "
+                                     f"doesn't exist; {sc.get('assigned')} was assigned by word overlap: check it")
+                                    if sc else "",
+                    "tags": ";".join(d.get("tags") or []),
+                    "input": d.get("input") if isinstance(d.get("input"), str) else json.dumps(d.get("input")),
+                    "draft_answer": ref.get("answer", ""), "answerable": "" if ans is None else ("yes" if ans else "no"),
+                    "gold_passages": ";".join(ref.get("gold_passages") or []), "evidence": meta.get("evidence", ""),
+                    "passage_excerpt": meta.get("passage_excerpt", ""),
+                    "closest_passages": ";".join(meta.get("closest_passages") or []), "decision": "",
+                    "corrected_input": "", "corrected_answer": "", "corrected_answerable": "", "reviewer": "",
+                    "notes": ""})
+    write_rows(out, REVIEW_COLUMNS, out_rows, editable=REVIEW_EDITABLE, choices={"decision": ["keep", "fix", "drop"],
+                                                                                    "corrected_answerable": ["yes", "no"]})
     return len(rows)
 
 
@@ -353,54 +354,53 @@ def apply_review_sheet(drafts_path: str | Path, sheet: str | Path, reviewer: str
     """Apply an expert's decisions to the drafts file: fixes are written into the drafts, drops removed. Returns the
     ids to promote (keep and fix), with the reviewer per id. A decided row needs a reviewer (the column, or the
     `reviewer` argument): that's the sign-off."""
-    import csv
+    from .sheets import read_rows
     drafts = {d["id"]: d for d in read_jsonl(drafts_path)}
     keep, fixed, dropped, problems, who = [], [], [], [], {}
-    with Path(sheet).open(encoding="utf-8", newline="") as f:
-        for r in csv.DictReader(f):
-            did, dec = (r.get("id") or "").strip(), (r.get("decision") or "").strip().lower()
-            if not dec:
-                continue
-            if did not in drafts:
-                problems.append(f"{did}: not in {Path(drafts_path).name}")
-                continue
-            rv = (r.get("reviewer") or "").strip() or reviewer
-            if not rv:
-                problems.append(f"{did}: decided ({dec}) but no reviewer signed it off")
-                continue
-            if dec == "drop":
-                dropped.append(did)
-                del drafts[did]
-                continue
-            if dec not in ("keep", "fix"):
-                problems.append(f"{did}: decision must be keep, fix or drop (got {dec})")
-                continue
-            d = drafts[did]
-            ref = dict(d.get("reference") or {})
-            if dec == "fix":
-                if (r.get("corrected_input") or "").strip():
-                    d["input"] = r["corrected_input"].strip()
-                ca = (r.get("corrected_answerable") or "").strip().lower()
-                if ca in ("yes", "no"):
-                    ref["answerable"] = ca == "yes"
-                    if ca == "no":
-                        ref.pop("answer", None)
-                        ref.pop("gold_passages", None)
-                        d["tags"] = [t for t in d.get("tags") or [] if t != "answerable"] + ["out-of-scope", "no_answer"]
-                    elif "answerable" not in (d.get("tags") or []):
-                        d["tags"] = ["answerable"] + [t for t in d.get("tags") or [] if t not in ("out-of-scope", "no_answer")]
-                if (r.get("corrected_answer") or "").strip():
-                    ref["answer"] = r["corrected_answer"].strip()
-                fixed.append(did)
-            else:
-                keep.append(did)
-            notes = (r.get("notes") or "").strip()
-            meta = dict(d.get("metadata") or {})
-            if notes:
-                meta["review_notes"] = notes
-            d["metadata"] = meta
-            d["reference"] = ref
-            who[did] = rv
+    for r in read_rows(sheet):
+        did, dec = (r.get("id") or "").strip(), (r.get("decision") or "").strip().lower()
+        if not dec:
+            continue
+        if did not in drafts:
+            problems.append(f"{did}: not in {Path(drafts_path).name}")
+            continue
+        rv = (r.get("reviewer") or "").strip() or reviewer
+        if not rv:
+            problems.append(f"{did}: decided ({dec}) but no reviewer signed it off")
+            continue
+        if dec == "drop":
+            dropped.append(did)
+            del drafts[did]
+            continue
+        if dec not in ("keep", "fix"):
+            problems.append(f"{did}: decision must be keep, fix or drop (got {dec})")
+            continue
+        d = drafts[did]
+        ref = dict(d.get("reference") or {})
+        if dec == "fix":
+            if (r.get("corrected_input") or "").strip():
+                d["input"] = r["corrected_input"].strip()
+            ca = (r.get("corrected_answerable") or "").strip().lower()
+            if ca in ("yes", "no"):
+                ref["answerable"] = ca == "yes"
+                if ca == "no":
+                    ref.pop("answer", None)
+                    ref.pop("gold_passages", None)
+                    d["tags"] = [t for t in d.get("tags") or [] if t != "answerable"] + ["out-of-scope", "no_answer"]
+                elif "answerable" not in (d.get("tags") or []):
+                    d["tags"] = ["answerable"] + [t for t in d.get("tags") or [] if t not in ("out-of-scope", "no_answer")]
+            if (r.get("corrected_answer") or "").strip():
+                ref["answer"] = r["corrected_answer"].strip()
+            fixed.append(did)
+        else:
+            keep.append(did)
+        notes = (r.get("notes") or "").strip()
+        meta = dict(d.get("metadata") or {})
+        if notes:
+            meta["review_notes"] = notes
+        d["metadata"] = meta
+        d["reference"] = ref
+        who[did] = rv
     write_jsonl(list(drafts.values()), drafts_path)
     return {"promote": keep + fixed, "kept": keep, "fixed": fixed, "dropped": dropped, "problems": problems,
             "reviewers": who}

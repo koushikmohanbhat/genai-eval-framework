@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1          # only if targets / judges use Bedrock
         with: {role-to-assume: "${{ vars.EVAL_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}"}
-      - uses: koushikmohanbhat/genai-eval-framework@v0.7.2   # pin a release tag (or commit SHA)
+      - uses: koushikmohanbhat/genai-eval-framework@v0.7.3   # pin a release tag (or commit SHA)
         with:
           suite: evals/fnol_agent.yaml
           providers: evals/providers.yaml
@@ -66,6 +66,12 @@ genai-evals run suite.yaml --baseline evals/baselines/main.json                 
 
 Baselines hold summaries with per-case values, but no raw samples. A `--baseline` path that doesn't exist is an error
 (exit 2), so a typo can't silently turn regression gates off.
+
+## Cost guard
+
+`genai-evals run suite.yaml --budget-usd 5` refuses to start when the estimated cost is over the budget (exit 2) and
+stops priced calls once spend reaches it, so a misconfigured matrix can't run up a bill. `--dry-run` prints the
+estimate without running anything; `result.json` records `spend` (model USD, calls, unpriced calls, calls stopped).
 
 ## Experiments in CI
 

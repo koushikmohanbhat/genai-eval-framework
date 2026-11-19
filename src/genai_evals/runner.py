@@ -44,13 +44,13 @@ def git_sha() -> str | None:
 class Runner:
     def __init__(self, suite: SuiteSpec, providers: ProvidersConfig, *, prompt_overrides: dict[str, str] | None = None,
                  cache_dir: str | Path | None = ".genai-evals/cache", use_cache: bool = True, clients: dict | None = None,
-                 telemetry: Any = None, extra: dict[str, Any] | None = None):
+                 telemetry: Any = None, extra: dict[str, Any] | None = None, budget_usd: float | None = None):
         problems = check_suite(suite, providers)
         if problems:
             raise SuiteError("suite is not valid:\n  - " + "\n  - ".join(problems))
         self.suite = suite
         self.providers = providers
-        self.pool = ProviderPool(providers, clients)
+        self.pool = ProviderPool(providers, clients, budget_usd=budget_usd)
         prompts_dir = suite.path(suite.prompts_dir) if suite.prompts_dir else None
         self.prompts = PromptStore(prompts_dir) if prompts_dir else None
         self.ctx = RunContext(suite, providers, self.pool, self.prompts, dict(prompt_overrides or {}), dict(extra or {}))
@@ -326,6 +326,10 @@ class Runner:
         result["adapters"] = self.adapter_status()
         if self.suite.overlays:
             result["overlays"] = [Path(str(o)).name for o in self.suite.overlays]
+        m = getattr(getattr(self, "pool", None), "meter", None)
+        if m is not None:
+            result["spend"] = {"model_usd": round(m.spent_usd, 6), "model_calls": m.calls, "unpriced_calls": m.unpriced_calls,
+                               "budget_usd": m.budget_usd, "calls_stopped_by_budget": m.stopped}
         from .health import result_health
         result["health"] = result_health(result, baseline=baseline)
         warns = [f"{g} @ {t}: {d['trial_drift']['warning']}" for t, sm in summary.items()
@@ -348,6 +352,9 @@ class Runner:
             warns.insert(0, f"the baseline was graded with different judge prompts ({', '.join(sorted(judge_changed))}): "
                             "judge-graded deltas aren't comparable, so delta gates on them are invalid. Re-baseline: run "
                             "the baseline system again with this version, then genai-evals baseline promote")
+        if m is not None and m.stopped:
+            warns.insert(0, f"budget ${m.budget_usd:.2f} reached: {m.stopped} model call(s) were not made; those samples "
+                            "and scores are errors, so the run is incomplete")
         result["warnings"] = warns + result["health"]["notes"]
         from .results import stamp
         stamp(result)

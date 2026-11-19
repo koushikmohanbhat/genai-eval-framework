@@ -28,6 +28,7 @@ targets:
   - {file: targets/openai-agents-sdk.yaml, system: an agent built with the OpenAI Agents SDK, adapters: ["target:openai_agents_sdk"]}
 
 graders: [task_success, correct_calls, lookup_first, no_refund_over_limit, no_refund_undelivered, no_address_change_after_ship, escalated, steps, no_handoff_loop, no_promises, no_pii, latency]
+start_here: [task_success, correct_calls, lookup_first, no_refund_over_limit, escalated, no_pii]   # the few to read first; the rest are advanced
 failure_categories:
   wrong outcome: "the systems end in the wrong state (task_success)"
   wrong tool or arguments: "a required call is missing, has wrong arguments, or happens out of order (correct_calls, lookup_first)"

@@ -16,6 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+LABEL_EDITABLE = ["reviewer", "label", "adjudicated", "notes"]
 SHEET_COLUMNS = ["case_id", "target", "repeat", "tags", "input", "output", "judge_passed", "reviewer", "round", "label",
                  "adjudicated", "notes", "sample_design", "stratum", "weight"]
 
@@ -119,17 +120,13 @@ def write_sheet(items: list[dict[str, Any]], path: str | Path, reviewers: list[s
                 round_: int = 1) -> Path:
     """One row per item and reviewer. Leave judge verdicts out of what reviewers see (the default) so labels stay
     independent of the judge."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    from .sheets import write_rows
     rows = []
     for it in items:
         for r in (reviewers or [""]):
             rows.append(it | {"reviewer": r, "round": round_, "label": "", "adjudicated": "", "notes": ""})
-    with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=SHEET_COLUMNS)
-        w.writeheader()
-        w.writerows(rows)
-    return path
+    return write_rows(path, SHEET_COLUMNS, rows, editable=LABEL_EDITABLE,
+                      choices={"label": ["pass", "fail", "unsure"], "adjudicated": ["yes", "no"]})
 
 
 def write_consensus(labels: dict[tuple[str, str], bool], path: str | Path) -> Path:

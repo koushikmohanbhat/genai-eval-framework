@@ -26,6 +26,7 @@ targets:
   - {file: targets/python.yaml, system: your extraction code (e.g. wrapping Textract or Document AI), adapters: []}
 
 graders: [valid_json, fields, amount_exact, latency]
+start_here: [valid_json, fields, amount_exact, latency]   # the few to read first; the rest are advanced
 failure_categories:
   invalid output: "not JSON, or JSON that breaks the output schema (valid_json)"
   wrong or missing field: "a field differs from the reference after normalisation (fields)"

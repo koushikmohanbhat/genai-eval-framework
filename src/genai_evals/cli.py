@@ -126,7 +126,22 @@ def cmd_run(args) -> int:
             g.allow_missing_baseline = True
     if args.engine == "promptfoo":
         return _run_with_promptfoo(args, suite, baseline)
-    runner = Runner(suite, providers, prompt_overrides=_kv(args.prompt), use_cache=not args.no_cache, telemetry=_telemetry(args))
+    if args.dry_run or args.budget_usd is not None:
+        from .config import load_cases
+        from .estimate import estimate, render
+        tsel = [t for t in suite.targets if not args.target or t.name in args.target]
+        est = estimate(suite.model_copy(update={"targets": tsel}), providers, load_cases(suite))
+        print(render(est))
+        if args.dry_run:
+            return 0
+        if est["estimated_cost_usd"] is not None and est["estimated_cost_usd"] > args.budget_usd:
+            print(f"error: estimated ${est['estimated_cost_usd']:.2f} is over --budget-usd {args.budget_usd:.2f}. Raise the "
+                  "budget, or run less: --profile quickstart / pr-check, --repeats 1, --target", file=sys.stderr)
+            return 2
+        if not est["complete"]:
+            print("note: the estimate is incomplete (unpriced profiles); the budget is enforced on priced calls only")
+    runner = Runner(suite, providers, prompt_overrides=_kv(args.prompt), use_cache=not args.no_cache,
+                    telemetry=_telemetry(args), budget_usd=args.budget_usd)
     result = runner.run(args.target or None, baseline, _kv(args.baseline_map))
     return _finish(result, args)
 
@@ -142,6 +157,24 @@ def cmd_online(args) -> int:
     for s in result.get("sources", []):
         print("  source " + ", ".join(f"{k}={v}" for k, v in s.items()))
     return _finish(result, args)
+
+
+def cmd_label(args) -> int:
+    import webbrowser
+
+    from .labelui import SheetStore, make_server
+    store = SheetStore(args.sheet)
+    srv, url = make_server(store, port=args.port)
+    print(f"Reviewing {store.path} ({len(store.rows)} items, {store.done()} decided). Open:\n  {url}\n"
+          "Decisions are saved into the sheet as you go. Ctrl-C to stop.")
+    if not args.no_browser:
+        webbrowser.open(url)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    print(f"{store.done()} of {len(store.rows)} decided, saved in {store.path}")
+    return 0
 
 
 def cmd_usage(args) -> int:
@@ -331,10 +364,12 @@ def cmd_result(args) -> int:
 
 def cmd_experiment(args) -> int:
     from .experiment import default_out, load_experiment, reproduction_check, run_experiment, verify_manifest, write_experiment
-    from .report.experiment import render_comparison_html, render_comparison_md
+    from .report.experiment import monthly, render_comparison_html, render_comparison_md
     if args.action == "report":
         d = Path(args.path)
         comp = json.loads((d / "comparison.json").read_text(encoding="utf-8"))
+        if args.monthly_volume:
+            comp["monthly"] = monthly(comp, args.monthly_volume)
         res_p = d / "run" / "result.json"
         res = json.loads(res_p.read_text(encoding="utf-8")) if res_p.exists() else None
         (d / "comparison.md").write_text(render_comparison_md(comp), encoding="utf-8")
@@ -360,6 +395,8 @@ def cmd_experiment(args) -> int:
         exp = load_experiment(exp_file)
     result, comp, manifest_new = run_experiment(exp_file, providers_override=args.providers, use_cache=not args.no_cache,
                                                 telemetry=_telemetry(args))
+    if args.monthly_volume:
+        comp["monthly"] = monthly(comp, args.monthly_volume)
     out = Path(args.out) if args.out else default_out(exp.name)
     paths = write_experiment(out, exp_file, result, comp, manifest_new)
     print(render_comparison_md(comp))
@@ -1143,8 +1180,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_init)
 
     p = sub.add_parser("pack", help="list eval packs, show one, regenerate its docs, or validate a pack folder")
-    p.add_argument("action", choices=["list", "info", "validate", "docs"])
-    p.add_argument("pack", nargs="?", help="pack name or folder")
+    p.add_argument("action", choices=["list", "info", "validate", "docs", "new"])
+    p.add_argument("pack", nargs="?", help="pack name or folder (new: the name of your overlay)")
+    p.add_argument("--extends", help="new: the pack your overlay adds to, e.g. tool-agent")
+    p.add_argument("--package", help="new: Python package name (default genai-evals-<name>)")
+    p.add_argument("--out", help="new: folder to write (default: the package name)")
+    p.add_argument("--force", action="store_true", help="new: write into a folder that isn't empty")
     p.add_argument("--no-run", action="store_true", help="validate: skip the offline runs")
     p.set_defaults(fn=cmd_pack)
 
@@ -1185,6 +1226,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-missing-baseline", action="store_true",
                    help="let delta()/significant() gates pass when there is no baseline (only for the run that creates the first one)")
     p.add_argument("--no-cache", action="store_true")
+    p.add_argument("--dry-run", action="store_true",
+                   help="print the model calls, tokens and estimated cost per target and judge, then stop; nothing is called")
+    p.add_argument("--budget-usd", type=float,
+                   help="refuse to start if the estimate is over this; stop making model calls once actual spend reaches it")
     p.add_argument("--engine", choices=["native", "promptfoo"], default="native",
                    help="promptfoo: Promptfoo runs the model / prompt / RAG targets and assertions; genai-evals gates "
                         "and reports the results (agents stay native)")
@@ -1199,6 +1244,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--baseline")
     outputs(p)
     p.set_defaults(fn=cmd_online)
+
+    p = sub.add_parser("label", help="a local page for SMEs to work through a label or review sheet (.csv or .xlsx)")
+    p.add_argument("sheet", help="from `labels sheet`, `labels queue` or `cases review-sheet`")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--no-browser", action="store_true")
+    p.set_defaults(fn=cmd_label)
 
     p = sub.add_parser("usage", help="anonymised usage summary to share with a partner programme (opt-in, written to a file)")
     usub = p.add_subparsers(dest="usage_cmd", required=True)
@@ -1269,6 +1320,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-cache", action="store_true")
     p.add_argument("--force", action="store_true", help="rerun even if inputs changed")
     p.add_argument("--fail-on-regression", action="store_true", help="exit 1 if any variant regresses")
+    p.add_argument("--monthly-volume", type=int,
+                   help="add model cost per month at this many requests, per variant vs baseline, next to quality")
     p.add_argument("--otel", help="emit OTel spans/metrics: console | otlp | <collector URL>")
     p.set_defaults(fn=cmd_experiment)
 
@@ -1542,6 +1595,19 @@ def cmd_pack(args) -> int:
     if not args.pack:
         print("error: name a pack or pack folder", file=sys.stderr)
         return 2
+    if args.action == "new":
+        if not args.extends:
+            print("error: --extends <pack> is required (genai-evals pack list)", file=sys.stderr)
+            return 2
+        try:
+            dest = packs.new_partner_pack(args.pack, args.extends, args.out, args.package, args.force)
+        except (ValueError, FileExistsError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        print(f"wrote {dest}: a partner package adding overlay '{packs._slug(args.pack)}' to {args.extends}.\n"
+              f"Next: replace the starter cases, then `pip install {dest}` and "
+              f"`genai-evals init my-eval --pack {args.extends} --overlay {packs._slug(args.pack)}`. See {dest}/README.md")
+        return 0
     d = packs.resolve(args.pack)
     m = packs.manifest(d)
     if args.action == "docs":
@@ -1552,7 +1618,11 @@ def cmd_pack(args) -> int:
         print("Targets (set EVAL_TARGETS):")
         for t in m["targets"]:
             print(f"  {t['file']:30s} {t['system']}")
-        print("\nGraders: " + ", ".join(m["graders"]))
+        start = m.get("start_here") or []
+        print("\nGraders, start here: " + (", ".join(start) or "all"))
+        if start:
+            print("  advanced (add when a start-here grader can't see the failure): "
+                  + ", ".join(g for g in m["graders"] if g not in start))
         print("Failure categories:")
         for k, v in m["failure_categories"].items():
             print(f"  {k}: {v}")

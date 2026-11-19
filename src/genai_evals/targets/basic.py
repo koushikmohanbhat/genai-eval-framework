@@ -124,13 +124,29 @@ class HttpTarget(Target):
     {{ history }} (default body: {"input": message, "session_id": session_id}). If the response maps a session_id,
     later turns send that one."""
 
+    CONTRACT_MAP = {"output": "output", "trajectory": "tool_calls", "final_state": "state", "session_id": "session_id",
+                    "usage": "usage", "cost_usd": "cost_usd", "trace_id": "trace_id"}
+
+    def _contract_body(self, case: Case, message: str, session_id: str, turn: int) -> dict[str, Any]:
+        meta = case.metadata or {}
+        return {"message": message, "session_id": session_id, "turn": turn, "case_id": case.id,
+                "user": meta.get("user") or meta.get("customer")}
+
+    def _map(self) -> dict[str, str]:
+        o = self.spec.options
+        return o.get("map") or (self.CONTRACT_MAP if o.get("contract") else {"output": "output"})
+
     async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
         o = self.spec.options
         extra = {"message": message, "session_id": conv["session_id"], "turn": conv["turn"], "history": conv["history"]}
         default = {"input": "{{ message }}", "session_id": "{{ session_id }}"}
         t = self.new_sample(case, repeat)
-        data, ms = await self._post(case, repeat, o.get("conversation_body") or o.get("body") or default, extra)
-        apply_mapping(t, data, o.get("map", {"output": "output"}))
+        if o.get("contract"):
+            data, ms = await self._post(case, repeat, None, extra,
+                                        raw=self._contract_body(case, message, conv["session_id"], conv["turn"]))
+        else:
+            data, ms = await self._post(case, repeat, o.get("conversation_body") or o.get("body") or default, extra)
+        apply_mapping(t, data, self._map())
         if t.session_id:
             conv["session_id"] = t.session_id
             s.session_id = t.session_id
@@ -139,11 +155,16 @@ class HttpTarget(Target):
 
     async def run(self, case: Case, repeat: int) -> Sample:
         s = self.new_sample(case, repeat)
-        data, ms = await self._post(case, repeat, self.spec.options.get("body", {"input": "{{ input }}"}), {})
+        if self.spec.options.get("contract"):
+            raw = self._contract_body(case, case.input_text(), self.new_session_id(case, repeat), 1)
+            data, ms = await self._post(case, repeat, None, {}, raw=raw)
+        else:
+            data, ms = await self._post(case, repeat, self.spec.options.get("body", {"input": "{{ input }}"}), {})
         s.latency_ms = ms
-        return apply_mapping(s, data, self.spec.options.get("map", {"output": "output"}))
+        return apply_mapping(s, data, self._map())
 
-    async def _post(self, case: Case, repeat: int, body_tpl: Any, extra: dict[str, Any]) -> tuple[Any, float]:
+    async def _post(self, case: Case, repeat: int, body_tpl: Any, extra: dict[str, Any],
+                    raw: dict[str, Any] | None = None) -> tuple[Any, float]:
         from jinja2.sandbox import SandboxedEnvironment
         env = SandboxedEnvironment()
         o = self.spec.options
@@ -160,7 +181,7 @@ class HttpTarget(Target):
                 return [render(v) for v in x]
             return x
 
-        body = render(body_tpl)
+        body = raw if raw is not None else render(body_tpl)
         headers = {"Content-Type": "application/json", **{h: os.environ.get(e, "") for h, e in o.get("headers_env", {}).items()}}
         req = urllib.request.Request(o["url"], data=json.dumps(body).encode(), headers=headers, method="POST")
         t0 = time.perf_counter()

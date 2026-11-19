@@ -122,6 +122,18 @@ Enable one with `genai-evals init ... --overlay india-gst`, or in an existing pr
 `overlays: [overlays/india-gst]` in `suite.yaml`. Overlays only add; a grader name that clashes with the base suite
 is an error. Overlay cases must be tagged so the gates can address their slice, and a slice needs `min_n` cases.
 
+### `pack new`: start a partner package
+
+```bash
+genai-evals pack new acme-claims --extends tool-agent     # writes ./genai-evals-acme-claims/
+```
+
+It writes a package like the SAP example: `pyproject.toml` with the entry point, the overlay (starter cases copied
+from the pack and tagged `acme-claims`, two system-prompt-leak attacks from the pack's security overlay with their
+grader, a slice gate, a leak gate and a critical gate), a README, and a GitHub Actions workflow that installs it,
+checks it passes on the guarded offline system and fails on the vulnerable one, and builds the wheel. It is green out
+of the box; replace the starter cases with your domain's, keeping the tag, before it means anything.
+
 ## Authoring a pack
 
 1. Copy the closest pack, rename it in `pack.yaml` and `suite.yaml`.
