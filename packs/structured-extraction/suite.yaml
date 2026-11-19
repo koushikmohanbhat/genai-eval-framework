@@ -2,7 +2,7 @@
 # Offline it runs a pattern-based extractor (sim_system.py): `genai-evals run suite.yaml`.
 # To evaluate your system, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: structured-extraction
-pack: structured-extraction@0.2.0
+pack: structured-extraction@0.3.0
 description: Schema validity, field-level accuracy by format and currency, rejection of non-invoices, cost and latency
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -10,10 +10,18 @@ prompts_dir: prompts
 targets_from: "${EVAL_TARGETS:-targets/offline.yaml}"
 min_n: 5
 repeats: 1
-# Run profiles: `genai-evals run suite.yaml --profile pr-check` on every pull request (fast, one calibrated judge),
+# Run profiles: `--profile quickstart` for a 3-5 day proof of concept (directional, never sign-off),
+# `genai-evals run suite.yaml --profile pr-check` on every pull request (fast, one calibrated judge),
 # `--profile release-gate` before production sign-off (judge panel, repeats, every case). Without --profile the
 # suite runs as written above. Gates a profile can't evaluate are listed as skipped, never passed.
 profiles:
+  quickstart:
+    description: "3-5 day POC: valid JSON, field accuracy, latency and cost (no judge), one judge, one repeat, up to 30 cases; gates warn, results are directional"
+    graders: [valid_json, fields, latency]
+    repeats: 1
+    max_cases: 30
+    gate_severity: warn
+    directional: true
   pr-check:
     description: "pull requests: deterministic graders and one calibrated judge, one repeat, up to 60 cases (critical cases always run)"
     repeats: 1

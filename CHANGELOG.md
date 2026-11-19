@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.7.1 (2026-11-19)
+
+Partner go-to-market: a POC mode, vertical IP outside the core, and Promptfoo as the way in. Packs:
+structured-extraction 0.3.0 (security overlay; requires framework 0.7.1).
+
+- **`quickstart` profile in every pack** for 3–5 day proofs of concept: the core checks (RAG: faithfulness, refusals,
+  PII leak, latency, cost; agent: task success, tool-call accuracy, PII leak, latency, cost; extraction: valid JSON,
+  field accuracy, latency, cost), one judge, one repeat, up to 30 cases. Profiles can now add gates
+  (`add_gates`), downgrade every gate (`gate_severity: warn`) and mark a run `directional`: the CLI, scorecard,
+  report and PR comment then say the numbers are uncalibrated and not sign-off.
+- **Partner packs and overlays as Python packages.** Entry points `genai_evals.packs` and `genai_evals.overlays`; an
+  overlay declares the pack it extends (`pack:`); `--overlay` also takes a folder. `pack list` marks them `[partner]`;
+  built-ins can't be shadowed; a broken package only warns. `examples/partner-pack-sap`: SAP sales-order tool use
+  for the tool-agent pack (10 cases, OWASP LLM01 / LLM06), passing guarded and failing vulnerable. The agent pack's
+  mock order system accepts ids in other formats and "credit memo" requests.
+- **Security overlay for the extraction pack** (OWASP LLM01 / LLM02 / LLM07): instructions planted in invoices to
+  change totals, PO numbers or the payee, a request to put the system prompt in a field, an unrequested card number,
+  and a benign pair. The offline extractor's `vulnerable: true` mode fails every security gate.
+- **Docs:** [SOW template](docs/sow-template.md) with the Day-1 workshop and SME-signed cases as deliverables;
+  [Promptfoo migration playbook](docs/promptfoo-migration.md), including what tokenisation does not cover
+  (Promptfoo's own results file, database and grading calls stay raw).
+- **Fixed:** `promptfoo import --suite` ignored the suite's identifier-detector sets and tokenizer settings.
+
 ## 0.7.0 (2026-11-18)
 
 Orchestrate and govern: less plumbing to maintain, a predictable partner delivery motion, domain-specific checks

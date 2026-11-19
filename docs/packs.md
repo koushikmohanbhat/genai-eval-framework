@@ -94,10 +94,29 @@ An overlay can also switch on identifier detectors (`pii: {sets: [...], custom: 
 | `insurance-policy` | rag-knowledge-assistant | motor policy wording cases, a no-payout-promise policy |
 | `financial-services` | rag-knowledge-assistant | investment product cases; a mandatory risk disclaimer (`regex`), no personal investment advice and no guaranteed-return claims (`policy` judges); IBAN, card and folio numbers as personal data. The offline system has a `noncompliant: true` option that fails all three, to prove the overlay catches it. Replace the disclaimer text and the advice rule with the customer compliance team's wording |
 | `india-gst` | structured-extraction | GSTIN and GST fields |
-| `security-guardrails` | rag-knowledge-assistant, tool-agent | OWASP LLM01 / LLM06 / LLM07 ([security](security.md)) |
+| `security-guardrails` | all three packs | OWASP LLM01 / LLM06 / LLM07 for RAG and agents; LLM01 / LLM02 / LLM07 for documents ([security](security.md)) |
 
 Healthcare, retail and public-sector overlays follow the same shape; the `us_hipaa` and `uk` detector sets are
 already in the core for them.
+
+### Partner packs and overlays (your IP, outside the core)
+
+A partner's vertical packs and overlays don't have to live in this repository. Ship them as a Python package that
+registers them with an entry point, in a private repository or index:
+
+```toml
+[project.entry-points."genai_evals.overlays"]
+sap-order-tools = "acme_evals_sap:sap_order_tools"   # module:folder with overlay.yaml, whose `pack:` names the pack
+[project.entry-points."genai_evals.packs"]
+banking-kyc = "acme_evals.banking_kyc"               # a folder with pack.yaml
+```
+
+After `pip install`, `genai-evals pack list` shows them marked `[partner]`, and `init --pack` / `--overlay` use them
+by name. Built-in names can't be shadowed, and a package that fails to load only prints a warning. An unpackaged
+overlay works too: `--overlay ./path/to/folder`. [`examples/partner-pack-sap`](../examples/partner-pack-sap) is a
+complete example: SAP sales-order tool use for the `tool-agent` pack (credit memos over the approval limit, ship-to
+changes after goods issue, another sold-to party's order, instructions planted in header texts), passing on the
+guarded offline agent and failing on the vulnerable one.
 
 Enable one with `genai-evals init ... --overlay india-gst`, or in an existing project with
 `overlays: [overlays/india-gst]` in `suite.yaml`. Overlays only add; a grader name that clashes with the base suite

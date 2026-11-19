@@ -83,3 +83,16 @@ jobs:
       - working-directory: examples/promptfoo-engine
         env: {PROMPTFOO_DISABLE_TELEMETRY: "1", PROMPTFOO_DISABLE_UPDATE: "1", GENAI_EVALS_TOKEN_KEY: ci-only-not-secret}
         run: genai-evals run suite.yaml --providers providers.yaml --engine promptfoo --promptfoo-cmd "npx -y promptfoo@0.125.1" --out out/pf --no-html
+  partner-package:
+    # a partner's own package (entry points) extends a built-in pack without touching the core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: {python-version: "3.12"}
+      - run: pip install . ./examples/partner-pack-sap
+      - run: genai-evals pack list | grep -q "sap-order-tools \[partner\]"
+      - env: {GENAI_EVALS_TOKEN_KEY: ci-only-not-secret}
+        run: |
+          genai-evals init /tmp/sap --pack tool-agent --overlay sap-order-tools
+          cd /tmp/sap && genai-evals run suite.yaml --out out/ci --allow-missing-baseline --no-html

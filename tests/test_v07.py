@@ -1,5 +1,6 @@
 """v0.7: run profiles, external prompt versions, PII detector sets and domain overlays, Day-0 seeding, Promptfoo engine."""
 import json
+from pathlib import Path
 
 import pytest
 
@@ -242,3 +243,108 @@ def test_promptfoo_export_writes_tagged_and_reference_assertions_per_case():
     assert metrics(by["geo-1"]) == {"mentions_answer"}
     assert next(a for a in by["geo-1"]["assert"] if a["metric"] == "mentions_answer")["value"] == "Paris"
     assert {a["metric"] for a in cfg["defaultTest"]["assert"]} == {"no_secret"}   # applies to every case
+
+
+# ---- v0.7.1: quickstart --------------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("pack,n_graders", [("rag-knowledge-assistant", 4), ("tool-agent", 4), ("structured-extraction", 3)])
+def test_quickstart_profile_is_small_warn_only_and_directional(tmp_path, monkeypatch, pack, n_graders):
+    from genai_evals.report.html import render_scorecard
+    proj = packs.scaffold(pack, tmp_path / "p")
+    q = load_suite(proj / "suite.yaml", profile="quickstart")
+    assert len(q.graders) == n_graders and q.repeats == 1 and len(q.judges) <= 1
+    assert q.gates and all(g.severity == "warn" for g in q.gates)
+    assert any("cost_usd" in g.rule for g in q.gates)
+    monkeypatch.chdir(proj)
+    # warn-only gates: quickstart informs, it never blocks a pipeline
+    assert cli(["run", "suite.yaml", "--profile", "quickstart", "--out", "out/qs", "--no-html"]) == 0
+    r = json.loads((proj / "out/qs/result.json").read_text())
+    assert r["profile"]["directional"] and "directional" in render_scorecard(r)
+    assert "directional" in (proj / "out/qs/summary.md").read_text()
+
+
+# ---- v0.7.1: partner packs and overlays outside the core -------------------------------------------------------------
+
+SAP = Path(__file__).resolve().parents[1] / "examples/partner-pack-sap/acme_evals_sap/sap_order_tools"
+
+
+def _sap_run(tmp_path, vulnerable=False):
+    from genai_evals.config import load_providers
+    from genai_evals.runner import Runner
+    dest = packs.scaffold("tool-agent", tmp_path / ("bad" if vulnerable else "good"), overlays=[str(SAP)])
+    if vulnerable:
+        t = dest / "targets" / "offline.yaml"
+        t.write_text(t.read_text().replace('callable: "sim_system:agent"}', 'callable: "sim_system:agent", options: {vulnerable: true}}'))
+    r = Runner(load_suite(dest / "suite.yaml"), load_providers(dest / "providers.yaml"), use_cache=False).run()
+    return {g["gate"]: g["passed"] for g in r["gates"]}
+
+
+def test_overlay_from_a_folder_extends_a_builtin_pack_and_catches_a_vulnerable_agent(tmp_path):
+    good = _sap_run(tmp_path)
+    assert all(good[g] for g in ("sap-task-success", "sap-no-injection-followed", "sap-no-unauthorised-credit", "sap-critical"))
+    bad = _sap_run(tmp_path, vulnerable=True)
+    assert not bad["sap-no-injection-followed"] and not bad["sap-critical"]
+    with pytest.raises(ValueError, match="is for pack 'tool-agent'"):
+        packs.scaffold("rag-knowledge-assistant", tmp_path / "wrong", overlays=[str(SAP)])
+
+
+def test_partner_packages_register_packs_and_overlays_by_entry_point(tmp_path, monkeypatch, capsys):
+    import shutil
+    import sys
+    from importlib.metadata import EntryPoint
+    pkg = tmp_path / "site" / "acme_partner"
+    shutil.copytree(SAP, pkg / "sap_tools")
+    shutil.copytree(packs.resolve("structured-extraction"), pkg / "kyc_pack")
+    m = (pkg / "kyc_pack" / "pack.yaml")
+    m.write_text(m.read_text().replace("name: structured-extraction", "name: banking-kyc", 1))
+    (pkg / "__init__.py").write_text("")
+    monkeypatch.syspath_prepend(str(tmp_path / "site"))
+    eps = {"genai_evals.overlays": [EntryPoint("sap-order-tools", "acme_partner:sap_tools", "genai_evals.overlays"),
+                                    EntryPoint("broken", "acme_partner_missing:x", "genai_evals.overlays")],
+           "genai_evals.packs": [EntryPoint("banking-kyc", "acme_partner:kyc_pack", "genai_evals.packs"),
+                                 EntryPoint("tool-agent", "acme_partner:kyc_pack", "genai_evals.packs")]}
+    import importlib.metadata as md
+    monkeypatch.setattr(md, "entry_points", lambda group=None: eps.get(group, []))
+    sys.modules.pop("acme_partner", None)
+    assert "banking-kyc" in packs.available()
+    assert packs.resolve("tool-agent") == packs.packs_root() / "tool-agent"        # built-ins can't be shadowed
+    assert cli(["pack", "list"]) == 0
+    out = capsys.readouterr()
+    assert "banking-kyc" in out.out and "[partner]" in out.out and "sap-order-tools [partner]" in out.out
+    assert "failed to load" in out.err                                            # a broken package only warns
+    dest = packs.scaffold("tool-agent", tmp_path / "p", overlays=["sap-order-tools"])
+    assert (dest / "overlays/sap-order-tools/overlay.yaml").exists()
+    assert "overlays/sap-order-tools" in (dest / "suite.yaml").read_text()
+
+
+def test_extraction_security_overlay_passes_guarded_and_fails_vulnerable(tmp_path):
+    from genai_evals.config import load_providers
+    from genai_evals.runner import Runner
+    sec = {"no-injection-followed", "fields-under-attack", "no-prompt-leak", "no-unrequested-pii", "security-critical"}
+    out = {}
+    for mode in ("guarded", "vulnerable"):
+        dest = packs.scaffold("structured-extraction", tmp_path / mode, overlays=["security-guardrails"])
+        if mode == "vulnerable":
+            t = dest / "targets" / "offline.yaml"
+            t.write_text(t.read_text().replace('callable: "sim_system:extract"}', 'callable: "sim_system:extract", options: {vulnerable: true}}'))
+        r = Runner(load_suite(dest / "suite.yaml"), load_providers(dest / "providers.yaml"), use_cache=False).run()
+        out[mode] = {g["gate"]: g["passed"] for g in r["gates"]}
+    assert all(out["guarded"][g] for g in sec)
+    assert not any(out["vulnerable"][g] for g in sec)
+
+
+def test_promptfoo_import_uses_the_suites_detector_sets(tmp_path, monkeypatch):
+    from genai_evals.report.writers import writer
+    (tmp_path / "suite.yaml").write_text(SIMPLE_SUITE.replace("dataset:", "pii: {sets: [global, us_hipaa]}\ndataset:", 1)
+                                         .replace("Opposite of hot?", "My SSN is 123-45-6789. Opposite of hot?"))
+    (tmp_path / "providers.yaml").write_text("profiles:\n  echo: {provider: mock, model: echo}\n")
+    monkeypatch.chdir(tmp_path)
+    cli(["run", "suite.yaml", "--providers", "providers.yaml", "--out", "native", "--no-html"])
+    native = json.loads((tmp_path / "native/result.json").read_text())
+    raw = writer("promptfoo").render(native).replace("<US_SSN_", "123-45-6789<US_SSN_")   # as Promptfoo would hold it: raw
+    assert "123-45-6789" in raw
+    (tmp_path / "pf.json").write_text(raw)
+    from genai_evals import pii
+    pii.configure(None)                 # a fresh process: nothing configured until the import reads the suite
+    cli(["promptfoo", "import", "pf.json", "--suite", "suite.yaml", "--out", "imp", "--no-html"])
+    assert "123-45-6789" not in (tmp_path / "imp/result.json").read_text()

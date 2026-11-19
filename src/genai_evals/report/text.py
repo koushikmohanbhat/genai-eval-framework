@@ -23,6 +23,9 @@ def markdown_summary(result: dict[str, Any], top_n: int = 5) -> str:
     lines.append(f"Run `{result['run_id']}` · {len(result['cases'])} cases × {len(result['targets'])} targets × {result['repeats']} repeats"
                  + (f" · baseline `{result['baseline']}`" if result.get("baseline") else ""))
     pr = result.get("profile")
+    if pr and pr.get("directional"):
+        from .html import directional_note
+        lines.append(f"> **{directional_note(result)}**")
     if pr:
         lines.append(f"Profile **{pr['name']}**" + (f": {pr['description']}" if pr.get("description") else "")
                      + (" · skipped gates: " + ", ".join(f"`{s['gate']}` ({s['reason']})" for s in pr["skipped_gates"])

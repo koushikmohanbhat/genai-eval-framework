@@ -15,10 +15,21 @@ judge_policy: {aggregate: mean, require_different_family: false}   # set true on
 min_judge_kappa: 0.4
 min_n: 5
 repeats: 1
-# Run profiles: `genai-evals run suite.yaml --profile pr-check` on every pull request (fast, one calibrated judge),
+# Run profiles: `--profile quickstart` for a 3-5 day proof of concept (directional, never sign-off),
+# `genai-evals run suite.yaml --profile pr-check` on every pull request (fast, one calibrated judge),
 # `--profile release-gate` before production sign-off (judge panel, repeats, every case). Without --profile the
 # suite runs as written above. Gates a profile can't evaluate are listed as skipped, never passed.
 profiles:
+  quickstart:
+    description: "3-5 day POC: faithfulness, refusals, PII leak, latency and cost, one judge, one repeat, up to 30 cases; gates warn, results are directional"
+    graders: [faithfulness, refusal, no_pii, latency]
+    repeats: 1
+    judges: ["${EVAL_JUDGE_A:-offline-judge-a}"]
+    max_cases: 30
+    gate_severity: warn
+    directional: true
+    add_gates:
+      - {name: cost-budget, rule: "mean(cost_usd) <= 0.02"}
   pr-check:
     description: "pull requests: deterministic graders and one calibrated judge, one repeat, up to 60 cases (critical cases always run)"
     repeats: 1

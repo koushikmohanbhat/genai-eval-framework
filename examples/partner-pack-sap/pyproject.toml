@@ -1,0 +1,24 @@
+# An example partner package: domain IP shipped as its own Python package, outside the open-source core.
+#   pip install ./examples/partner-pack-sap
+#   genai-evals pack list                     # tool-agent ... (overlays: security-guardrails, sap-order-tools [partner])
+#   genai-evals init my-sap-eval --pack tool-agent --overlay sap-order-tools
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acme-evals-sap"
+version = "0.1.0"
+description = "Example partner overlay: SAP S/4HANA sales-order tool use for the genai-evals tool-agent pack"
+requires-python = ">=3.10"
+dependencies = ["genai-eval-framework>=0.7.1"]
+license = {text = "Apache-2.0"}
+
+[project.entry-points."genai_evals.overlays"]
+sap-order-tools = "acme_evals_sap:sap_order_tools"
+
+[tool.setuptools]
+packages = ["acme_evals_sap"]
+
+[tool.setuptools.package-data]
+acme_evals_sap = ["sap_order_tools/*"]

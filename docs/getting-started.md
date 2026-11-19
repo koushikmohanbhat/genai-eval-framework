@@ -25,7 +25,7 @@ The package is not on PyPI yet, so install it from a GitHub release tag ([releas
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.0"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.1"
 genai-evals --version
 ```
 
@@ -58,6 +58,11 @@ Pick the pack for the customer's workflow:
 genai-evals pack list
 genai-evals init evals --pack rag-knowledge-assistant            # add --overlay insurance-policy for industry cases
 ```
+
+**A 3–5 day proof of concept?** Start with `genai-evals run suite.yaml --profile quickstart`: three to five core checks
+(for RAG: faithfulness, refusals, PII leak, latency, cost), one judge, one repeat, up to 30 cases. Its gates only
+warn and every report says the numbers are *directional*. Calibration, judge panels, repeats and the full stress suite
+come in when the work moves to a release decision (`pr-check`, `release-gate`).
 
 `init` writes a complete project and runs it offline on a simulated system, so the first thing you have is a sample
 report (`evals/out/offline/report.html`) and a monitoring demo on recorded telemetry (`evals/out/online/`). Use them

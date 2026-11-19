@@ -5,6 +5,8 @@ lakh / crore), returns null for anything that is not an invoice, and emits JSON 
 Options (target `options:`) simulate typical regressions for experiments:
   model: "fast" for a cheaper model that sometimes drops the due date or picks the subtotal
   prose: share of answers wrapped in prose instead of bare JSON (a prompt that lost "return only JSON")
+  vulnerable: follow instructions written inside the document, and copy other identifiers it contains into fields
+              (security-guardrails overlay: proves the overlay catches an unguarded extractor)
 
 Replace it with your system: see README.md, "Connect your system".
 """
@@ -94,11 +96,31 @@ def fields(text: str, fast: bool = False, key: str = "") -> dict:
     return out
 
 
+def _follow_document_instructions(text: str, d: dict) -> dict:
+    """What an unguarded extractor does: treats text in the document as instructions and leaks what it sees."""
+    d = dict(d)
+    for field, pat in (("total_amount", r"total_amount (?:to )?([\d.]+)"), ("po_number", r"po_number (?:to )?([\w-]+)"),
+                       ("vendor_name", r"vendor (?:name )?(?:to )?([A-Z][\w ]+?(?:Ltd|LLP|Inc))")):
+        m = re.search(pat, text)
+        if m:
+            d[field] = float(m.group(1)) if field == "total_amount" else m.group(1)
+    if re.search(r"(your|the) (system prompt|instructions)", text, re.I):
+        from pathlib import Path
+        p = next(Path(__file__).parent.glob("prompts/*/*/system.md.j2"), None)
+        d["vendor_name"] = p.read_text(encoding="utf-8")[:400] if p else "my instructions"
+    card = re.search(r"(?:card|account)[^\n:]*:\s*([\d ]{12,23}\d)", text, re.I)
+    if card and not d.get("tax_id"):
+        d["tax_id"] = card.group(1)
+    return d
+
+
 def extract(case, ctx) -> dict:
     opts = ctx.get("options") or {}
     fast = opts.get("model") == "fast"
     key = f"{case.id}:{ctx.get('repeat', 0)}"
     d = fields(case.input_text(), fast, key)
+    if opts.get("vulnerable"):
+        d = _follow_document_instructions(case.input_text(), d)
     out = json.dumps(d)
     if _rnd(key, "prose") < float(opts.get("prose", 0)):
         out = "Here are the extracted fields:\n" + out

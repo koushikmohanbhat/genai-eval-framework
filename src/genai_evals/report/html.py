@@ -287,6 +287,28 @@ def _notes(result: dict[str, Any]) -> str:
     return "".join(f"<p class='mut'>{escape(n)}</p>" for n in out)
 
 
+DIRECTIONAL_NOTE = ("Proof-of-concept run: judge-graded numbers come from an uncalibrated judge and are directional. "
+                     "Gates are warnings here, not sign-off: calibrate the judge and run release-gate before using "
+                     "these results to decide a release.")
+
+
+def directional_note(result: dict[str, Any]) -> str:
+    if result.get("judges"):
+        return DIRECTIONAL_NOTE
+    return ("Proof-of-concept run on a small sample with one repeat: the numbers are directional. Gates are warnings "
+            "here, not sign-off: run release-gate before using these results to decide a release.")
+
+
+def _profile_banner(result: dict[str, Any]) -> str:
+    pr = result.get("profile") or {}
+    if not pr:
+        return ""
+    if pr.get("directional"):
+        return (f"<div class='verdict' style='background:#fff4e5;color:#6b3d00'><b>Profile {escape(pr['name'])}.</b> "
+                f"{escape(directional_note(result))}</div>")
+    return ""
+
+
 def _online_banner(result: dict[str, Any]) -> str:
     if result.get("mode") != "online":
         return ""
@@ -379,7 +401,7 @@ def render_report(result: dict[str, Any]) -> str:
 {(' · judges: ' + escape(', '.join(result['judges']))) if result.get('judges') else ''}{(' · baseline ' + escape(result['baseline'])) if result.get('baseline') else ''}
 {(' · git ' + escape(result['git_sha'][:10])) if result.get('git_sha') else ''}</div>
 {('<div class="mut">Prompt versions: ' + escape(pv_txt) + '</div>') if pv_txt else ''}
-{_online_banner(result)}
+{_profile_banner(result)}{_online_banner(result)}
 <div class="verdict {'ok' if ok else 'bad'}">{'All blocking gates passed' if ok else 'Blocking gates failed: ' + escape(', '.join(sorted({g['gate'] + ' (' + g['target'] + ')' for g in result['gates'] if g['severity'] == 'block' and not g['passed']})))}</div>
 <h2>Gates</h2>{_gates_table(result)}
 <h2>Scores <span class="mut">(mean over cases, 95% bootstrap CI)</span></h2>{_scores_table(result)}{_failure_table(result)}
@@ -440,7 +462,7 @@ def render_scorecard(result: dict[str, Any]) -> str:
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Scorecard · {escape(result['suite'])}</title><style>{CSS}</style></head>
 <body><main><h1>{'Production monitoring' if online else 'Is it ready?'} · {escape(_title(result, result['suite']))}</h1>{_intro(result)}<div class="mut">{len(result['cases'])} {'sampled sessions' if online else 'test cases'} · {escape(result['created_at'][:10])}
 · judged by {escape(', '.join(result.get('judges') or ['deterministic graders only']))}</div>
-{_online_banner(result)}
+{_profile_banner(result)}{_online_banner(result)}
 <div class="verdict {'ok' if ok else 'bad'}">{verdict}</div>
 <div class="cards">{''.join(cards)}</div><h2>Quality vs cost</h2>{frontier_svg(result, pg, 'cost')}
 <h2>Top risks</h2><ol>{risk_html}</ol>{_failure_table(result)}

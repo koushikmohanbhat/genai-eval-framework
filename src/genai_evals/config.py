@@ -186,6 +186,10 @@ class ProfileSpec(BaseModel):
     exclude_tags: list[str] = Field(default_factory=list)
     max_cases: int | None = None
     gates: list[str] | None = None             # keep only these gates (by name)
+    add_gates: list[GateSpec] = Field(default_factory=list)   # gates only this profile runs (e.g. a cost budget)
+    gate_severity: Literal["warn", "info"] | None = None      # downgrade every gate: results inform, never block
+    #: a proof-of-concept run: reports say judge-graded numbers are uncalibrated and directional, not sign-off
+    directional: bool = False
     overrides: dict[str, Any] = Field(default_factory=dict)   # any other suite field: min_n, concurrency, ...
 
 
@@ -366,6 +370,9 @@ def apply_profile(suite: SuiteSpec, name: str) -> SuiteSpec:
             skipped.append({"gate": g.name, "severity": g.severity, "reason": why})
         else:
             gates.append(g)
+    gates += list(p.add_gates)
+    if p.gate_severity:
+        gates = [g.model_copy(update={"severity": p.gate_severity}) for g in gates]
     upd.update(graders=graders, gates=gates)
     if p.repeats is not None:
         upd["repeats"] = p.repeats
@@ -374,7 +381,8 @@ def apply_profile(suite: SuiteSpec, name: str) -> SuiteSpec:
     upd["active_profile"] = {"name": name, "description": p.description, "repeats": upd.get("repeats", suite.repeats),
                              "judges": upd.get("judges", suite.judges), "graders": sorted(kept),
                              "case_filter": upd["case_filter"].model_dump() if "case_filter" in upd else None,
-                             "skipped_gates": skipped}
+                             "skipped_gates": skipped, "directional": p.directional,
+                             "gate_severity": p.gate_severity}
     out = suite.model_copy(update=upd)
     SuiteSpec.model_validate(out.model_dump())
     return out

@@ -14,8 +14,9 @@ next engagement comes before more connectors.
 - **Live integration tests** on AWS and GCP sandbox accounts for every connector and target
 - **Industry eval packs (catalog 4.2):** BFSI document extraction, insurance claims, contact-centre QA, medical summary
   hallucination, Indic-language quality. v0.7 shipped the `financial-services` overlay and the `us_hipaa` / `uk` /
-  `banking` detector sets; next, healthcare, retail and public-sector overlays, and a financial-services overlay for
-  the agent pack
+  `banking` detector sets; v0.7.1 partner packages (entry points) with an SAP sales-order example. Next, healthcare
+  claims, banking KYC (on the extraction pack) and retail support overlays, and the SAP example run live against
+  the connector hub
 - **Promptfoo engine:** a live model in the Promptfoo-engine CI job (it runs a real Promptfoo on a keyless target today),
   and HTTP agents through Promptfoo's `http` provider
 - **Red-teaming (4.3):** the security-guardrails overlays (v0.6) are the curated part; next, more cases per threat,

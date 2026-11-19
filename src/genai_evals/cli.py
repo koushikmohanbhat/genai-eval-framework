@@ -57,7 +57,11 @@ def _finish(result: dict[str, Any], args) -> int:
         Path(args.summary_md).write_text(markdown_summary(result), encoding="utf-8")
     verdict = "PASSED" if result["passed"] else "FAILED"
     pr = result.get("profile")
-    print(f"\n{verdict}: {result['suite']} ({result['run_id']})" + (f", profile {pr['name']}" if pr else ""))
+    print(f"\n{verdict}{' (directional)' if pr and pr.get('directional') else ''}: {result['suite']} "
+          f"({result['run_id']})" + (f", profile {pr['name']}" if pr else ""))
+    if pr and pr.get("directional"):
+        from .report.html import directional_note
+        print(f"  note: {directional_note(result)}")
     for sg in (pr or {}).get("skipped_gates", []):
         print(f"  [skip] {sg['gate']}: {sg['reason']}")
     for g in result["gates"]:
@@ -1008,8 +1012,10 @@ def _promptfoo_result(results: str, base: Any, name: str | None, mode: str,
     r = Runner.__new__(Runner)
     from .config import ProvidersConfig
     r.suite, r.telemetry, r.providers = suite, None, ProvidersConfig()
+    from . import pii
     from .dpdp import build_tokenizer
-    r.tokenizer = build_tokenizer({})
+    pii.configure(suite.pii)             # the suite's detector sets (and overlays'), as a native run would use
+    r.tokenizer = build_tokenizer(suite.tokenizer or {}) if suite.tokenize else None
     from .graders import GradeContext
     cases = []
     for cid in sorted({s.case_id for s in samples}):
@@ -1475,10 +1481,13 @@ Next steps (RUNBOOK.md has the full path):
 def cmd_pack(args) -> int:
     from . import packs, plugins
     if args.action == "list":
+        ext_p, ext_o = packs.external_packs(), packs.external_overlays()
         for n in packs.available():
-            m = packs.manifest(packs.resolve(n))
-            ov = ", ".join(o["name"] for o in m.get("overlays", [])) or "none"
-            print(f"  {n:26s} {m['version']:7s} {m['title']}  (overlays: {ov})")
+            d = packs.resolve(n)
+            m = packs.manifest(d)
+            ov = ", ".join(k + (" [partner]" if v in ext_o.values() else "")
+                           for k, v in packs.overlays_for(m, d).items()) or "none"
+            print(f"  {n:26s} {m['version']:7s} {m['title']}{' [partner]' if n in ext_p else ''}  (overlays: {ov})")
         return 0
     if not args.pack:
         print("error: name a pack or pack folder", file=sys.stderr)

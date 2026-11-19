@@ -4,10 +4,14 @@
 
 | Offer | Scope | Output |
 |---|---|---|
+| **Proof of concept** (3–5 days) | Day-1 workshop; `cases day0` review package; SME sign-off on day 2; `--profile quickstart` (3–5 core checks, one judge, one repeat) on the customer's system | a scorecard marked *directional*: worth pursuing or not. Not release evidence |
 | **Eval sprint** (about 2 weeks) | workshop with SMEs to define "good"; build a 100–300 case golden set (tokenised or synthetic); baseline the current system on whatever cloud it runs on; compare 2–3 models across providers; readout | exec scorecard, engineer report, gates in the customer's repo |
 | **Prompt and release governance** | move prompts into the repo, set up `prompts.lock` stages and gated promotion, wire the GitHub Action / CodeBuild / Cloud Build | every prompt or model change measured before it ships |
 | **Production quality monitoring** | connect AgentCore / CloudWatch or Cloud Trace / BigQuery sources in the customer's account, schedule online evals, publish quality metrics and alarms | quality next to latency on the same dashboards |
 | **Managed eval ops** | monthly review, golden-set refresh from production failures (`cases harvest` → SME review → `cases promote`), judge recalibration and judge-ladder checks, model-upgrade regression runs | a running quality programme |
+
+Statement of work: [SOW template](sow-template.md) (the Day-1 workshop and the SME-reviewed cases are deliverables in
+both shapes). Customer already on Promptfoo: [layer on top, don't replace](promptfoo-migration.md).
 
 ## Sprint plan
 

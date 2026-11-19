@@ -49,8 +49,50 @@ def common_dir() -> Path:
     return packs_root() / "_common"
 
 
-def available() -> list[str]:
+def builtin() -> list[str]:
     return sorted(p.name for p in packs_root().iterdir() if p.is_dir() and not p.name.startswith("_") and (p / "pack.yaml").exists())
+
+
+def _entry_dirs(group: str, marker: str) -> dict[str, Path]:
+    """Folders registered by installed partner packages. In the partner's pyproject.toml:
+
+        [project.entry-points."genai_evals.packs"]
+        banking-kyc = "acme_evals.banking_kyc"            # a package whose folder holds pack.yaml
+        [project.entry-points."genai_evals.overlays"]
+        sap-order-tools = "acme_evals:sap_order_tools"    # module:subfolder holding overlay.yaml
+
+    Built-in names can't be shadowed; an entry that doesn't load, or has no marker file, is skipped with a warning."""
+    import importlib
+    import sys
+    from importlib.metadata import entry_points
+    out: dict[str, Path] = {}
+    for ep in entry_points(group=group):
+        mod, _, sub = ep.value.partition(":")
+        try:
+            m = importlib.import_module(mod.strip())
+            base = Path(m.__file__).parent if m.__file__ else Path(next(iter(m.__path__)))
+            d = base / sub.strip() if sub.strip() else base
+        except Exception as e:  # noqa: BLE001 - a broken partner package must not break the CLI
+            print(f"warning: {group} entry '{ep.name}' failed to load: {e}", file=sys.stderr)
+            continue
+        if not (d / marker).exists():
+            print(f"warning: {group} entry '{ep.name}' -> {d} has no {marker}", file=sys.stderr)
+            continue
+        out[ep.name] = d
+    return out
+
+
+def external_packs() -> dict[str, Path]:
+    return {k: v for k, v in _entry_dirs("genai_evals.packs", "pack.yaml").items() if k not in builtin()}
+
+
+def external_overlays() -> dict[str, Path]:
+    """Overlays from partner packages, by name; each overlay.yaml names the pack it extends (`pack:`)."""
+    return _entry_dirs("genai_evals.overlays", "overlay.yaml")
+
+
+def available() -> list[str]:
+    return sorted(set(builtin()) | set(external_packs()))
 
 
 def resolve(name_or_dir: str | Path) -> Path:
@@ -60,7 +102,20 @@ def resolve(name_or_dir: str | Path) -> Path:
     q = packs_root() / str(name_or_dir)
     if (q / "pack.yaml").exists():
         return q
+    ext = external_packs().get(str(name_or_dir))
+    if ext:
+        return ext
     raise FileNotFoundError(f"no pack '{name_or_dir}' (available: {', '.join(available())})")
+
+
+def overlays_for(m: dict[str, Any], src: Path) -> dict[str, Path]:
+    """Every overlay that can be added to this pack: its own, then partner overlays that declare `pack: <name>`."""
+    out = {o["name"]: src / "overlays" / o["name"] for o in m.get("overlays", [])}
+    for name, d in external_overlays().items():
+        target = (yaml.safe_load((d / "overlay.yaml").read_text(encoding="utf-8")) or {}).get("pack")
+        if target == m["name"] and name not in out:
+            out[name] = d
+    return out
 
 
 def manifest(pack_dir: Path) -> dict[str, Any]:
@@ -107,10 +162,20 @@ def scaffold(pack: str, dest: str | Path, overlays: list[str] | None = None, for
     dest = Path(dest)
     if dest.exists() and any(dest.iterdir()) and not force:
         raise FileExistsError(f"{dest} is not empty (use --force to write into it)")
-    known = {o["name"] for o in m.get("overlays", [])}
+    known = overlays_for(m, src)
+    chosen: dict[str, Path] = {}
     for o in overlays or []:
-        if o not in known:
+        p = Path(o)
+        if (p / "overlay.yaml").exists():          # a folder: a partner's own overlay, not installed
+            spec = yaml.safe_load((p / "overlay.yaml").read_text(encoding="utf-8")) or {}
+            if spec.get("pack") and spec["pack"] != m["name"]:
+                raise ValueError(f"overlay {o} is for pack '{spec['pack']}', not '{m['name']}'")
+            chosen[spec.get("name") or p.name] = p
+        elif o in known:
+            chosen[o] = known[o]
+        else:
             raise ValueError(f"pack '{m['name']}' has no overlay '{o}' (available: {', '.join(sorted(known)) or 'none'})")
+    overlays = list(chosen)
     dest.mkdir(parents=True, exist_ok=True)
     for item in src.iterdir():
         if item.name in ("overlays",) or item.name.startswith("__"):
@@ -120,8 +185,8 @@ def scaffold(pack: str, dest: str | Path, overlays: list[str] | None = None, for
             shutil.copytree(item, target, ignore=_IGNORE, dirs_exist_ok=True)
         else:
             shutil.copy2(item, target)
-    for o in overlays or []:
-        shutil.copytree(src / "overlays" / o, dest / "overlays" / o, ignore=_IGNORE, dirs_exist_ok=True)
+    for o, odir in chosen.items():
+        shutil.copytree(odir, dest / "overlays" / o, ignore=_IGNORE, dirs_exist_ok=True)
     c = common_dir()
     shutil.copy2(c / "providers.live.yaml", dest / "providers.live.yaml")
     shutil.copy2(c / "env.example", dest / ".env.example")
