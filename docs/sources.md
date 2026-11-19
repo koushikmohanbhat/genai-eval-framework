@@ -35,6 +35,31 @@ show, per source, how many sessions were graded out of how many were read, the s
 - **Window effects.** A 24-hour window over-represents the hours with most traffic. Compare like with like (same window
   length and weekday) when you look at trends.
 
+## Preflight: before the first online run
+
+Customers often have CloudWatch or Cloud Trace on without payload logging (prompts and completions), or the eval
+role can't read it. Ask before you schedule anything:
+
+```bash
+genai-evals sources preflight sources.yaml           # read-only API calls; exit 1 if anything isn't ready
+genai-evals doctor --preflight                        # the same, as a doctor check
+```
+
+| Finding | Meaning | Fix |
+|---|---|---|
+| `missing` | logging isn't on (Bedrock invocation logging, Vertex request-response logging), or the log group / table isn't the one in `sources.yaml` | the setting to turn on, or the right name |
+| `off` | spans arrive with no prompt or completion | content capture in the agent, or a payload join |
+| `denied` | the eval identity lacks a permission | the exact permissions ([permissions](permissions.md)) |
+| `unknown` | anything else, shown as is | credentials, region, network |
+
+When the customer can't or won't turn payload logging on, it prints the fallbacks: an OTLP exporter in the app with
+content capture (read with the `otlp` source); evaluating the endpoint instead of its telemetry (`genai-evals
+quickstart --url`, then a pack's HTTP target, with `@agent` / `@tool` so tool calls come back); or the Agents SDK
+trace processor. Turning payload logging on stores prompts and completions: it's the customer's decision, with
+retention and tokenisation downstream.
+
+Checked against fake clients only; the AWS and GCP calls follow their documented APIs.
+
 ## Troubleshooting telemetry joins
 
 Traces (CloudWatch / X-Ray, Cloud Trace) say *that* a model was called; the prompt and completion usually live

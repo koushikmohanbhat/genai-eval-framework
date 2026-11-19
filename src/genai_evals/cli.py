@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -159,6 +160,81 @@ def cmd_online(args) -> int:
     return _finish(result, args)
 
 
+def cmd_quickstart(args) -> int:
+    from . import quickstart as qs
+    t0 = time.time()
+    try:
+        body = json.loads(args.body) if args.body else dict(qs.DEFAULT_BODY)
+    except json.JSONDecodeError as e:
+        print(f"error: --body is not JSON: {e}", file=sys.stderr)
+        return 2
+    headers = {}
+    for h in args.header or []:
+        if "=" not in h:
+            print(f"error: --header {h}: use Header=ENV_VAR (the value is read from that environment variable)", file=sys.stderr)
+            return 2
+        k, v = h.split("=", 1)
+        headers[k.strip()] = v.strip()
+    missing = [e for e in headers.values() if not os.environ.get(e)]
+    if missing:
+        print(f"error: set {', '.join(missing)} in your shell first (header values are never written to files)", file=sys.stderr)
+        return 2
+    print(f"1/4 probing {args.url} ...")
+    try:
+        data, ms = qs.probe(args.url, body, headers)
+        opts, notes = qs.infer_mapping(data)
+    except qs.ProbeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.map_output:
+        opts = {"map": {**opts.get("map", {}), "output": args.map_output}}
+        notes = [n for n in notes if not n.startswith("answer:")] + [f"answer: '{args.map_output}' (from --map-output)"]
+    print(f"    answered in {ms:.0f} ms; reading the response as:")
+    for n in notes:
+        print(f"      - {n}")
+    client = None
+    if args.cases:
+        try:
+            client = qs.read_client_cases(args.cases)
+        except (ValueError, OSError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+    dest = Path(args.out)
+    if dest.exists() and any(dest.iterdir()) and not args.force:
+        print(f"error: {dest} is not empty (use --force or another --out)", file=sys.stderr)
+        return 2
+    qs.build_project(dest, args.url, opts, body, headers, client, args.judge, args.max_latency_ms)
+    print(f"2/4 wrote {dest}/ (suite.yaml, cases.jsonl, .env): "
+          + (f"{len(client)} client question(s) + {len(qs.PROBES)} probes" if client else
+             f"{len(qs.PROBES)} domain-agnostic probes only (add the client's questions with --cases)"))
+    if args.no_run:
+        print(f"3/4 skipped (--no-run). Run it: cd {dest} && genai-evals run suite.yaml --out out/first --allow-missing-baseline")
+        return 0
+    print("3/4 running (directional, warn-only gates) ...")
+    here = os.getcwd()
+    os.environ["SYSTEM_URL"] = args.url
+    try:
+        os.chdir(dest)
+        rc = main(["run", "suite.yaml", "--out", "out/first", "--allow-missing-baseline"])
+    finally:
+        os.chdir(here)
+    res_p = dest / "out" / "first" / "result.json"
+    if res_p.exists():
+        res = json.loads(res_p.read_text(encoding="utf-8"))
+        bad = [g for g in res.get("gates", []) if not g.get("passed")]
+        print("\nFindings (directional): " + ("none of the quickstart checks flagged anything" if not bad else
+              f"{len(bad)} check(s) flagged"))
+        for g in bad:
+            print(f"  - {g['gate']}: {g.get('message') or g.get('rule', '')}")
+    print(f"\n4/4 done in {time.time() - t0:.0f} s. Report: {dest}/out/first/report.html "
+          f"(scorecard: {dest}/out/first/scorecard.html)")
+    print("Next: " + ("" if client else "add the client's questions (--cases questions.csv: input, and optionally "
+                                        "expected, must_contain), then ")
+          + "move to a pack for sign-off: genai-evals init <project> --pack <pack> and set targets/http.yaml to the "
+            "mapping above (docs/quickstart.md).")
+    return rc
+
+
 def cmd_label(args) -> int:
     import webbrowser
 
@@ -190,6 +266,13 @@ def cmd_usage(args) -> int:
     print(f"wrote {out}: {len(doc['runs'])} run(s), no customer data (`genai-evals usage schema` lists every field).")
     print("Nothing was sent anywhere. Read the file before you share it.")
     return 0 if doc["runs"] else 1
+
+
+def cmd_sources_preflight(args) -> int:
+    from .sources.preflight import as_dicts, preflight, render
+    found = preflight(load_sources(args.sources))
+    print(json.dumps(as_dicts(found), indent=1) if args.json else render(found))
+    return 0 if all(f.ok for f in found) else 1
 
 
 def cmd_sources_check(args) -> int:
@@ -1180,18 +1263,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_init)
 
     p = sub.add_parser("pack", help="list eval packs, show one, regenerate its docs, or validate a pack folder")
-    p.add_argument("action", choices=["list", "info", "validate", "docs", "new"])
+    p.add_argument("action", choices=["list", "info", "validate", "docs", "new", "check"])
     p.add_argument("pack", nargs="?", help="pack name or folder (new: the name of your overlay)")
     p.add_argument("--extends", help="new: the pack your overlay adds to, e.g. tool-agent")
     p.add_argument("--package", help="new: Python package name (default genai-evals-<name>)")
     p.add_argument("--out", help="new: folder to write (default: the package name)")
     p.add_argument("--force", action="store_true", help="new: write into a folder that isn't empty")
+    p.add_argument("--available", action="store_true", help="list: also show partner overlays in the index (not installed)")
     p.add_argument("--no-run", action="store_true", help="validate: skip the offline runs")
     p.set_defaults(fn=cmd_pack)
 
     p = sub.add_parser("doctor", help="check a project against the repeatability bar: offline demo, live provider and telemetry, report, gate, handover")
     p.add_argument("directory", nargs="?", default=".")
     p.add_argument("--no-run", action="store_true", help="don't re-run the offline demo")
+    p.add_argument("--preflight", action="store_true",
+                   help="also ask the cloud whether sources.yaml's payload logging is on and readable (read-only API calls)")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_doctor)
 
@@ -1245,6 +1331,19 @@ def build_parser() -> argparse.ArgumentParser:
     outputs(p)
     p.set_defaults(fn=cmd_online)
 
+    p = sub.add_parser("quickstart", help="from nothing to a first, directional evaluation of a deployed HTTP endpoint")
+    p.add_argument("--url", required=True, help="the endpoint to POST to")
+    p.add_argument("--body", help='request body as JSON with {{ input }} for the question (default {"message": "{{ input }}", ...})')
+    p.add_argument("--header", action="append", help="Header=ENV_VAR, e.g. Authorization=SYSTEM_TOKEN (value read from the environment)")
+    p.add_argument("--cases", help="the client's questions: CSV, .xlsx or JSONL with input and optionally expected, must_contain, tags, critical")
+    p.add_argument("--judge", help="a provider profile (in providers.live.yaml) to judge answers against `expected`")
+    p.add_argument("--map-output", help="dotted path of the answer in the response, if the guess is wrong")
+    p.add_argument("--max-latency-ms", type=int, default=8000)
+    p.add_argument("--out", default="quickstart-eval")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--no-run", action="store_true", help="write the project, don't run it")
+    p.set_defaults(fn=cmd_quickstart)
+
     p = sub.add_parser("label", help="a local page for SMEs to work through a label or review sheet (.csv or .xlsx)")
     p.add_argument("sheet", help="from `labels sheet`, `labels queue` or `cases review-sheet`")
     p.add_argument("--port", type=int, default=8765)
@@ -1272,6 +1371,10 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("--trace", help="check that this trace id was matched to its payload record by trace id")
     q.add_argument("--json", action="store_true")
     q.set_defaults(fn=cmd_sources_check)
+    q = ssub.add_parser("preflight", help="before an online run: is payload logging on, readable, with content? (read-only)")
+    q.add_argument("sources")
+    q.add_argument("--json", action="store_true")
+    q.set_defaults(fn=cmd_sources_preflight)
 
     p = sub.add_parser("compare", help="side-by-side comparison of two runs: quality, cost, latency, critical cases, slices")
     p.add_argument("current")
@@ -1591,10 +1694,22 @@ def cmd_pack(args) -> int:
             ov = ", ".join(k + (" [partner]" if v in ext_o.values() else "")
                            for k, v in packs.overlays_for(m, d).items()) or "none"
             print(f"  {n:26s} {m['version']:7s} {m['title']}{' [partner]' if n in ext_p else ''}  (overlays: {ov})")
+        if args.available:
+            installed = set(ext_o)
+            print("\nPartner overlays in the index (docs/contributing-packs.md to add yours):")
+            for e in packs.overlay_index():
+                mark = " [installed]" if e["name"] in installed else ""
+                print(f"  {e['name']:26s} {e['extends']:24s} {e['status']:12s} {e['access']:10s} {e['owner']}{mark}\n"
+                      f"      {e['title']}\n      {e['install']}  ({e['source']})")
         return 0
     if not args.pack:
         print("error: name a pack or pack folder", file=sys.stderr)
         return 2
+    if args.action == "check":
+        checks = packs.check_overlay(args.pack, run=not args.no_run)
+        print(f"overlay {args.pack}: contribution bar (docs/contributing-packs.md)")
+        print(packs.checks_text(checks))
+        return 1 if any(c.ok is False for c in checks) else 0
     if args.action == "new":
         if not args.extends:
             print("error: --extends <pack> is required (genai-evals pack list)", file=sys.stderr)
@@ -1648,7 +1763,7 @@ def cmd_pack(args) -> int:
 
 def cmd_doctor(args) -> int:
     from . import packs
-    checks = packs.doctor(Path(args.directory), run=not args.no_run)
+    checks = packs.doctor(Path(args.directory), run=not args.no_run, preflight=args.preflight)
     if args.json:
         print(json.dumps([c.__dict__ for c in checks], indent=1))
     else:

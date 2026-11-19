@@ -6,3 +6,4 @@
 4. New sources: subclass `Source` with `kind` = spans | records | history | metrics | scores; always support `fixture:`;
    add a recorded fixture and a test; document it in `docs/sources.md` (including the AWS / GCP equivalent).
 5. Keep live API calls behind optional extras and lazy imports.
+6. Domain packs and overlays: [docs/contributing-packs.md](docs/contributing-packs.md) (`pack new`, `pack check`, the index).

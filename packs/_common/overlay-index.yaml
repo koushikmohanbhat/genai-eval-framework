@@ -1,0 +1,20 @@
+# Index of partner overlays and packs: what exists, who owns it, how to get it. Add yours by pull request
+# (docs/contributing-packs.md). Listing is not endorsement: `status` says how far it has been checked.
+#   status: example (in this repo, offline only) | community (passes `genai-evals pack check`) |
+#           field-tested (also run in at least one engagement; the owner says where, without customer names)
+#   access: public (pip install from the URL) | on-request (private package; contact the owner)
+overlays:
+  - name: sap-order-tools
+    extends: tool-agent
+    title: "SAP S/4HANA sales orders: credit memos over the approval limit, ship-to changes after goods issue, sold-to ownership, injection through header texts"
+    verticals: [manufacturing, retail, erp]
+    owner: genai-eval-framework maintainers
+    status: example
+    access: public
+    install: "pip install ./examples/partner-pack-sap"
+    source: https://github.com/koushikmohanbhat/genai-eval-framework/tree/main/examples/partner-pack-sap
+    license: Apache-2.0
+    framework: ">=0.7.1"
+# Wanted (open an issue to claim one): healthcare discharge-summary faithfulness (rag-knowledge-assistant, us_hipaa
+# detectors), retail returns and order changes (tool-agent), BFSI KYC document extraction (structured-extraction),
+# insurance claims FNOL (tool-agent against the connector hub's insurance-core fake), contact-centre QA.

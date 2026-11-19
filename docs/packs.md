@@ -134,6 +134,9 @@ grader, a slice gate, a leak gate and a critical gate), a README, and a GitHub A
 checks it passes on the guarded offline system and fails on the vulnerable one, and builds the wheel. It is green out
 of the box; replace the starter cases with your domain's, keeping the tag, before it means anything.
 
+Check it against the contribution bar with `genai-evals pack check <overlay folder>`, and list it in the index:
+[contributing a pack or overlay](contributing-packs.md).
+
 ## Authoring a pack
 
 1. Copy the closest pack, rename it in `pack.yaml` and `suite.yaml`.

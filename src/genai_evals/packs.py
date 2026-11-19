@@ -386,7 +386,7 @@ def _raw_rows(suite) -> list[dict[str, Any]]:
     return rows
 
 
-def doctor(project: str | Path, run: bool = True) -> list[Check]:
+def doctor(project: str | Path, run: bool = True, preflight: bool = False) -> list[Check]:
     """Check one project against the definition of repeatable: offline demo, one provider and one telemetry source
     connected, an understandable report, a meaningful release gate, and a handover with a maintenance path."""
     from .calibration import untrusted_graders
@@ -429,7 +429,21 @@ def doctor(project: str | Path, run: bool = True) -> list[Check]:
         checks.append(Check("telemetry connected", True, f"{', '.join(srcs)} in {f.relative_to(p)}"))
     else:
         checks.append(Check("telemetry connected", False, "no online run on live telemetry yet (fixture runs don't count)",
-                            "keep your source in sources.yaml, remove `fixture:`, `genai-evals online ... --out out/online`"))
+                            "keep your source in sources.yaml, remove `fixture:`, check it with `genai-evals sources "
+                            "preflight sources.yaml` (is payload logging on and readable?), then `genai-evals online ... "
+                            "--out out/online`"))
+    if preflight and (p / "sources.yaml").exists():
+        from .config import load_sources
+        from .sources.preflight import preflight as _pre
+        found = [f for f in _pre(load_sources(p / "sources.yaml")) if f.status != "skipped"]
+        if not found:
+            checks.append(Check("telemetry readiness", None, "skipped (every source in sources.yaml reads a fixture)"))
+        else:
+            bad = [f for f in found if not f.ok]
+            checks.append(Check("telemetry readiness", not bad,
+                                "; ".join(f"{f.source}: {f.status}: {f.detail}" for f in (bad or found)),
+                                "" if not bad else "; ".join(dict.fromkeys(f.fix for f in bad if f.fix))
+                                + ". If logging can't be turned on: " + "; or ".join(bad[0].fallbacks[:2])))
     # 2b. telemetry joins: do sampled traces actually have their payload records (Bedrock invocation logs, Vertex
     #     request-response logs)? Content capture is often off by default, and a join that falls back to timestamps can
     #     pair the wrong prompt with a trace.
@@ -694,6 +708,9 @@ jobs:
         with: {{python-version: "3.12"}}
       - run: pip install .
       - run: genai-evals pack list | grep -q "{slug} \\[partner\\]"
+      - name: contribution bar (metadata, tags, critical and security cases, no identifiers, guarded / vulnerable)
+        env: {{GENAI_EVALS_TOKEN_KEY: ci-only-not-secret}}
+        run: genai-evals pack check {module}/{folder}
       - name: passes on the guarded offline system
         env: {{GENAI_EVALS_TOKEN_KEY: ci-only-not-secret}}
         run: |
@@ -711,3 +728,110 @@ jobs:
       - run: pip install build && python -m build --wheel
 """, encoding="utf-8")
     return dest
+
+
+# ---- the partner overlay index and the contribution bar ---------------------------------------------------------------
+INDEX_FIELDS = ("name", "extends", "title", "owner", "status", "access", "install", "source", "license")
+INDEX_STATUS = ("example", "community", "field-tested")
+
+
+def overlay_index() -> list[dict[str, Any]]:
+    p = common_dir() / "overlay-index.yaml"
+    return (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("overlays", []) if p.exists() else []
+
+
+def check_index(entries: list[dict[str, Any]] | None = None) -> list[str]:
+    problems, seen = [], set()
+    for e in overlay_index() if entries is None else entries:
+        n = e.get("name", "?")
+        miss = [f for f in INDEX_FIELDS if not e.get(f)]
+        if miss:
+            problems.append(f"{n}: missing {', '.join(miss)}")
+        if e.get("status") and e["status"] not in INDEX_STATUS:
+            problems.append(f"{n}: status must be one of {', '.join(INDEX_STATUS)}")
+        if e.get("extends") and e["extends"] not in builtin():
+            problems.append(f"{n}: extends '{e['extends']}', which is not a built-in pack")
+        if n in seen or n in builtin():
+            problems.append(f"{n}: name already used")
+        seen.add(n)
+    return problems
+
+
+def check_overlay(folder: str | Path, run: bool = True) -> list[Check]:
+    """The contribution bar for a partner overlay: complete metadata, tagged and critical cases, no real-looking
+    identifiers in the cases, a security case, and (run=True) green on the pack's guarded offline system and red on
+    its vulnerable one."""
+    import json as _json
+
+    from .pii import detect
+    d = Path(folder)
+    checks: list[Check] = []
+    spec = yaml.safe_load((d / "overlay.yaml").read_text(encoding="utf-8")) if (d / "overlay.yaml").exists() else None
+    if not spec:
+        return [Check("overlay.yaml", False, f"no overlay.yaml in {d}", "genai-evals pack new <name> --extends <pack>")]
+    name, pack = spec.get("name"), spec.get("pack")
+    meta_ok = bool(name and pack and spec.get("description")) and "TODO" not in str(spec.get("description"))
+    checks.append(Check("metadata", meta_ok, f"{name} for {pack}" if meta_ok else "name, pack and a real description are required",
+                        "" if meta_ok else "fill name, pack: and description in overlay.yaml"))
+    if pack not in available():
+        checks.append(Check("base pack", False, f"pack '{pack}' is not installed or built in", "set pack: to a pack from `genai-evals pack list`"))
+        return checks
+    rows = []
+    for f in spec.get("cases") or []:
+        rows += [_json.loads(x) for x in (d / f).read_text(encoding="utf-8").splitlines() if x.strip()]
+    common = set.intersection(*[set(r.get("tags") or []) for r in rows]) if rows else set()
+    common -= {"typical", "edge", "adversarial", "security"}
+    slice_tags = sorted(common, key=lambda t: (t != name, t))
+    untagged = [r["id"] for r in rows if name not in (r.get("tags") or [])]
+    checks.append(Check("cases tagged", bool(slice_tags),
+                        f"{len(rows)} case(s), all tagged '{slice_tags[0]}'" if slice_tags else
+                        (f"no tag on every case (e.g. missing '{name}' on {', '.join(untagged[:5])})" if rows else "no cases"),
+                        "" if slice_tags else f"tag every case '{name}' so gates can address the slice"))
+    crit = [r for r in rows if r.get("critical")]
+    checks.append(Check("critical cases", bool(crit), f"{len(crit)} critical" if crit else "none marked critical",
+                        "" if crit else "mark the cases that must never fail critical: true"))
+    sec = [r for r in rows if {"adversarial", "prompt_leak", "indirect_injection", "excessive_agency"} & set(r.get("tags") or [])]
+    checks.append(Check("security cases", bool(sec), f"{len(sec)} adversarial / security case(s)" if sec else "none",
+                        "" if sec else "add attacks through the data the system reads (docs/security.md)"))
+    pii = sorted({f.type for r in rows for f in detect(_json.dumps(r, ensure_ascii=False))})
+    checks.append(Check("no real-looking identifiers", not pii,
+                        "no identifiers found in the cases" if not pii else f"identifiers in the cases: {', '.join(pii)}",
+                        "" if not pii else "use synthetic, invalid-checksum values and confirm none is a real person's; "
+                        "never ship customer data in an overlay"))
+    gates = spec.get("gates") or []
+    slice_gate = any(f"tag='{t}'" in g.get("rule", "") or f'tag="{t}"' in g.get("rule", "") for g in gates for t in slice_tags)
+    checks.append(Check("slice gate", slice_gate, "a gate on the overlay's own slice" if slice_gate else
+                        f"no gate on tag='{(slice_tags or [name])[0]}'",
+                        "" if slice_gate else f"add a gate with tag='{(slice_tags or [name])[0]}' and a min_n"))
+    if not run:
+        checks.append(Check("guarded / vulnerable", None, "skipped (--no-run)"))
+        return checks
+    import tempfile
+
+    from .config import load_providers, load_suite
+    from .runner import Runner
+
+    def gates_for(vulnerable: bool) -> dict[str, bool]:
+        with tempfile.TemporaryDirectory() as tmp, offline_env():
+            dest = scaffold(pack, Path(tmp) / "p", overlays=[str(d)])
+            t = dest / "targets" / "offline.yaml"
+            if vulnerable:
+                t.write_text(re.sub(r'callable: "sim_system:([a-z_]+)"}', r'callable: "sim_system:\1", options: {vulnerable: true}}',
+                                    t.read_text(encoding="utf-8")), encoding="utf-8")
+            r = Runner(load_suite(dest / "suite.yaml"), load_providers(dest / "providers.yaml"), use_cache=False).run()
+            own = {g.get("name") for g in gates}
+            return {g["gate"]: g["passed"] for g in r["gates"] if g["gate"] in own}
+    try:
+        good, bad = gates_for(False), gates_for(True)
+    except Exception as e:  # noqa: BLE001
+        checks.append(Check("guarded / vulnerable", False, f"{type(e).__name__}: {e}", "fix the overlay so the suite loads"))
+        return checks
+    g_ok = all(good.values())
+    checks.append(Check("passes on the guarded system", g_ok, "every overlay gate passes" if g_ok else
+                        "failing: " + ", ".join(k for k, v in good.items() if not v),
+                        "" if g_ok else "the cases or gates disagree with the pack's offline system: check the references"))
+    caught = [k for k, v in bad.items() if not v]
+    checks.append(Check("catches the vulnerable system", bool(caught), "fails: " + ", ".join(caught) if caught else
+                        "every overlay gate still passes on the vulnerable system",
+                        "" if caught else "add a case the unguarded system gets wrong (a planted instruction, a prompt leak)"))
+    return checks

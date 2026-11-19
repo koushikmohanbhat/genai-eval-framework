@@ -1,6 +1,6 @@
 ## ❌ genai-evals: `fnol-agent`
 
-Run `run_2a7084c6e1f0` · 16 cases × 1 targets × 3 repeats · baseline `run_8e88a0618b16`
+Run `run_008c126dd226` · 16 cases × 1 targets × 3 repeats · baseline `run_0b5b2a634d47`
 Prompt versions: **fnol-agent**: `claims_agent@1.4.0`
 
 ### Gates

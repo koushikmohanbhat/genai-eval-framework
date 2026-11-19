@@ -597,7 +597,9 @@ JOIN_HINTS = {
 }
 CONTENT_HINT = ("span content capture is off by default (OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true in the "
                 "agent, or AgentCore / ADK content settings); either turn it on or join a payload source "
-                "(aws_bedrock_invocation_logs, gcp_vertex_request_response)")
+                "(aws_bedrock_invocation_logs, gcp_vertex_request_response). If neither is possible, emit OTLP from the "
+                "app with content capture, or evaluate the endpoint instead (`genai-evals quickstart --url`, "
+                "`@agent` wrapper). `genai-evals sources preflight` checks the setup")
 
 
 def diagnose_source(entry: dict[str, Any], min_id_share: float = 0.9, max_time_share: float = 0.1,

@@ -1,4 +1,4 @@
-# Limitations (v0.7.3)
+# Limitations (v0.7.4)
 
 Read this before using the framework in production.
 
@@ -30,6 +30,10 @@ please open an issue with what you find.
   Engine conversations are tested against local fakes; the OpenAI Agents SDK path is written to the SDK's
   `to_input_list()` API and not yet run in CI. A model-played user varies between runs: use repeats, or `user_rules`
   for reproducible conversations.
+- **`sources preflight` is checked against fake clients only**; the Bedrock and Vertex calls follow their documented
+  APIs. **`quickstart` guesses the response shape** from one probe (check what it prints), and without the
+  client's questions measures only domain-agnostic behaviour. **The live walkthrough script** is checked up to its
+  cost estimate, not run against a live service.
 - **The LangGraph and FastAPI examples in `examples/connect-your-agent/` are illustrative**, not run in CI; the
   plain-Python agent and the contract itself are tested. The run's cost estimate (`--dry-run`) is an upper bound from
   rough token counts, not a quote, and `--budget-usd` stops only calls with known prices.

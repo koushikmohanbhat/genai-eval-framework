@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.4 (2026-11-20)
+
+### Golden path to a live endpoint
+- **`genai-evals quickstart --url <endpoint>`**: one probe request, a printed reading of the response (answer,
+  tool calls, state, sources; contract v1 detected), a small project (URL in `.env`, header values never written),
+  and a run with warn-only, directional gates. With `--cases` (CSV / xlsx / JSONL: input, expected, must_contain,
+  tags, critical) it measures the client's questions; without, only domain-agnostic probes (answers, planted
+  instructions, identifiers in answers, latency), and it says so. Clear errors for 401 / 404 / 422 and unreachable
+  endpoints. [docs/quickstart.md](docs/quickstart.md).
+
+### Telemetry in messy environments
+- **`genai-evals sources preflight sources.yaml`** and **`doctor --preflight`**: read-only checks that sort each
+  source and join into ok / missing (logging off, wrong log group or table) / off (spans without content) / denied
+  (the permissions needed) / unknown, with the fix and the fallbacks when payload logging can't be turned on (OTLP
+  with content capture, evaluating the endpoint with `quickstart` / `@agent`, the Agents SDK processor). Bedrock
+  invocation-logging configuration, Vertex request-response tables, AgentCore / Cloud Trace span content.
+- The "no content" hint in `sources check` and online results names the same fallbacks.
+
+### Partner contributions
+- **`genai-evals pack check <overlay>`**: the contribution bar (metadata, a shared slice tag, critical and security
+  cases, no identifiers in the cases, a slice gate, green on the guarded offline system, red on the vulnerable one).
+  `pack new`'s workflow runs it.
+- **Overlay index** (`packs/_common/overlay-index.yaml`, `pack list --available`) with status and access, checked by a
+  test; [docs/contributing-packs.md](docs/contributing-packs.md).
+
+### Live walkthrough
+- `examples/live-walkthrough/walkthrough.sh` and [docs/live-walkthrough.md](docs/live-walkthrough.md): a real model
+  on Bedrock or Vertex, a prompt that drops the refund limit, the gate that blocks it, and a live-tested adapter
+  record; a shot list for a 5-minute recording. Not yet run against a live service.
+
 ## 0.7.3 (2026-11-19)
 
 Packs: each marks a `start_here` grader tier (metadata only; pack versions unchanged).
