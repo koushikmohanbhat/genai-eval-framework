@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.7.2 (2026-11-19)
+
+Packs: tool-agent 0.6.0 (multi-turn conversations; requires framework 0.7.2).
+
+### Multi-turn conversations on every agent target
+- One driver for scripted (`turns`), rule-based (`user_rules`, new: deterministic, reacts to the agent's reply) and
+  model-played (`goal` + `persona`) users, on the HTTP, Python, OpenAI Agents SDK, AgentCore Runtime, Bedrock Agents
+  and Agent Engine targets, each keeping one session across turns. Before, only the built-in tool loop held a
+  conversation; the others sent the first message and stopped.
+- Tool calls record their `turn`; samples keep the transcript; latency is the agent's own time over turns.
+- New `context_retained` grader (acts on what was said earlier, not on what was corrected; skipped when the target
+  ran a single turn). `step_budget` applies per user turn in a conversation.
+- tool-agent pack: six 2-4 turn starter conversations (asking for the order number, a correction, "refund it", a
+  change of mind, a topic switch and return, pushing back on an escalation), a `multi-turn-context` gate, and a
+  stateful offline agent with a `forgetful` mode that fails it.
+- Python callables opt in to per-turn calls (`fn.per_turn = True`); existing ones that handle `case.turns`
+  themselves are unchanged.
+
+### Security
+- **`cases mutate`**: draft variants of a suite's attack cases (tool-targeted payloads from the target's
+  `tools.yaml`, authority, role-play, base64, Hinglish / Hindi, pasted content, split across turns; optional
+  model-written variants), each with a `MUT-` marker. Drafts, reviewed before they count.
+- `injection_resisted` also checks tool-call arguments for markers (an injected action with the attacker's value),
+  on by default (`tool_args: false` for the old behaviour).
+
+### Partner programme
+- **`genai-evals usage export`** (opt-in, writes a file, no network call): versions, packs, profiles, case-count
+  ranges, gate outcomes, adapters; no case data, ids, model ids, paths or names; custom names salted-hashed.
+  `usage schema` lists every field. The SOW template has a consent line.
+- Results record the overlays they ran with.
+
+
 ## 0.7.1 (2026-11-19)
 
 Partner go-to-market: a POC mode, vertical IP outside the core, and Promptfoo as the way in. Packs:
