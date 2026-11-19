@@ -110,13 +110,26 @@ class FinalState(Grader):
 
 @register("step_budget")
 class StepBudget(Grader):
+    """Steps, tool calls and repeated identical calls within budget. In a multi-turn conversation the budget applies to
+    each user turn (looking an order up again in a later turn is not waste); `per: conversation` applies it to the
+    whole conversation."""
+
     async def grade(self, sample: Sample, case: Case) -> Score:
         max_steps = int(self.p.get("max_steps", 10))
         max_calls = self.p.get("max_tool_calls")
-        n_calls = len(_calls(sample))
-        dup = len(_calls(sample)) - len({(c.name, str(sorted(c.args.items()))) for c in _calls(sample)})
-        ok = sample.steps <= max_steps and (max_calls is None or n_calls <= int(max_calls)) and dup <= int(self.p.get("max_duplicate_calls", 1))
-        return self.score(sample, 1.0 if ok else 0.0, details={"steps": sample.steps, "tool_calls": n_calls, "duplicate_calls": dup})
+        max_dup = int(self.p.get("max_duplicate_calls", 1))
+        calls = _calls(sample)
+        turns = int((sample.metadata or {}).get("turns") or 1)
+        per_turn = turns > 1 and self.p.get("per", "turn") == "turn"
+        groups: dict[Any, list] = {}
+        for c in calls:
+            groups.setdefault(getattr(c, "turn", None) if per_turn else 0, []).append(c)
+        worst_dup = max((len(g) - len({(c.name, str(sorted(c.args.items()))) for c in g}) for g in groups.values()), default=0)
+        worst_calls = max((len(g) for g in groups.values()), default=0)
+        steps = sample.steps / turns if per_turn else sample.steps
+        ok = steps <= max_steps and (max_calls is None or worst_calls <= int(max_calls)) and worst_dup <= max_dup
+        return self.score(sample, 1.0 if ok else 0.0, details={"steps": sample.steps, "tool_calls": len(calls),
+                                                               "duplicate_calls": worst_dup, "per_turn": per_turn})
 
 
 @register("handoff_to")
@@ -157,3 +170,31 @@ class NoHandoffLoop(Grader):
         why = "; ".join(([f"returned to an earlier agent: {', '.join(loops)}"] if loops else []) +
                         ([f"{len(hands)} handoffs (max {max_h})"] if too_many else [])) or "no loop"
         return self.score(sample, 1.0 if ok else 0.0, reasoning=why, details={"path": path, "handoffs": len(hands)})
+
+
+@register("context_retained")
+class ContextRetained(Grader):
+    """Multi-turn context: did the agent act on what was said earlier, and not on what was corrected?
+    case.reference.context (or `reference_key`):
+      use:       [{name, args, after_turn?}]  calls that must happen (at or after that turn), e.g. the corrected order
+      never_use: [{name, args}]               calls that must not happen, e.g. the order number the user corrected
+    1 when every `use` call is there and no `never_use` call is; skipped when the target ran a single turn (it
+    doesn't hold conversations, so drift can't be measured)."""
+
+    async def grade(self, sample: Sample, case: Case) -> Score:
+        ref = dig(case.reference, self.p.get("reference_key", "context")) or {}
+        use, never = ref.get("use", []), ref.get("never_use", [])
+        if not use and not never:
+            return self.skip(sample, "no context expectations")
+        if (sample.metadata or {}).get("turns", 1) < 2 and (case.turns or case.goal or case.user_rules):
+            return self.skip(sample, "the target ran a single turn: it doesn't hold multi-turn conversations")
+        actual = _calls(sample)
+        tol = self.p.get("numeric_tolerance", 0)
+
+        def hits(e):
+            return [c for c in actual if c.name == e["name"] and args_match(c.args, e.get("args", {}), tol)
+                    and (getattr(c, "turn", None) or 10**6) >= e.get("after_turn", 0)]
+        missing = [e for e in use if not hits(e)]
+        wrong = [{**e, "turn": getattr(hits(e)[0], "turn", None)} for e in never if hits(e)]
+        return self.score(sample, 1.0 if not missing and not wrong else 0.0,
+                          details={"missing": missing, "acted_on_superseded": wrong, "turns": sample.metadata.get("turns")})

@@ -74,6 +74,8 @@ class RunContext:
     prompts: PromptStore | None = None
     prompt_overrides: dict[str, str] = field(default_factory=dict)   # {"claims_agent": "1.4.0"}
     extra: dict[str, Any] = field(default_factory=dict)
+    #: injected SDK clients by service name ("bedrock-agentcore", "bedrock-agent-runtime", "agent_engine"), for tests
+    clients: dict[str, Any] = field(default_factory=dict)
 
 
 def import_ref(ref: str, base_dir: str | None = None):
@@ -191,6 +193,70 @@ class Target:
 
     async def run(self, case: Case, repeat: int) -> Sample:  # pragma: no cover
         raise NotImplementedError
+
+    # ---- multi-turn conversations ----------------------------------------
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        """One user message of a conversation: send it with conv["session_id"] (and conv["history"]), append what the
+        agent did to `s` (trajectory, usage, cost, final_state), return its reply. Targets that implement this get
+        scripted (`turns`) and simulated (`goal` / `user_rules`) multi-turn cases through run_conversation."""
+        raise NotImplementedError
+
+    def conversational(self, case: Case) -> bool:
+        return bool(case.turns or case.goal or case.user_rules) and type(self).turn is not Target.turn
+
+    def new_session_id(self, case: Case, repeat: int) -> str:
+        import uuid
+        return f"genai-evals-{case.id}-{repeat}-{uuid.uuid4().hex}"[:100]
+
+    async def execute(self, case: Case, repeat: int) -> Sample:
+        if self.conversational(case):
+            return await self.run_conversation(case, repeat)
+        return await self.run(case, repeat)
+
+    async def run_conversation(self, case: Case, repeat: int) -> Sample:
+        """Drive a whole conversation through turn(): scripted turns first, then the simulated user (a model from the
+        suite's `simulator:` profile with the case's goal and persona, or the case's deterministic `user_rules`), up to
+        max_turns (default: the scripted turns, else 6). Every tool call is tagged with the turn it happened in."""
+        import time
+
+        from .simulator import simulator_for
+        s = self.new_sample(case, repeat)
+        conv: dict[str, Any] = {"session_id": self.new_session_id(case, repeat), "history": [], "turn": 1, "data": {}}
+        scripted = list(case.turns or [])
+        sim = simulator_for(self.ctx, case)
+        max_turns = case.max_turns or (len(case.turns) if case.turns and not (case.goal or case.user_rules) else 6)
+        if scripted:
+            msg: str | None = scripted.pop(0)
+        elif case.input is not None and case.input_text():
+            msg = case.input_text()
+        else:
+            msg = await sim.next(case, [], 0) if sim else None
+        reply, lat = "", []
+        while msg:
+            before = len(s.trajectory)
+            t0 = time.perf_counter()
+            reply = await self.turn(case, repeat, msg, conv, s) or ""
+            lat.append((time.perf_counter() - t0) * 1000)
+            for tc in s.trajectory[before:]:
+                tc.turn = conv["turn"]                      # type: ignore[attr-defined]  (ToolCall allows extras)
+            s.messages += [Message(role="user", content=msg), Message(role="assistant", content=reply)]
+            conv["history"] += [{"role": "user", "content": msg}, {"role": "assistant", "content": reply}]
+            nxt = scripted.pop(0) if scripted else (await sim.next(case, s.messages, conv["turn"]) if sim else None)
+            if nxt and conv["turn"] >= max_turns:
+                s.metadata["max_turns_reached"] = True      # the user still had something to say
+                break
+            msg = nxt
+            if msg:
+                conv["turn"] += 1
+        s.output = reply
+        if self.spec.output == "json" and s.output_json is None:
+            s.output_json = parse_json(reply)
+        s.metadata["turns"] = conv["turn"]
+        s.session_id = s.session_id or conv["session_id"]
+        # the agent's own time across turns (simulated-user time excluded); per-turn times for p95-style checks
+        s.latency_ms = s.latency_ms if s.latency_ms is not None else round(sum(lat), 1)
+        s.metadata["turn_latency_ms"] = [round(x, 1) for x in lat]
+        return s
 
 
 def build_target(spec: TargetSpec, ctx: RunContext) -> Target:

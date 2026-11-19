@@ -1,6 +1,6 @@
 # Runbook: Tool-using agent
 
-The path from a clean project to a customer-owned evaluation, for the `tool-agent` pack (0.5.0).
+The path from a clean project to a customer-owned evaluation, for the `tool-agent` pack (0.6.0).
 Each step lists what to run and what "done" looks like. `genai-evals doctor` checks steps 1 and 4 to 9.
 
 ## 1. Run it offline (day 0, 10 minutes)

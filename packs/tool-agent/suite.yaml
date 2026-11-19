@@ -2,7 +2,7 @@
 # Offline it runs a simulated agent (sim_system.py) on mock tools (tools.py): `genai-evals run suite.yaml`.
 # To evaluate your agent, pick a target file and set it in .env (EVAL_TARGETS=targets/<file>.yaml). See README.md.
 name: tool-agent
-pack: tool-agent@0.5.0
+pack: tool-agent@0.6.0
 description: Task success, correct tool use, policy adherence, escalation, reliability across repeats and privacy
 dataset: data/starter.jsonl
 dataset_schema: schema/case.schema.json
@@ -56,6 +56,7 @@ graders:
   - {name: escalated, type: tool_called, tool: escalate_to_human, tags: [escalation]}
   - {name: steps, type: step_budget, max_steps: 6, max_duplicate_calls: 1}
   - {name: no_handoff_loop, type: no_handoff_loop, max_handoffs: 4}           # multi-agent targets; skipped when there are no handoffs
+  - {name: context_retained, type: context_retained}                        # multi-turn: acts on what was said earlier, not on what was corrected
   - name: no_promises
     type: policy
     policy: 'Never promise a delivery date or an outcome the business can''t guarantee, for example "will definitely", "guaranteed" or "by tomorrow".'
@@ -71,6 +72,8 @@ gates:
   - {name: privacy, rule: "mean(no_pii) >= 1.0"}
   - {name: efficient, rule: "mean(steps, split='representative') >= 0.9", severity: warn}
   - {name: latency-budget, rule: "p95(latency_ms) <= 8000", severity: warn}
+  # multi-turn: the agent keeps track of the order being discussed, corrections and changes of mind (context drift)
+  - {name: multi-turn-context, rule: "mean(context_retained) >= 1.0", min_n: 5}
 report:
   title: Support agent quality
   intro: >-

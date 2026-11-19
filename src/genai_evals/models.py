@@ -75,6 +75,9 @@ class Case(BaseModel):
     goal: str | None = None                      # goal card for the user simulator
     persona: str | None = None
     max_turns: int | None = None
+    #: deterministic simulated user (no model): [{when: <regex on the agent's last reply>, say: <next message>}, ...,
+    #: {otherwise: <message or [DONE]>}]; each rule fires once. Used when the suite's simulator is unset or "rules".
+    user_rules: list[dict[str, Any]] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def input_text(self) -> str:

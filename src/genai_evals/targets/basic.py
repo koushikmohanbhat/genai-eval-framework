@@ -102,14 +102,52 @@ def _path(obj: Any, dotted: str | None):
     return cur
 
 
+def merge_turn(s: Sample, t: Sample) -> None:
+    """Add one turn's result to the conversation's sample."""
+    s.trajectory += t.trajectory
+    s.context += t.context
+    s.usage = s.usage.add(t.usage)
+    s.steps += t.steps or 0
+    if t.cost_usd is not None:
+        s.cost_usd = (s.cost_usd or 0) + t.cost_usd
+    if t.final_state:
+        s.final_state = t.final_state
+    s.trace_id = s.trace_id or t.trace_id
+    s.output_json = t.output_json if t.output_json is not None else s.output_json
+    for k, v in (t.metadata or {}).items():
+        s.metadata.setdefault(k, v)
+
+
 class HttpTarget(Target):
-    """POST to a deployed endpoint. options: url, body (Jinja-templated strings), headers_env {Header: ENV}, map {output, context, trajectory, ...}."""
+    """POST to a deployed endpoint. options: url, body (Jinja-templated strings), headers_env {Header: ENV}, map {output, context, trajectory, ...}.
+    Multi-turn cases POST once per user turn; the body can use {{ message }}, {{ session_id }}, {{ turn }} and
+    {{ history }} (default body: {"input": message, "session_id": session_id}). If the response maps a session_id,
+    later turns send that one."""
+
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        o = self.spec.options
+        extra = {"message": message, "session_id": conv["session_id"], "turn": conv["turn"], "history": conv["history"]}
+        default = {"input": "{{ message }}", "session_id": "{{ session_id }}"}
+        t = self.new_sample(case, repeat)
+        data, ms = await self._post(case, repeat, o.get("conversation_body") or o.get("body") or default, extra)
+        apply_mapping(t, data, o.get("map", {"output": "output"}))
+        if t.session_id:
+            conv["session_id"] = t.session_id
+            s.session_id = t.session_id
+        merge_turn(s, t)
+        return t.output or ""
 
     async def run(self, case: Case, repeat: int) -> Sample:
+        s = self.new_sample(case, repeat)
+        data, ms = await self._post(case, repeat, self.spec.options.get("body", {"input": "{{ input }}"}), {})
+        s.latency_ms = ms
+        return apply_mapping(s, data, self.spec.options.get("map", {"output": "output"}))
+
+    async def _post(self, case: Case, repeat: int, body_tpl: Any, extra: dict[str, Any]) -> tuple[Any, float]:
         from jinja2.sandbox import SandboxedEnvironment
         env = SandboxedEnvironment()
         o = self.spec.options
-        vars_ = self.variables(case)
+        vars_ = {**self.variables(case), **extra}
 
         def render(x):
             if isinstance(x, str):
@@ -122,18 +160,16 @@ class HttpTarget(Target):
                 return [render(v) for v in x]
             return x
 
-        body = render(o.get("body", {"input": "{{ input }}"}))
+        body = render(body_tpl)
         headers = {"Content-Type": "application/json", **{h: os.environ.get(e, "") for h, e in o.get("headers_env", {}).items()}}
         req = urllib.request.Request(o["url"], data=json.dumps(body).encode(), headers=headers, method="POST")
-        s = self.new_sample(case, repeat)
         t0 = time.perf_counter()
 
         def _do():
             with urllib.request.urlopen(req, timeout=float(o.get("timeout_s", 120))) as r:  # noqa: S310 - operator-configured URL
                 return json.loads(r.read() or b"{}")
         data = await asyncio.to_thread(_do)
-        s.latency_ms = (time.perf_counter() - t0) * 1000
-        return apply_mapping(s, data, o.get("map", {"output": "output"}))
+        return data, (time.perf_counter() - t0) * 1000
 
 
 def apply_mapping(s: Sample, data: Any, mapping: dict[str, str]) -> Sample:
@@ -156,7 +192,37 @@ def apply_mapping(s: Sample, data: Any, mapping: dict[str, str]) -> Sample:
 
 
 class PythonTarget(Target):
-    """`callable: module:function`, called as fn(case, ctx) (sync or async). Returns str, dict of Sample fields, or a Sample."""
+    """`callable: module:function`, called as fn(case, ctx) (sync or async). Returns str, dict of Sample fields, or a Sample.
+    Multi-turn: a callable that sets `per_turn = True` (fn.per_turn = True, or options: {per_turn: true}) is called
+    once per user turn with the turn's message as case.input and ctx["session"] (a dict kept for the conversation),
+    ctx["history"], ctx["turn"] and ctx["session_id"], and returns that turn's reply and tool calls. Otherwise it is
+    called once with the whole case and handles case.turns itself, as before."""
+
+    def conversational(self, case: Case) -> bool:
+        if not super().conversational(case):
+            return False
+        fn = import_ref(self.spec.callable, self.ctx.suite.base_dir)
+        return bool(self.spec.options.get("per_turn", getattr(fn, "per_turn", False)))
+
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        fn = import_ref(self.spec.callable, self.ctx.suite.base_dir)
+        c = case.model_copy(update={"input": message, "turns": None, "goal": None, "user_rules": None})
+        res = await maybe_await(fn(c, {"repeat": repeat, "target": self.name, "options": self.spec.options, "run": self.ctx,
+                                       "prompt": self.prompt, "trial": current_trial(), "session": conv["data"],
+                                       "history": conv["history"], "turn": conv["turn"], "session_id": conv["session_id"]}))
+        if isinstance(res, str):
+            return res
+        if isinstance(res, Sample):
+            t = res
+        else:
+            data = {k: v for k, v in dict(res or {}).items() if k not in ("latency_ms", "case_id", "target", "repeat")}
+            if "output" in data and not isinstance(data["output"], str) and data["output"] is not None:
+                data.setdefault("output_json", data["output"])
+                data["output"] = json.dumps(data["output"])
+            t = Sample(case_id=case.id, target=self.name, repeat=repeat, **data)
+        merge_turn(s, t)
+        out = t.output
+        return out if isinstance(out, str) or out is None else json.dumps(out)
 
     async def run(self, case: Case, repeat: int) -> Sample:
         fn = import_ref(self.spec.callable, self.ctx.suite.base_dir)

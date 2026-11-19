@@ -102,7 +102,7 @@ class Runner:
                         raise RuntimeError(f"per-trial reset failed: {type(e).__name__}: {e}") from e
                 token = CURRENT_TRIAL.set(trial)
                 try:
-                    s = await t.run(case, repeat)
+                    s = await t.execute(case, repeat)
                 finally:
                     CURRENT_TRIAL.reset(token)
             except Exception as e:  # noqa: BLE001 - a failing system is a result, not a crash
@@ -324,6 +324,8 @@ class Runner:
         if self.suite.pack:
             result["pack"] = self.suite.pack
         result["adapters"] = self.adapter_status()
+        if self.suite.overlays:
+            result["overlays"] = [Path(str(o)).name for o in self.suite.overlays]
         from .health import result_health
         result["health"] = result_health(result, baseline=baseline)
         warns = [f"{g} @ {t}: {d['trial_drift']['warning']}" for t, sm in summary.items()

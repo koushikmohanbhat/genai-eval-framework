@@ -1,6 +1,6 @@
 # Eval pack manifest. `genai-evals pack info tool-agent` shows it with live adapter statuses.
 name: tool-agent
-version: 0.5.0
+version: 0.6.0
 title: Tool-using agent
 workflow: agent
 summary: >-
@@ -8,7 +8,7 @@ summary: >-
   refunds, address changes, escalation). Measures the business outcome, tool choice and arguments, policy edges,
   escalation, reliability across repeats (pass^k), efficiency and privacy.
 contract_version: "1"
-framework: ">=0.7.0"
+framework: ">=0.7.2"
 
 inputs:
   dataset:

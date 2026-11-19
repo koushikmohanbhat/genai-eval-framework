@@ -144,6 +144,21 @@ def cmd_online(args) -> int:
     return _finish(result, args)
 
 
+def cmd_usage(args) -> int:
+    from . import usage
+    if args.usage_cmd == "schema":
+        print(json.dumps(usage.SCHEMA, indent=1))
+        return 0
+    doc, notes = usage.export(args.paths, args.salt or usage.salt_from_env())
+    out = Path(args.out)
+    out.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    for n in notes:
+        print(f"note: {n}")
+    print(f"wrote {out}: {len(doc['runs'])} run(s), no customer data (`genai-evals usage schema` lists every field).")
+    print("Nothing was sent anywhere. Read the file before you share it.")
+    return 0 if doc["runs"] else 1
+
+
 def cmd_sources_check(args) -> int:
     """Read the configured telemetry window without grading and report, per source, how many traces had their payload
     records (prompts and completions) and how they were matched."""
@@ -938,6 +953,28 @@ def cmd_cases(args) -> int:
         print("  next: an SME writes each reference, `genai-evals cases promote ... --into <dataset>`, then copy the "
               "provenance block into suite.yaml")
         return 0
+    if args.action == "mutate":
+        from . import mutate as mu
+        from .providers import ProviderPool
+        suite = load_suite(args.path)
+        if not getattr(args, "pii_set", None):
+            pii.configure(suite.pii)
+        tools = None
+        if args.tools:
+            import yaml
+            tools = (yaml.safe_load(Path(args.tools).read_text(encoding="utf-8")) or {}).get("tools", [])
+        gen = ProviderPool(load_providers(_providers_path(args, args.path))).get(args.generator) if args.generator else None
+        rows, rep_ = mu.mutate(suite, load_cases(suite), tools=tools, strategies=args.strategy, per_case=args.per_case,
+                               tags=args.tag, generator=gen, model_n=args.n,
+                               tokenizer=None if args.no_tokenize else cs.default_tokenizer())
+        out = cs.write_jsonl(rows, args.out or "mutations.jsonl", append=args.append)
+        print(f"wrote {rep_['drafts']} adversarial draft(s) from {rep_['seed_cases']} attack case(s) to {out}")
+        print(f"  tools: {', '.join(rep_['tools']) or 'none found (pass --tools tools.yaml for tool-targeted variants)'}; "
+              f"targeted: {', '.join(rep_['targeted_tools']) or 'none'}")
+        print("  by strategy: " + ", ".join(f"{k} {v}" for k, v in rep_["by_strategy"].items() if v))
+        print("  each variant carries a MUT-xxxxxx marker for injection_resisted. Review them (`cases review-sheet`), "
+              "then `cases promote`. Fixed variants, not adaptive attacks: see docs/security.md")
+        return 0 if rows else 1
     if args.action == "generate":
         if not args.generator:
             raise SystemExit("cases generate needs --generator <provider profile> (use a strong model)")
@@ -1163,6 +1200,16 @@ def build_parser() -> argparse.ArgumentParser:
     outputs(p)
     p.set_defaults(fn=cmd_online)
 
+    p = sub.add_parser("usage", help="anonymised usage summary to share with a partner programme (opt-in, written to a file)")
+    usub = p.add_subparsers(dest="usage_cmd", required=True)
+    q = usub.add_parser("export", help="summarise result files: versions, packs, gate outcomes, adapters; no customer data")
+    q.add_argument("paths", nargs="*", help="result files or folders (default: .genai-evals and out)")
+    q.add_argument("--out", default="usage.json")
+    q.add_argument("--salt", help="salt for hashed names (default GENAI_EVALS_USAGE_SALT; keep it private and stable)")
+    q.set_defaults(fn=cmd_usage)
+    q = usub.add_parser("schema", help="every field the export can contain, and what it never contains")
+    q.set_defaults(fn=cmd_usage)
+
     p = sub.add_parser("sources", help="check telemetry sources without grading")
     ssub = p.add_subparsers(dest="sources_cmd", required=True)
     q = ssub.add_parser("check", help="read the window and report how traces joined to payload records (trace id, session id, timestamp, none)")
@@ -1321,7 +1368,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("cases", help="grow the eval set: coverage by standard tags, generate or harvest drafts, promote reviewed ones")
     p.add_argument("action", choices=["tags", "coverage", "sample", "generate", "harvest", "promote", "check-refs",
-                                      "health", "graduate", "grid", "seed", "review-sheet", "day0"],
+                                      "health", "graduate", "grid", "seed", "review-sheet", "day0", "mutate"],
                    help="tags | coverage <suite.yaml> | sample <online result.json> | generate <suite.yaml> | "
                         "harvest <result.json> | promote <drafts.jsonl> | check-refs <suite.yaml> | health <result.json> | "
                         "graduate <result.json> [--also <result.json>] [--apply --into data.jsonl] | grid <grid.yaml> | "
@@ -1367,6 +1414,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="seed: stratified across folders and file types (default), round-robin per document, or random")
     p.add_argument("--budget-usd", type=float, help="seed: stop before this spend (needs pricing on the generator profile)")
     p.add_argument("--dry-run", action="store_true", help="seed: show the plan and estimated cost, send nothing")
+    p.add_argument("--strategy", action="append", help="mutate: authority, roleplay, base64, hinglish, pasted, split_turns, tool_targeted (default: all)")
+    p.add_argument("--per-case", type=int, default=4, help="mutate: variants per attack case (default 4)")
+    p.add_argument("--tools", help="mutate: tools.yaml to target (default: the targets' prompt tools.yaml)")
     p.add_argument("--from-online", help="day0: an online result over production telemetry; adds tokenised production drafts")
     p.add_argument("--production-n", type=int, default=20, help="day0: production cases to draw from --from-online (default 20)")
     p.add_argument("--out-dir", default="day0", help="day0: folder for the drafts, corpus, review sheet and SME instructions")

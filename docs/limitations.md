@@ -1,4 +1,4 @@
-# Limitations (v0.7.1)
+# Limitations (v0.7.2)
 
 Read this before using the framework in production.
 
@@ -25,6 +25,13 @@ please open an issue with what you find.
   simulators and starter cases show the shape of an evaluation; they say nothing about any real system.
 
 ## Known gaps
+
+- **Multi-turn on managed agents is fixture tested only.** HTTP, Python, AgentCore Runtime, Bedrock Agents and Agent
+  Engine conversations are tested against local fakes; the OpenAI Agents SDK path is written to the SDK's
+  `to_input_list()` API and not yet run in CI. A model-played user varies between runs: use repeats, or `user_rules`
+  for reproducible conversations.
+- **`cases mutate` is not an adaptive attacker.** Its variants are fixed rewrites; use Promptfoo red-team for
+  adaptive probing.
 
 - **Promptfoo engine scope.** `run --engine promptfoo` runs model, prompt and RAG targets only, with the graders
   Promptfoo has (the rest are reported as not run). It is exercised in CI with a real, pinned Promptfoo on the keyless

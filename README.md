@@ -11,7 +11,7 @@ pointed at the customer's system by configuration only, whatever their cloud or 
 dataset schema, graders, failure categories, gates, report template, runbook and handover checklist.
 
 ```bash
-pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.1"
+pip install "genai-eval-framework[openai,aws,gcp,anthropic] @ git+https://github.com/koushikmohanbhat/genai-eval-framework@v0.7.2"
 genai-evals init evals --pack rag-knowledge-assistant     # scaffolds the project and runs it offline: open evals/out/offline/report.html
 genai-evals doctor evals                                  # what's left before the customer can own it
 ```
@@ -155,7 +155,7 @@ production. On top of that:
 | **Portable results** | a versioned result schema (JSON Schema shipped), old results upgraded on read, exports to CSV / JSONL / Promptfoo, stored in a folder, SQLite or any Postgres ([results](docs/results.md)) |
 | **Evals as code** | `suite.yaml` (dataset, targets, graders, gates), reviewed in pull requests |
 | **Any provider, by config** | `providers.yaml` profiles: OpenAI Responses, Anthropic Messages, Bedrock Converse, Vertex Gemini, Claude on Vertex, any OpenAI-compatible gateway. Switching provider means changing a profile name |
-| **System-level targets** | prompt + model, RAG (Bedrock Knowledge Bases, Vertex RAG, any retriever), tool-calling agents (built-in provider-neutral loop, OpenAI Agents SDK, AgentCore Runtime, Bedrock Agents, Vertex Agent Engine), HTTP endpoints, Python callables |
+| **System-level targets** | prompt + model, RAG (Bedrock Knowledge Bases, Vertex RAG, any retriever), tool-calling agents (built-in provider-neutral loop, OpenAI Agents SDK, AgentCore Runtime, Bedrock Agents, Vertex Agent Engine), HTTP endpoints, Python callables; every agent target holds [multi-turn conversations](docs/multi-turn.md) with scripted, rule-based or model-played users, graded for context drift (`context_retained`) |
 | **Native telemetry sources** | AWS: AgentCore Observability spans (`aws/spans`), X-Ray, Bedrock invocation logs, AgentCore Memory, CloudWatch metrics, AgentCore Evaluations results. Google Cloud: Cloud Trace (Telemetry API / OTLP), Cloud Logging, Vertex request-response logs in BigQuery, Agent Engine Sessions, Cloud Monitoring, Gen AI evaluation results. Also OpenAI Agents SDK traces, OpenAI / Anthropic usage APIs, OTLP files, Langfuse |
 | **OpenTelemetry-native** | Every source is normalised to the OTel GenAI semantic conventions. Eval runs are emitted as OTel spans and metrics linked to the original traces |
 | **43 graders** | deterministic (JSON schema, field match with Indian normalisers, regex), trajectory (tool calls, args, order, final state, handoffs, handoff loops, step budget), RAG (recall@k, MRR, nDCG, judge-labelled context precision and recall, claim-level faithfulness, citations, correct refusal), judges (rubric, checklist of atomic pass/fail criteria, reference match, policy, pairwise with position swap and length-bias tracking), ops (latency, cost, tokens), safety (PII leak with Verhoeff-checked Aadhaar, guardrail), security (system prompt leak with canaries, injection resisted), custom (Python, HTTP, AgentCore evaluator, Vertex metric) |
@@ -265,12 +265,12 @@ sources:
 - **See it:** [Sample reports](https://koushikmohanbhat.github.io/genai-eval-framework/demo/) · [5-minute walkthrough](docs/demo-walkthrough.md)
 - **Set up:** [Getting started](docs/getting-started.md) · [Eval packs](docs/packs.md) · [Engagement guide](docs/engagement.md) · [Configuration reference](docs/configuration.md) · [AWS setup](docs/setup-aws.md) · [Google Cloud setup](docs/setup-gcp.md) · [OpenAI and Anthropic setup](docs/setup-openai-anthropic.md) · [Terraform](terraform/README.md) · [Permissions for security review](docs/permissions.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Concepts:** [Architecture](docs/architecture.md) · [Adapters: contracts, plugins, conformance](docs/plugins.md) · [Adapter status](docs/adapters.md) · [Results format](docs/results.md) · [Providers and targets](docs/providers.md) · [Native sources, AWS ↔ GCP parity and OpenTelemetry](docs/sources.md)
-- [Working with Promptfoo](docs/promptfoo.md) · [Promptfoo migration playbook](docs/promptfoo-migration.md) · [SOW template](docs/sow-template.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Agent and safety evals (Anthropic) mapping](docs/agent-evals.md) · [Security guardrails](docs/security.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
+- [Multi-turn conversations](docs/multi-turn.md) · [Usage export (optional)](docs/usage-export.md) · [Working with Promptfoo](docs/promptfoo.md) · [Promptfoo migration playbook](docs/promptfoo-migration.md) · [SOW template](docs/sow-template.md) · [OpenAI best practices mapping](docs/openai-best-practices.md) · [Agent and safety evals (Anthropic) mapping](docs/agent-evals.md) · [Security guardrails](docs/security.md) · [Graders and judges](docs/graders.md) · [Human labels and the judge ladder](docs/human-labels.md) · [Growing the eval set](docs/growing-the-eval-set.md) · [Statistics and gates](docs/gates.md) · [Experiments](docs/experiments.md) · [Prompts as code](docs/prompts.md) · [CI and the GitHub Action](docs/ci.md)
 - [DPDP-safe eval data](docs/dpdp.md) · [Partner packaging](docs/partner-playbook.md) · [Limitations](docs/limitations.md) · [Roadmap](docs/roadmap.md)
 
 ## Project status
 
-v0.7.1. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
+v0.7.2. **No adapter has been live tested against a real cloud account or model API yet.** Built-in adapters top out
 at *fixture tested* (they pass the [conformance kit](docs/plugins.md#conformance) in CI); *live tested* and
 *customer validated* are recorded per project in `validation.yaml`, and every report shows the status of each
 adapter a run used. The full catalog with conformance results is in [adapters](docs/adapters.md). The three packs run

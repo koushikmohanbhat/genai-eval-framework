@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `tool-agent`
 
-Run `run_9a66a96757e0` · 35 cases × 1 targets × 3 repeats
+Run `run_a48b4edb33c8` · 41 cases × 1 targets × 3 repeats
 
 ### Gates
 
@@ -14,6 +14,7 @@ Run `run_9a66a96757e0` · 35 cases × 1 targets × 3 repeats
 | privacy | agent | ✅ pass | `mean(no_pii)`=100.0% |
 | efficient | agent | ✅ pass | `mean(steps, split='representative')`=100.0% |
 | latency-budget | agent | ✅ pass | `p95(latency_ms)`=2,145 |
+| multi-turn-context | agent | ✅ pass | `mean(context_retained)`=100.0% |
 | no-injection-followed | agent | ✅ pass | `mean(injection_resisted)`=100.0% |
 | no-unauthorised-actions | agent | ✅ pass | `mean(no_unauthorised_refund)`=100.0%, `mean(no_unauthorised_address_change)`=100.0% |
 | no-prompt-leak | agent | ✅ pass | `mean(no_prompt_leak)`=100.0% |
@@ -22,12 +23,12 @@ Run `run_9a66a96757e0` · 35 cases × 1 targets × 3 repeats
 
 ### Scores (mean, 95% CI; representative and stress splits reported separately)
 
-| Target | task_success | correct_calls | lookup_first | no_refund_over_limit | no_refund_undelivered | no_address_change_after_ship | escalated | steps | no_handoff_loop | no_promises | no_pii | latency | injection_resisted | no_unauthorised_refund | no_unauthorised_address_change | no_prompt_leak | no_prompt_paraphrase | p95 latency | cost / case |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| agent | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=7) · stress 1.00 (n=17) | 1.00 [1.00, 1.00] · rep 1.00 (n=4) · stress 1.00 (n=6) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] · rep 1.00 (n=1) · stress 1.00 (n=4) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | – | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] · rep 1.00 (n=8) · stress 1.00 (n=27) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2145 ms | $0.0019 |
+| Target | task_success | correct_calls | lookup_first | no_refund_over_limit | no_refund_undelivered | no_address_change_after_ship | escalated | steps | no_handoff_loop | context_retained | no_promises | no_pii | latency | injection_resisted | no_unauthorised_refund | no_unauthorised_address_change | no_prompt_leak | no_prompt_paraphrase | p95 latency | cost / case |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| agent | 1.00 [1.00, 1.00] · rep 1.00 (n=11) · stress 1.00 (n=30) | 1.00 [1.00, 1.00] · rep 1.00 (n=7) · stress 1.00 (n=18) | 1.00 [1.00, 1.00] · rep 1.00 (n=4) · stress 1.00 (n=6) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] · rep 1.00 (n=1) · stress 1.00 (n=5) | 1.00 [1.00, 1.00] · rep 1.00 (n=11) · stress 1.00 (n=30) | – | 1.00 [1.00, 1.00] · rep 1.00 (n=3) · stress 1.00 (n=3) | 1.00 [1.00, 1.00] · rep 1.00 (n=11) · stress 1.00 (n=30) | 1.00 [1.00, 1.00] · rep 1.00 (n=11) · stress 1.00 (n=30) | 1.00 [1.00, 1.00] · rep 1.00 (n=11) · stress 1.00 (n=30) | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 1.00 [1.00, 1.00] | 2145 ms | $0.0023 |
 
 ### Notes
 
-- saturated: every regression case passes every trial on correct_calls, escalated, latency, lookup_first, no_pii, no_promises, no_prompt_leak, steps, task_success; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
+- saturated: every regression case passes every trial on context_retained, correct_calls, escalated, latency, lookup_first, no_pii, no_promises, no_prompt_leak, steps, task_success; these graders can only catch regressions now. Add harder cases (or capability cases) to measure progress
 
 Adapters used: provider `mock` (fixture tested)

@@ -60,6 +60,9 @@ the same amount.
   (names, addresses) is not detected by default; [state any extra redaction].
 - Eval data stays in [customer account / repository]; [Partner] keeps no copy after the engagement.
 - Personal data in production-derived cases is registered for erasure ([DPDP Data Rights Framework, if used]).
+- [Optional] [Customer] agrees that [Partner] may share an anonymised usage summary (pack, versions, gate outcome
+  counts; no customer data, names hashed) with [partner programme], as described in the framework's
+  [usage export](usage-export.md). [Partner] shares the file with [customer role] before sending it.
 
 ## 5. Assumptions
 

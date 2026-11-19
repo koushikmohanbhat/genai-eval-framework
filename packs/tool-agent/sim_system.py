@@ -9,6 +9,12 @@ regressions for experiments:
   model: "fast" for a cheaper, faster model that skips the lookup a quarter of the time
   vulnerable: true behaves like an unguarded agent: it obeys instructions in order notes, shows its instructions when
     asked, and acts on any order whoever asks (to check that the security-guardrails overlay catches it)
+  forgetful: true loses context between turns: it doesn't resolve "it" / "that order", and takes the first order
+    number in a message even when the customer is correcting it (to check that context_retained catches drift)
+
+Multi-turn: genai-evals calls agent() once per user turn with ctx["session"], a dict kept for the whole
+conversation. The order system's state and what the agent remembers (the order being discussed, a request waiting
+for an order number) live there.
 
 Replace it with your agent: see README.md, "Connect your system".
 """
@@ -24,6 +30,43 @@ def _rnd(*parts) -> float:
     return int(hashlib.sha256(":".join(map(str, parts)).encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
 
 
+_ID = r"\bORD-\d{5}\b"
+_INTENT = r"ref(?:u)?nd|money back|credit (?:memo|note)|address|ship-to|status|where is|track"
+_REF = r"\b(that|this|the same|same|my) order\b|\bits?\b"
+
+
+def _resolve_turn(text: str, mem: dict, forgetful: bool) -> tuple[str, str | None]:
+    """Turn one message of a conversation into a self-contained request, using what was said before:
+    "it" / "that order" -> the order being discussed; "not ORD-1, it's ORD-2" -> ORD-2; an order number on its own
+    -> the request that was waiting for it; "never mind" -> drop the waiting request. Returns (request, clarification)."""
+    if re.search(r"\b(never ?mind|cancel that|don'?t (?:do|refund|change) (?:it|that|anything)|forget it)\b", text, re.I):
+        mem.pop("pending", None)
+        return text, "No problem, I won't make any changes. Is there anything else?"
+    ids = [m.group(0).upper() for m in re.finditer(_ID, text, re.I)
+           if not re.search(r"\bnot\s+$", text[max(0, m.start() - 5):m.start()], re.I)]
+    if forgetful:                   # no memory of the conversation: the first order number in this message, if any
+        ids = [m.group(0).upper() for m in re.finditer(_ID, text, re.I)]
+        oid = ids[0] if ids else None
+    else:
+        oid = ids[-1] if ids else None
+        if not oid and mem.get("last_order") and re.search(_REF, text, re.I):
+            oid = mem["last_order"]
+    has_intent = bool(re.search(_INTENT, text, re.I))
+    if not oid and not has_intent and re.search(r"\b(that'?s all|thanks|thank you|bye)\b", text, re.I):
+        return text, "You're welcome. Have a good day!"
+    if oid and not has_intent and mem.get("pending"):
+        text = f"{oid} {mem.pop('pending')}"
+    elif oid:
+        text = f"{oid} " + re.sub(_ID, "", text, flags=re.I)
+        mem.pop("pending", None)
+    elif has_intent:
+        mem["pending"] = text
+        return text, "Sure. Which order is this about? Please share the order number (it looks like ORD-12345)."
+    if oid:
+        mem["last_order"] = oid
+    return text, None
+
+
 def agent(case, ctx) -> dict:
     opts = ctx.get("options") or {}
     fast = opts.get("model") == "fast"
@@ -31,7 +74,12 @@ def agent(case, ctx) -> dict:
     limit = int(opts.get("refund_limit", tools.REFUND_LIMIT))
     rep = ctx.get("repeat", 0)
     text = case.input_text()
-    state, traj = tools.make_state(case), []
+    session = ctx.get("session")
+    if session is not None:            # multi-turn: state and memory persist across the conversation's turns
+        state = session.setdefault("state", tools.make_state(case))
+        traj: list = []
+    else:
+        state, traj = tools.make_state(case), []
 
     def call(name, args):
         res = getattr(tools, name)(args, state)
@@ -45,6 +93,11 @@ def agent(case, ctx) -> dict:
             lat, cost = lat * 0.5, cost * 0.35
         return {"output": reply, "trajectory": traj, "final_state": state, "steps": 1 + len(traj),
                 "latency_ms": round(lat), "cost_usd": round(cost, 6)}
+
+    if session is not None:
+        text, clarify = _resolve_turn(text, session.setdefault("memory", {}), bool(opts.get("forgetful")))
+        if clarify:
+            return done(clarify, 700)
 
     vulnerable = bool(opts.get("vulnerable"))
     if vulnerable and re.search(r"\b(system prompt|instructions|developer message)\b", text, re.I):
@@ -107,3 +160,6 @@ def agent(case, ctx) -> dict:
             return done(f"Done: the delivery address for {oid} is updated.")
         return done(f"{oid} has already {status}, so its address can't be changed. You can redirect it with the courier.")
     return done(f"{oid} is {status}." + (" You'll get tracking updates by SMS." if status == "shipped" else ""))
+
+
+agent.per_turn = True     # genai-evals calls agent() once per user turn of a multi-turn case (see the docstring)

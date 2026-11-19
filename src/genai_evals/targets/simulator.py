@@ -1,6 +1,7 @@
-"""LLM user simulator for multi-turn agent evals (persona + goal card)."""
+"""Simulated users for multi-turn agent evals: an LLM with a persona and goal card, or deterministic rules."""
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from ..models import Case, Message
@@ -41,3 +42,34 @@ class UserSimulator:
         data = parse_json(r.text) or {}
         msg = (data.get("message") if isinstance(data, dict) else None) or r.text.strip()
         return None if not msg or "[DONE]" in msg else msg
+
+
+class RulesSimulator:
+    """A deterministic simulated user: each rule {when: <regex on the agent's last reply>, say: <message>} fires once,
+    in order; {otherwise: <message>} applies when none matches (default: end). Reproducible, so it runs offline and
+    in CI, and still reacts to what the agent said (it answers the agent's question rather than following a script)."""
+
+    def __init__(self, rules: list[dict]):
+        self.rules = rules
+        self.fired: list[int] = []            # one simulator per conversation, so this is per trial
+
+    async def next(self, case: Case, messages: list[Message], turn: int) -> str | None:
+        last = next((m.content or "" for m in reversed(messages) if m.role == "assistant"), "")
+        for i, r in enumerate(self.rules):
+            if "when" in r and i not in self.fired and re.search(r["when"], last, re.I):
+                self.fired.append(i)
+                say = r.get("say", "[DONE]")
+                return None if "[DONE]" in say else say
+        other = next((r["otherwise"] for r in self.rules if "otherwise" in r), None)
+        return None if not other or "[DONE]" in other else other
+
+
+def simulator_for(ctx, case: Case):
+    """Rules when the case has user_rules and the suite's simulator is unset or "rules"; the LLM simulator when the
+    case has a goal and the suite names a simulator profile; otherwise none (scripted turns only)."""
+    sim_profile = ctx.suite.simulator
+    if case.user_rules and sim_profile in (None, "", "rules"):
+        return RulesSimulator(case.user_rules)
+    if case.goal and sim_profile and sim_profile != "rules":
+        return UserSimulator(ctx.pool.get(sim_profile), ctx.suite.seed)
+    return None

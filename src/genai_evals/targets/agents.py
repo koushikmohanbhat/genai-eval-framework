@@ -88,6 +88,22 @@ class ToolLoopAgentTarget(Target):
 class OpenAIAgentsSDKTarget(Target):
     """`callable: module:build_agent` returns an `agents.Agent`. Runs it with `agents.Runner.run` and maps run items to a trajectory."""
 
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        from agents import Runner  # type: ignore
+        d = conv["data"]
+        if "agent" not in d:
+            d["agent"] = await maybe_await(import_ref(self.spec.callable, self.ctx.suite.base_dir)(case, self.spec.options))
+        # the conversation so far (the SDK's own input list, with tool items) plus this turn's message
+        inp = (d["items"] + [{"role": "user", "content": message}]) if d.get("items") else message
+        result = await Runner.run(d["agent"], inp, max_turns=self.spec.max_steps)
+        d["items"] = result.to_input_list()
+        t = self.new_sample(case, repeat)
+        self._read(result, d["agent"], t)
+        from .basic import merge_turn
+        merge_turn(s, t)
+        s.provider, s.model = t.provider, t.model
+        return t.output or ""
+
     async def run(self, case: Case, repeat: int) -> Sample:
         from agents import Runner  # type: ignore
         build = import_ref(self.spec.callable, self.ctx.suite.base_dir)
@@ -97,6 +113,9 @@ class OpenAIAgentsSDKTarget(Target):
         inp: Any = case.input if isinstance(case.input, list) else case.input_text()
         result = await Runner.run(agent, inp, max_turns=self.spec.max_steps)
         s.latency_ms = (time.perf_counter() - t0) * 1000
+        return self._read(result, agent, s)
+
+    def _read(self, result: Any, agent: Any, s: Sample) -> Sample:
         pending: dict[str, ToolCall] = {}
         for item in getattr(result, "new_items", []) or []:
             typ = getattr(item, "type", "")
@@ -148,12 +167,24 @@ class AgentCoreRuntimeTarget(Target):
     The response carries no trajectory; set `enrich_from_spans: true` and run an `aws_agentcore_observability` source
     to attach the tool-call trajectory by session id (see docs/sources.md)."""
 
-    async def run(self, case: Case, repeat: int) -> Sample:
+    def _client(self):
         import boto3
+        return (getattr(self.ctx, "clients", None) or {}).get("bedrock-agentcore") or \
+            boto3.client("bedrock-agentcore", region_name=self.spec.options.get("region"))
+
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        t = await self._invoke(case, repeat, message, conv["session_id"])     # same runtimeSessionId every turn
+        s.trace_id = s.trace_id or t.trace_id
+        s.output_json = t.output_json
+        return t.output or ""
+
+    async def run(self, case: Case, repeat: int) -> Sample:
+        return await self._invoke(case, repeat, case.input_text(), self.new_session_id(case, repeat))
+
+    async def _invoke(self, case: Case, repeat: int, text: str, session: str) -> Sample:
         o = self.spec.options
-        client = boto3.client("bedrock-agentcore", region_name=o.get("region"))
-        session = f"genai-evals-{case.id}-{repeat}-{uuid.uuid4().hex}"[:100]
-        payload = {o.get("payload_key", "prompt"): case.input_text(), **o.get("payload_extra", {})}
+        client = self._client()
+        payload = {o.get("payload_key", "prompt"): text, **o.get("payload_extra", {})}
         kw = {"agentRuntimeArn": o["agent_arn"], "runtimeSessionId": session, "payload": json.dumps(payload).encode()}
         if o.get("qualifier"):
             kw["qualifier"] = o["qualifier"]
@@ -177,17 +208,30 @@ class AgentCoreRuntimeTarget(Target):
 class BedrockAgentTarget(Target):
     """Amazon Bedrock Agents (InvokeAgent with enableTrace) -> output, tool calls, KB lookups, usage."""
 
+    def new_session_id(self, case: Case, repeat: int) -> str:
+        return f"ge-{case.id}-{repeat}-{uuid.uuid4().hex[:8]}"
+
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        t = await self._invoke(case, repeat, message, conv["session_id"])     # Bedrock keeps the session's memory
+        from .basic import merge_turn
+        merge_turn(s, t)
+        return t.output or ""
+
     async def run(self, case: Case, repeat: int) -> Sample:
+        return await self._invoke(case, repeat, case.input_text(), self.new_session_id(case, repeat))
+
+    async def _invoke(self, case: Case, repeat: int, text: str, session: str) -> Sample:
         import boto3
         o = self.spec.options
-        client = boto3.client("bedrock-agent-runtime", region_name=o.get("region"))
+        client = (getattr(self.ctx, "clients", None) or {}).get("bedrock-agent-runtime") or \
+            boto3.client("bedrock-agent-runtime", region_name=o.get("region"))
         s = self.new_sample(case, repeat)
-        s.session_id = f"ge-{case.id}-{repeat}-{uuid.uuid4().hex[:8]}"
+        s.session_id = session
         t0 = time.perf_counter()
 
         def _invoke():
             return client.invoke_agent(agentId=o["agent_id"], agentAliasId=o["agent_alias_id"], sessionId=s.session_id,
-                                       inputText=case.input_text(), enableTrace=True)
+                                       inputText=text, enableTrace=True)
         resp = await asyncio.to_thread(_invoke)
         chunks: list[str] = []
         usage = Usage()
@@ -226,18 +270,39 @@ class BedrockAgentTarget(Target):
 class AgentEngineTarget(Target):
     """Vertex AI Agent Engine (ADK app): stream_query events -> output, function calls and responses."""
 
-    async def run(self, case: Case, repeat: int) -> Sample:
+    def _app(self):
+        if getattr(self.ctx, "clients", None) and "agent_engine" in self.ctx.clients:
+            return self.ctx.clients["agent_engine"]
         import vertexai  # type: ignore
         from vertexai import agent_engines  # type: ignore
         o = self.spec.options
         vertexai.init(project=o.get("project"), location=o.get("location"))
-        app = agent_engines.get(o["resource"])
+        return agent_engines.get(o["resource"])
+
+    async def turn(self, case: Case, repeat: int, message: str, conv: dict[str, Any], s: Sample) -> str:
+        app = conv["data"].get("app") or self._app()
+        conv["data"]["app"] = app
+        user_id = self.spec.options.get("user_id", f"genai-evals-{case.id}")
+        if "ae_session" not in conv["data"]:          # one Agent Engine session for the whole conversation
+            sess = await asyncio.to_thread(app.create_session, user_id=user_id)
+            conv["data"]["ae_session"] = sess.get("id") if isinstance(sess, dict) else getattr(sess, "id", None)
+            s.session_id = conv["data"]["ae_session"]
+        t = await self._query(case, repeat, app, user_id, message, conv["data"]["ae_session"])
+        from .basic import merge_turn
+        merge_turn(s, t)
+        return t.output or ""
+
+    async def run(self, case: Case, repeat: int) -> Sample:
+        o = self.spec.options
+        return await self._query(case, repeat, self._app(), o.get("user_id", f"genai-evals-{case.id}"), case.input_text(), None)
+
+    async def _query(self, case: Case, repeat: int, app: Any, user_id: str, text: str, session_id: str | None) -> Sample:
         s = self.new_sample(case, repeat)
-        user_id = o.get("user_id", f"genai-evals-{case.id}")
         t0 = time.perf_counter()
 
         def _run():
-            return list(app.stream_query(user_id=user_id, message=case.input_text()))
+            kw = {"user_id": user_id, "message": text, **({"session_id": session_id} if session_id else {})}
+            return list(app.stream_query(**kw))
         events = await asyncio.to_thread(_run)
         texts: list[str] = []
         for ev in events:

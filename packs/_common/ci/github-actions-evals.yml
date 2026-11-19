@@ -40,7 +40,7 @@ jobs:
         if: vars.GCP_WIF_PROVIDER != ''
         with: {workload_identity_provider: "${{ vars.GCP_WIF_PROVIDER }}", service_account: "${{ vars.GCP_EVAL_SERVICE_ACCOUNT }}"}
       # Pinned to a release (a full commit SHA is stronger); see https://github.com/koushikmohanbhat/genai-eval-framework/releases
-      - uses: koushikmohanbhat/genai-eval-framework@v0.7.1   # or the release commit SHA
+      - uses: koushikmohanbhat/genai-eval-framework@v0.7.2   # or the release commit SHA
         with:
           suite: evals/suite.yaml
           profile: ${{ github.event_name == 'pull_request' && 'pr-check' || 'release-gate' }}
