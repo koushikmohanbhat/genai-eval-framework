@@ -20,13 +20,15 @@ Every grader accepts `threshold` (pass when value ≥ threshold), `tags` (grade 
 ### Start here
 
 Each pack marks the few graders to read first (`start_here` in `pack.yaml`; `genai-evals pack info <pack>` lists
-them, and the rest as advanced). Start with these, and add an advanced one when a failure you care about is invisible
-to them.
+them, and the rest as advanced; `init` prints them). The `quickstart` profile runs a subset of them, so there is one
+starter list per pack, and a test keeps it that way. Start with these, and add an advanced one when a failure you care
+about is invisible to them. One shared list across packs would not work: `faithfulness` means nothing for extraction,
+`final_state` nothing for RAG.
 
 | Pack | Start here | Advanced |
 |---|---|---|
-| rag-knowledge-assistant | `faithfulness`, `relevance`, `citations`, `refusal`, `recall_at_4`, `no_pii` | `mrr`, `context_precision`, `context_recall`, `safe_content`, `latency` |
-| tool-agent | `task_success`, `correct_calls`, `lookup_first`, `no_refund_over_limit`, `escalated`, `no_pii` | `no_refund_undelivered`, `no_address_change_after_ship`, `steps`, `no_handoff_loop`, `no_promises`, `latency` |
+| rag-knowledge-assistant | `faithfulness`, `relevance`, `citations`, `refusal`, `recall_at_4`, `no_pii`, `latency` | `mrr`, `context_precision`, `context_recall`, `safe_content` |
+| tool-agent | `task_success`, `correct_calls`, `lookup_first`, `no_refund_over_limit`, `escalated`, `no_pii`, `latency` | `no_refund_undelivered`, `no_address_change_after_ship`, `steps`, `no_handoff_loop`, `no_promises` |
 | structured-extraction | `valid_json`, `fields`, `amount_exact`, `latency` | none |
 
 `field_match` normalisers: `text`, `name` (order-insensitive), `date` (many Indian and ISO formats), `amount`

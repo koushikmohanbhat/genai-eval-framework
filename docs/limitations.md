@@ -1,4 +1,4 @@
-# Limitations (v0.7.4)
+# Limitations (v0.7.5)
 
 Read this before using the framework in production.
 

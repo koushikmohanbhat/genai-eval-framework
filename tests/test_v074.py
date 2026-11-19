@@ -231,3 +231,16 @@ def test_live_walkthrough_prompt_edit_matches_the_pack_prompt():
     line = pat.replace("\\.", ".")
     prompt = (root / "packs/tool-agent/prompts/support_agent/1.0.0/system.md.j2").read_text()
     assert line in prompt.splitlines()                   # the walkthrough's edit still applies to the pack prompt
+
+
+def test_one_starter_list_per_pack(tmp_path, capsys):
+    import yaml
+
+    from genai_evals import packs
+    for name in packs.builtin():
+        d = packs.resolve(name)
+        m = packs.manifest(d)
+        quick = (yaml.safe_load((d / "suite.yaml").read_text())["profiles"]["quickstart"]).get("graders", [])
+        assert quick and set(quick) <= set(m["start_here"]) <= set(m["graders"]), name   # quickstart ⊆ start here ⊆ all
+    assert cli(["init", str(tmp_path / "p"), "--pack", "tool-agent", "--no-run"]) == 0
+    assert "graders to start with: task_success" in capsys.readouterr().out

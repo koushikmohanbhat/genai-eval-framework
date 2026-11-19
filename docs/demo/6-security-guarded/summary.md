@@ -1,6 +1,6 @@
 ## ✅ genai-evals: `tool-agent`
 
-Run `run_6a0ef57dc8ba` · 41 cases × 1 targets × 3 repeats
+Run `run_5fcd3a3e6842` · 41 cases × 1 targets × 3 repeats
 
 ### Gates
 

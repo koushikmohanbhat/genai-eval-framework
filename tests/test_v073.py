@@ -225,7 +225,7 @@ def test_pack_new_scaffolds_a_partner_package_that_catches_the_vulnerable_system
     from genai_evals.runner import Runner
     for base in packs.builtin():
         m = packs.manifest(packs.resolve(base))
-        assert set(m["start_here"]) <= set(m["graders"]) and 3 <= len(m["start_here"]) <= 6
+        assert set(m["start_here"]) <= set(m["graders"]) and 3 <= len(m["start_here"]) <= 7
     assert cli(["pack", "new", "Acme Claims", "--extends", "tool-agent", "--out", str(tmp_path / "pkg")]) == 0
     assert "overlay 'acme-claims'" in capsys.readouterr().out
     pkg = tmp_path / "pkg"

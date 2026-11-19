@@ -1662,6 +1662,9 @@ def cmd_init(args) -> int:
     print(f"Created {dest}/ from the {m['name']} pack ({m['version']}): {m['title']}")
     if args.overlay:
         print(f"  overlays: {', '.join(args.overlay)}")
+    if m.get("start_here"):
+        print(f"  graders to start with: {', '.join(m['start_here'])} "
+              f"(the other {len(m['graders']) - len(m['start_here'])} are advanced: genai-evals pack info {m['name']})")
     if not args.no_run:
         res = packs.run_offline(dest, dest / "out")
         r = res["offline"]

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5 (2026-11-20)
+
+One starter grader list per pack, shown where partners start:
+- The README's grader row leads with each pack's start-here graders (4–7), with "43 in total" after them.
+- `genai-evals init` prints the pack's start-here graders and how many are advanced.
+- `latency` joins the RAG and agent start-here lists, so each pack's `quickstart` profile runs a subset of its
+  start-here graders; a test keeps the two lists consistent. Not a shared list across packs: graders are
+  workflow-specific (`faithfulness` means nothing for extraction).
+
 ## 0.7.4 (2026-11-20)
 
 ### Golden path to a live endpoint
