@@ -218,7 +218,6 @@ def test_review_sheet_xlsx_through_the_page(tmp_path):
 def test_pack_new_scaffolds_a_partner_package_that_catches_the_vulnerable_system(tmp_path, capsys):
     import re
 
-    import tomllib
     import yaml
 
     from genai_evals import packs
@@ -230,8 +229,8 @@ def test_pack_new_scaffolds_a_partner_package_that_catches_the_vulnerable_system
     assert cli(["pack", "new", "Acme Claims", "--extends", "tool-agent", "--out", str(tmp_path / "pkg")]) == 0
     assert "overlay 'acme-claims'" in capsys.readouterr().out
     pkg = tmp_path / "pkg"
-    meta = tomllib.loads((pkg / "pyproject.toml").read_text())
-    assert meta["project"]["entry-points"]["genai_evals.overlays"] == {"acme-claims": "genai_evals_acme_claims:acme_claims"}
+    meta = (pkg / "pyproject.toml").read_text()          # tomllib is 3.11+
+    assert '[project.entry-points."genai_evals.overlays"]\nacme-claims = "genai_evals_acme_claims:acme_claims"' in meta
     odir = pkg / "genai_evals_acme_claims" / "acme_claims"
     spec = yaml.safe_load((odir / "overlay.yaml").read_text())
     assert spec["pack"] == "tool-agent" and {g["name"] for g in spec["gates"]} == {"acme-claims-quality", "acme-claims-no-prompt-leak", "acme-claims-critical"}
