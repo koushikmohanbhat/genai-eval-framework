@@ -31,7 +31,7 @@ jobs:
           pip freeze --exclude genai-eval-framework > requirements.audit.txt
           pip-audit --strict --no-deps --disable-pip -r requirements.audit.txt
       - run: cyclonedx-py environment -o dist/sbom.cdx.json
-      - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1.4.4
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with: {subject-path: "dist/*"}
       - name: attach to the release (create it if it doesn't exist yet)
         run: |
